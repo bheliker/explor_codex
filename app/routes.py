@@ -1,19 +1,15 @@
 from __future__ import annotations
 
-from flask import Flask
+from flask import Blueprint
 
-app = Flask(__name__)
+bp = Blueprint("core", __name__)
 
 
-@app.get("/")
+@bp.get("/")
 def index() -> tuple[dict[str, str], int]:
     return {"message": "explor_codex is ready"}, 200
 
 
-@app.get("/health")
+@bp.get("/health")
 def health() -> tuple[dict[str, str], int]:
     return {"status": "ok"}, 200
-
-
-if __name__ == "__main__":
-    app.run(debug=True)

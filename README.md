@@ -1,6 +1,6 @@
 # explor_codex
 
-Plain, non-packaged Flask app template managed with `uv`.
+Plain Flask app template managed with `uv`.
 
 ## Requirements
 
@@ -11,7 +11,7 @@ Plain, non-packaged Flask app template managed with `uv`.
 
 ```bash
 uv sync
-uv run flask --app app run --debug
+uv run flask --app 'app:create_app()' run --debug
 ```
 
 The app exposes:
@@ -24,6 +24,7 @@ The app exposes:
 ```bash
 uv run ruff check .
 uv run pytest
+uv run mypy app tests
 ```
 
 ## Project layout
@@ -31,9 +32,12 @@ uv run pytest
 ```text
 .
 ├── AGENTS.md
-├── app.py
+├── app/
+│   ├── __init__.py
+│   └── routes.py
 ├── pyproject.toml
 ├── tests/
+│   ├── conftest.py
 │   └── test_app.py
 └── README.md
 ```
