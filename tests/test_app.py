@@ -3,7 +3,7 @@ from flask.testing import FlaskClient
 
 from app.config import Config, TestConfig
 from app.extensions import login_manager
-from app.models import EventInvitation, EventInvitationStatus, GroupRole, Membership, User
+from app.models import EventInvitation, EventInvitationStatus, Group, GroupRole, Membership, User
 
 
 def test_index_route(client: FlaskClient) -> None:
@@ -74,3 +74,28 @@ def test_membership_models_persist_relationships(app: Flask, database: None) -> 
         assert membership.user.id == user.id
         assert membership.role.name == "organizer"
         assert invitation.status.name == "attending"
+
+
+def test_group_membership_helpers(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+
+        user = User(username="groupuser", email="groupuser@example.com", password_hash="x")
+        member_role = GroupRole(id=2, name="member")
+        pending_role = GroupRole(id=3, name="pending")
+        group = Group(name="Explor Riders", shortname="explor-riders", invite_only=False)
+
+        db.session.add_all([user, member_role, pending_role, group])
+        db.session.commit()
+
+        membership = Membership(user_id=user.id, role_id=member_role.id)
+        group.members.append(membership)
+        db.session.add(membership)
+        db.session.commit()
+
+        assert group.is_member(user) is True
+
+        group.leave(user)
+        db.session.commit()
+
+        assert group.is_member(user) is False
