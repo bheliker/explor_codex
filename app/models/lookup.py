@@ -16,4 +16,4 @@ class EventInvitationStatus(Base):
     __tablename__ = "event_invitation_status"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    status: Mapped[str] = mapped_column(unique=True)
+    name: Mapped[str] = mapped_column(unique=True)
