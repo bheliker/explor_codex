@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: explor-postgis
+    environment:
+      POSTGRES_DB: explor
+      POSTGRES_USER: explor
+      POSTGRES_PASSWORD: explor
+    ports:
+      - "5432:5432"
+    volumes:
+      - explor_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U explor -d explor"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  explor_postgres_data:
