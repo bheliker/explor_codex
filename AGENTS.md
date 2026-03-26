@@ -2,21 +2,43 @@
 
 This file is the local instruction scratchpad for future Codex work in this repository.
 
-## Purpose
+## Environment
+- Use `uv` for dependency management and command execution.
+- Install dependencies with `uv sync`.
 
-Use this document to capture repo-specific guidance that should supplement the default assistant behavior.
+## Commands
+- Run the app: `uv run flask --app 'app:create_app()' run --debug`
+- Run tests: `uv run pytest`
+- Run lint: `uv run ruff check .`
+- Check formatting: `uv run ruff format --check .`
+- Format code: `uv run ruff format .`
+- Run type checks: `uv run mypy app tests`
 
-## Suggested sections
+## Code Layout
+- Application code lives in `app/`
+- Tests live in `tests/`
+- Templates belong in `templates/`
+- Static assets belong in `static/`
 
-- Project goals
-- Architecture notes
-- Coding conventions
-- Testing expectations
-- Release or deployment rules
-- Things to avoid
+## Expectations
+- Keep changes minimal and targeted.
+- Add or update tests for behavior changes.
+- Run tests, lint, and mypy before finishing substantive changes.
+
+## Commit Workflow
+- After each code change, propose a git commit title and body.
+- Wait for explicit user approval before running `git add` or `git commit`.
+	- If Agents are running independently of the User, create and commit to a branch and only ask permission to merge into main when the feature or task is complete and working on the branch.
+- Only create the commit or merge after the user approves the proposed message.
+
+## Project goals
+- 
+
+## Architecture notes
+
+
 
 ## Working notes
 
-- Add concrete preferences when you have them.
 - Prefer short, specific instructions over long general advice.
 - Update this file as the project evolves.
