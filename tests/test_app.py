@@ -26,13 +26,16 @@ from app.services import (
     add_group_dues,
     add_group_link,
     attach_calendar,
+    attach_segment_to_route,
     create_event,
     create_group,
     create_point_of_interest,
     create_route,
+    create_segment,
     ensure_group_membership,
     list_points_of_interest,
     list_routes,
+    list_segments,
     set_rsvp,
 )
 
@@ -931,4 +934,144 @@ def test_api_route_endpoints(app: Flask, client: FlaskClient, database: None) ->
                 "map_thumbnail": "https://example.com/maps/marin.png",
             }
         ]
+    }
+
+
+def test_segment_services_create_and_attach_to_route(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        creator = User(
+            username="segment-route-creator",
+            email="segment-route-creator@example.com",
+            password_hash="x",
+        )
+        db.session.add(creator)
+        db.session.commit()
+
+        route = create_route(creator=creator, name="Connector Route")
+        segment = create_segment(
+            name="Climb Segment",
+            length=4.8,
+            elevation_gain=420.0,
+            segment_type="climb",
+            track_hash="seg-climb-001",
+        )
+        attach_segment_to_route(route, segment)
+
+        segments = list_segments()
+
+        assert len(segments) == 1
+        assert segments[0].id == segment.id
+        assert route.segments[0].id == segment.id
+        assert segment.routes[0].id == route.id
+
+
+def test_api_segment_endpoints(app: Flask, client: FlaskClient, database: None) -> None:
+    create_response = client.post(
+        "/api/segments",
+        json={
+            "name": "Coastal Descent",
+            "desc": "Fast downhill toward the bay",
+            "duration": 720.0,
+            "length": 6.4,
+            "elevation_gain": 40.0,
+            "elevation_loss": 310.0,
+            "elev_high": 280.0,
+            "elev_low": 12.0,
+            "rating": 4.5,
+            "grade": -4.2,
+            "type": "descent",
+            "subtype": "road",
+            "src": "manual",
+            "src_id": "segment-123",
+            "src_url": "https://example.com/segments/123",
+            "start_latitude": 37.9,
+            "start_longitude": -122.6,
+            "end_latitude": 37.84,
+            "end_longitude": -122.5,
+            "track_hash": "segment-123-hash",
+            "track_maxspeed": 18.7,
+        },
+    )
+    assert create_response.status_code == 201
+    assert create_response.get_json() == {
+        "id": create_response.get_json()["id"],
+        "name": "Coastal Descent",
+        "desc": "Fast downhill toward the bay",
+        "duration": 720.0,
+        "length": 6.4,
+        "elevation_gain": 40.0,
+        "elevation_loss": 310.0,
+        "elev_high": 280.0,
+        "elev_low": 12.0,
+        "rating": 4.5,
+        "grade": -4.2,
+        "type": "descent",
+        "subtype": "road",
+        "src": "manual",
+        "src_id": "segment-123",
+        "src_url": "https://example.com/segments/123",
+        "start_latitude": 37.9,
+        "start_longitude": -122.6,
+        "end_latitude": 37.84,
+        "end_longitude": -122.5,
+        "track_hash": "segment-123-hash",
+        "track_maxspeed": 18.7,
+    }
+
+    list_response = client.get("/api/segments")
+    assert list_response.status_code == 200
+    assert list_response.get_json() == {
+        "items": [
+            {
+                "id": create_response.get_json()["id"],
+                "name": "Coastal Descent",
+                "desc": "Fast downhill toward the bay",
+                "duration": 720.0,
+                "length": 6.4,
+                "elevation_gain": 40.0,
+                "elevation_loss": 310.0,
+                "elev_high": 280.0,
+                "elev_low": 12.0,
+                "rating": 4.5,
+                "grade": -4.2,
+                "type": "descent",
+                "subtype": "road",
+                "src": "manual",
+                "src_id": "segment-123",
+                "src_url": "https://example.com/segments/123",
+                "start_latitude": 37.9,
+                "start_longitude": -122.6,
+                "end_latitude": 37.84,
+                "end_longitude": -122.5,
+                "track_hash": "segment-123-hash",
+                "track_maxspeed": 18.7,
+            }
+        ]
+    }
+
+
+def test_api_can_attach_segment_to_route(app: Flask, client: FlaskClient, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        creator = User(
+            username="attach-route-creator",
+            email="attach-route-creator@example.com",
+            password_hash="x",
+        )
+        db.session.add(creator)
+        db.session.commit()
+        route = create_route(creator=creator, name="Attachment Route")
+        segment = create_segment(name="Attachment Segment", track_hash="attach-segment-001")
+        route_id = route.id
+        segment_id = segment.id
+
+    attach_response = client.post(
+        f"/api/routes/{route_id}/segments",
+        json={"segment_id": segment_id},
+    )
+    assert attach_response.status_code == 201
+    assert attach_response.get_json() == {
+        "route_id": route_id,
+        "segment_ids": [segment_id],
     }

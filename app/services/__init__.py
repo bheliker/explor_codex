@@ -9,6 +9,7 @@ from app.services.groups import (
 )
 from app.services.points_of_interest import create_point_of_interest, list_points_of_interest
 from app.services.routes import create_route, list_routes
+from app.services.segments import attach_segment_to_route, create_segment, list_segments
 
 __all__ = [
     "add_event_fee",
@@ -21,6 +22,9 @@ __all__ = [
     "ensure_group_membership",
     "list_points_of_interest",
     "create_route",
+    "create_segment",
     "list_routes",
+    "attach_segment_to_route",
+    "list_segments",
     "set_rsvp",
 ]

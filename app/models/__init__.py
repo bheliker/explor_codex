@@ -17,6 +17,7 @@ from app.models.lookup import (
 from app.models.membership import EventInvitation, Membership, event_attendance
 from app.models.point_of_interest import PointOfInterest
 from app.models.route import Route
+from app.models.segment import Segment, route_segments
 from app.models.user import User
 
 __all__ = [
@@ -34,10 +35,12 @@ __all__ = [
     "Membership",
     "PointOfInterest",
     "Route",
+    "Segment",
     "User",
     "calendar_events",
     "event_attendance",
     "group_membership",
+    "route_segments",
     "missing_event_invitation_status_names",
     "missing_group_role_names",
 ]

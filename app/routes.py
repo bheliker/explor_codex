@@ -18,6 +18,7 @@ from app.models import (
     Membership,
     PointOfInterest,
     Route,
+    Segment,
     User,
 )
 from app.services import (
@@ -25,13 +26,16 @@ from app.services import (
     add_group_dues,
     add_group_link,
     attach_calendar,
+    attach_segment_to_route,
     create_event,
     create_group,
     create_point_of_interest,
     create_route,
+    create_segment,
     ensure_group_membership,
     list_points_of_interest,
     list_routes,
+    list_segments,
     set_rsvp,
 )
 
@@ -235,6 +239,53 @@ def create_route_route() -> tuple[dict[str, object], int]:
     return _route_payload(route), HTTPStatus.CREATED
 
 
+@bp.post("/api/routes/<int:route_id>/segments")
+def attach_segment_to_route_route(route_id: int) -> tuple[dict[str, object], int]:
+    payload = _json_payload()
+    route = _get_or_404(Route, route_id)
+    segment = _get_or_404(Segment, _required_int(payload, "segment_id"))
+    attach_segment_to_route(route, segment)
+    return {
+        "route_id": route.id,
+        "segment_ids": [linked_segment.id for linked_segment in route.segments],
+    }, HTTPStatus.CREATED
+
+
+@bp.get("/api/segments")
+def list_segments_route() -> tuple[dict[str, object], int]:
+    segments = list_segments()
+    return {"items": [_segment_payload(segment) for segment in segments]}, HTTPStatus.OK
+
+
+@bp.post("/api/segments")
+def create_segment_route() -> tuple[dict[str, object], int]:
+    payload = _json_payload()
+    segment = create_segment(
+        name=_required_str(payload, "name"),
+        desc=_optional_str(payload, "desc"),
+        duration=_optional_float(payload, "duration"),
+        length=_optional_float(payload, "length"),
+        elevation_gain=_optional_float(payload, "elevation_gain"),
+        elevation_loss=_optional_float(payload, "elevation_loss"),
+        elev_high=_optional_float(payload, "elev_high"),
+        elev_low=_optional_float(payload, "elev_low"),
+        rating=_optional_float(payload, "rating"),
+        grade=_optional_float(payload, "grade"),
+        segment_type=_optional_str(payload, "type"),
+        subtype=_optional_str(payload, "subtype"),
+        src=_optional_str(payload, "src"),
+        src_id=_optional_str(payload, "src_id"),
+        src_url=_optional_str(payload, "src_url"),
+        start_latitude=_optional_float(payload, "start_latitude"),
+        start_longitude=_optional_float(payload, "start_longitude"),
+        end_latitude=_optional_float(payload, "end_latitude"),
+        end_longitude=_optional_float(payload, "end_longitude"),
+        track_hash=_optional_str(payload, "track_hash"),
+        track_maxspeed=_optional_float(payload, "track_maxspeed"),
+    )
+    return _segment_payload(segment), HTTPStatus.CREATED
+
+
 def _json_payload() -> dict[str, Any]:
     return cast(dict[str, Any], request.get_json(force=True, silent=False))
 
@@ -408,4 +459,31 @@ def _route_payload(route: Route) -> dict[str, object]:
         "country": route.country,
         "address": route.address,
         "map_thumbnail": route.map_thumbnail,
+    }
+
+
+def _segment_payload(segment: Segment) -> dict[str, object]:
+    return {
+        "id": segment.id,
+        "name": segment.name,
+        "desc": segment.desc,
+        "duration": segment.duration,
+        "length": segment.length,
+        "elevation_gain": segment.elevation_gain,
+        "elevation_loss": segment.elevation_loss,
+        "elev_high": segment.elev_high,
+        "elev_low": segment.elev_low,
+        "rating": segment.rating,
+        "grade": segment.grade,
+        "type": segment.type,
+        "subtype": segment.subtype,
+        "src": segment.src,
+        "src_id": segment.src_id,
+        "src_url": segment.src_url,
+        "start_latitude": segment.start_latitude,
+        "start_longitude": segment.start_longitude,
+        "end_latitude": segment.end_latitude,
+        "end_longitude": segment.end_longitude,
+        "track_hash": segment.track_hash,
+        "track_maxspeed": segment.track_maxspeed,
     }
