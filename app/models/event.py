@@ -51,6 +51,7 @@ class Event(Base):
     latlng: Mapped[str | None] = mapped_column(String(256))
 
     calendars = relationship("Calendar", secondary=calendar_events, back_populates="events")
+    fees = relationship("EventFee", back_populates="event")
     participants = relationship(
         "EventInvitation",
         secondary="event_attendance",

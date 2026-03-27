@@ -8,6 +8,7 @@ from app.models import (
     GROUP_ROLE_NAMES,
     Calendar,
     Event,
+    EventFee,
     EventInvitation,
     EventInvitationStatus,
     Group,
@@ -262,6 +263,27 @@ def test_calendar_can_link_events(app: Flask, database: None) -> None:
 
         assert calendar.events[0].name == "Hill Climb"
         assert event.calendars[0].name == "Race Calendar"
+
+
+def test_event_can_own_fee_definitions(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+
+        event = Event(name="Paid Fondo")
+        fee = EventFee(
+            event=event,
+            name="General Admission",
+            description="Standard entry",
+            fee=45.0,
+            duration=1,
+        )
+
+        db.session.add_all([event, fee])
+        db.session.commit()
+
+        assert fee.event is not None
+        assert fee.event.name == "Paid Fondo"
+        assert event.fees[0].fee == 45.0
 
 
 def test_event_can_link_participants(app: Flask, database: None) -> None:
