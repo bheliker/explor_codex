@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.models.activity import Activity
 from app.models.calendar import Calendar
 from app.models.event import Event, calendar_events
 from app.models.event_fee import EventFee
@@ -24,6 +25,7 @@ __all__ = [
     "Calendar",
     "EVENT_INVITATION_STATUS_NAMES",
     "GROUP_ROLE_NAMES",
+    "Activity",
     "Event",
     "EventFee",
     "EventInvitation",

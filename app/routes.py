@@ -8,6 +8,7 @@ from flask import Blueprint, abort, request
 from app.bootstrap import ensure_canonical_lookup_rows
 from app.extensions import db
 from app.models import (
+    Activity,
     Calendar,
     Event,
     EventFee,
@@ -27,12 +28,14 @@ from app.services import (
     add_group_link,
     attach_calendar,
     attach_segment_to_route,
+    create_activity,
     create_event,
     create_group,
     create_point_of_interest,
     create_route,
     create_segment,
     ensure_group_membership,
+    list_activities,
     list_points_of_interest,
     list_routes,
     list_segments,
@@ -286,6 +289,61 @@ def create_segment_route() -> tuple[dict[str, object], int]:
     return _segment_payload(segment), HTTPStatus.CREATED
 
 
+@bp.get("/api/activities")
+def list_activities_route() -> tuple[dict[str, object], int]:
+    athlete = None
+    route = None
+    athlete_id = request.args.get("athlete_id", type=int)
+    route_id = request.args.get("route_id", type=int)
+    if athlete_id is not None:
+        athlete = _get_or_404(User, athlete_id)
+    if route_id is not None:
+        route = _get_or_404(Route, route_id)
+    activities = list_activities(athlete=athlete, route=route)
+    return {"items": [_activity_payload(activity) for activity in activities]}, HTTPStatus.OK
+
+
+@bp.post("/api/activities")
+def create_activity_route() -> tuple[dict[str, object], int]:
+    payload = _json_payload()
+    athlete = (
+        _get_or_404(User, _required_int(payload, "athlete_id"))
+        if payload.get("athlete_id") is not None
+        else None
+    )
+    route = (
+        _get_or_404(Route, _required_int(payload, "route_id"))
+        if payload.get("route_id") is not None
+        else None
+    )
+    activity = create_activity(
+        athlete=athlete,
+        route=route,
+        name=_required_str(payload, "name"),
+        desc=_optional_str(payload, "desc"),
+        private=_optional_nullable_bool(payload, "private"),
+        photo_url=_optional_str(payload, "photo_url"),
+        duration=_optional_float(payload, "duration"),
+        length=_optional_float(payload, "length"),
+        elevation_gain=_optional_float(payload, "elevation_gain"),
+        average_speed=_optional_float(payload, "average_speed"),
+        max_speed=_optional_float(payload, "max_speed"),
+        moving_time=_optional_float(payload, "moving_time"),
+        total_elevation_gain=_optional_float(payload, "total_elevation_gain"),
+        elev_high=_optional_float(payload, "elev_high"),
+        elev_low=_optional_float(payload, "elev_low"),
+        activity_type=_optional_str(payload, "type"),
+        subtype=_optional_str(payload, "subtype"),
+        src=_optional_str(payload, "src"),
+        src_id=_optional_str(payload, "src_id"),
+        start_latitude=_optional_float(payload, "start_latitude"),
+        start_longitude=_optional_float(payload, "start_longitude"),
+        end_latitude=_optional_float(payload, "end_latitude"),
+        end_longitude=_optional_float(payload, "end_longitude"),
+    )
+    return _activity_payload(activity), HTTPStatus.CREATED
+
+
 def _json_payload() -> dict[str, Any]:
     return cast(dict[str, Any], request.get_json(force=True, silent=False))
 
@@ -486,4 +544,33 @@ def _segment_payload(segment: Segment) -> dict[str, object]:
         "end_longitude": segment.end_longitude,
         "track_hash": segment.track_hash,
         "track_maxspeed": segment.track_maxspeed,
+    }
+
+
+def _activity_payload(activity: Activity) -> dict[str, object]:
+    return {
+        "id": activity.id,
+        "athlete_id": activity.athlete_id,
+        "route_id": activity.route_id,
+        "name": activity.name,
+        "desc": activity.desc,
+        "private": activity.private,
+        "photo_url": activity.photo_url,
+        "duration": activity.duration,
+        "length": activity.length,
+        "elevation_gain": activity.elevation_gain,
+        "average_speed": activity.average_speed,
+        "max_speed": activity.max_speed,
+        "moving_time": activity.moving_time,
+        "total_elevation_gain": activity.total_elevation_gain,
+        "elev_high": activity.elev_high,
+        "elev_low": activity.elev_low,
+        "type": activity.type,
+        "subtype": activity.subtype,
+        "src": activity.src,
+        "src_id": activity.src_id,
+        "start_latitude": activity.start_latitude,
+        "start_longitude": activity.start_longitude,
+        "end_latitude": activity.end_latitude,
+        "end_longitude": activity.end_longitude,
     }

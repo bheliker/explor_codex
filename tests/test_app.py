@@ -27,12 +27,14 @@ from app.services import (
     add_group_link,
     attach_calendar,
     attach_segment_to_route,
+    create_activity,
     create_event,
     create_group,
     create_point_of_interest,
     create_route,
     create_segment,
     ensure_group_membership,
+    list_activities,
     list_points_of_interest,
     list_routes,
     list_segments,
@@ -1074,4 +1076,152 @@ def test_api_can_attach_segment_to_route(app: Flask, client: FlaskClient, databa
     assert attach_response.get_json() == {
         "route_id": route_id,
         "segment_ids": [segment_id],
+    }
+
+
+def test_activity_services_create_and_filter(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        athlete = User(
+            username="activity-athlete",
+            email="activity-athlete@example.com",
+            password_hash="x",
+        )
+        other_athlete = User(
+            username="activity-other",
+            email="activity-other@example.com",
+            password_hash="x",
+        )
+        db.session.add_all([athlete, other_athlete])
+        db.session.commit()
+
+        route = create_route(name="Training Route")
+        activity = create_activity(
+            athlete=athlete,
+            route=route,
+            name="Morning Ride",
+            duration=5400.0,
+            length=42.1,
+            average_speed=27.2,
+            activity_type="ride",
+            src="manual",
+            src_id="activity-001",
+        )
+        create_activity(
+            athlete=other_athlete,
+            name="Other Activity",
+            activity_type="ride",
+        )
+
+        athlete_activities = list_activities(athlete=athlete)
+        route_activities = list_activities(route=route)
+
+        assert len(athlete_activities) == 1
+        assert athlete_activities[0].id == activity.id
+        assert len(route_activities) == 1
+        assert route_activities[0].id == activity.id
+        assert route_activities[0].route_id == route.id
+
+
+def test_api_activity_endpoints(app: Flask, client: FlaskClient, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        athlete = User(
+            username="api-activity-athlete",
+            email="api-activity-athlete@example.com",
+            password_hash="x",
+        )
+        db.session.add(athlete)
+        db.session.commit()
+        route = create_route(name="Activity API Route")
+        athlete_id = athlete.id
+        route_id = route.id
+
+    create_response = client.post(
+        "/api/activities",
+        json={
+            "athlete_id": athlete_id,
+            "route_id": route_id,
+            "name": "Lunch Spin",
+            "desc": "Midday training block",
+            "private": False,
+            "photo_url": "https://example.com/activity.png",
+            "duration": 3600.0,
+            "length": 28.3,
+            "elevation_gain": 510.0,
+            "average_speed": 28.3,
+            "max_speed": 52.1,
+            "moving_time": 3400.0,
+            "total_elevation_gain": 510.0,
+            "elev_high": 440.0,
+            "elev_low": 12.0,
+            "type": "ride",
+            "subtype": "road",
+            "src": "manual",
+            "src_id": "activity-123",
+            "start_latitude": 37.78,
+            "start_longitude": -122.42,
+            "end_latitude": 37.78,
+            "end_longitude": -122.42,
+        },
+    )
+    assert create_response.status_code == 201
+    assert create_response.get_json() == {
+        "id": create_response.get_json()["id"],
+        "athlete_id": athlete_id,
+        "route_id": route_id,
+        "name": "Lunch Spin",
+        "desc": "Midday training block",
+        "private": False,
+        "photo_url": "https://example.com/activity.png",
+        "duration": 3600.0,
+        "length": 28.3,
+        "elevation_gain": 510.0,
+        "average_speed": 28.3,
+        "max_speed": 52.1,
+        "moving_time": 3400.0,
+        "total_elevation_gain": 510.0,
+        "elev_high": 440.0,
+        "elev_low": 12.0,
+        "type": "ride",
+        "subtype": "road",
+        "src": "manual",
+        "src_id": "activity-123",
+        "start_latitude": 37.78,
+        "start_longitude": -122.42,
+        "end_latitude": 37.78,
+        "end_longitude": -122.42,
+    }
+
+    list_response = client.get(f"/api/activities?athlete_id={athlete_id}&route_id={route_id}")
+    assert list_response.status_code == 200
+    assert list_response.get_json() == {
+        "items": [
+            {
+                "id": create_response.get_json()["id"],
+                "athlete_id": athlete_id,
+                "route_id": route_id,
+                "name": "Lunch Spin",
+                "desc": "Midday training block",
+                "private": False,
+                "photo_url": "https://example.com/activity.png",
+                "duration": 3600.0,
+                "length": 28.3,
+                "elevation_gain": 510.0,
+                "average_speed": 28.3,
+                "max_speed": 52.1,
+                "moving_time": 3400.0,
+                "total_elevation_gain": 510.0,
+                "elev_high": 440.0,
+                "elev_low": 12.0,
+                "type": "ride",
+                "subtype": "road",
+                "src": "manual",
+                "src_id": "activity-123",
+                "start_latitude": 37.78,
+                "start_longitude": -122.42,
+                "end_latitude": 37.78,
+                "end_longitude": -122.42,
+            }
+        ]
     }
