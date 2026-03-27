@@ -27,6 +27,7 @@ from app.services import (
     add_group_dues,
     add_group_link,
     attach_calendar,
+    attach_route_to_group,
     attach_segment_to_route,
     create_activity,
     create_event,
@@ -113,6 +114,24 @@ def create_group_dues_route(group_id: int) -> tuple[dict[str, object], int]:
     return _group_dues_payload(group, dues), HTTPStatus.CREATED
 
 
+@bp.get("/api/groups/<int:group_id>/routes")
+def list_group_routes_route(group_id: int) -> tuple[dict[str, object], int]:
+    group = _get_or_404(Group, group_id)
+    return {"items": [_route_payload(route) for route in group.routes]}, HTTPStatus.OK
+
+
+@bp.post("/api/groups/<int:group_id>/routes")
+def attach_group_route_route(group_id: int) -> tuple[dict[str, object], int]:
+    payload = _json_payload()
+    group = _get_or_404(Group, group_id)
+    route = _get_or_404(Route, _required_int(payload, "route_id"))
+    attach_route_to_group(group, route)
+    return {
+        "group_id": group.id,
+        "route_ids": [linked_route.id for linked_route in group.routes],
+    }, HTTPStatus.CREATED
+
+
 @bp.post("/api/events")
 def create_event_route() -> tuple[dict[str, object], int]:
     payload = _json_payload()
@@ -124,6 +143,16 @@ def create_event_route() -> tuple[dict[str, object], int]:
     event = create_event(
         name=_required_str(payload, "name"),
         owner=owner,
+        route=(
+            _get_or_404(Route, _required_int(payload, "route_id"))
+            if payload.get("route_id") is not None
+            else None
+        ),
+        activity=(
+            _get_or_404(Activity, _required_int(payload, "activity_id"))
+            if payload.get("activity_id") is not None
+            else None
+        ),
         private=_optional_bool(payload, "private", default=False),
         description=_optional_str(payload, "description"),
         town=_optional_str(payload, "town"),
@@ -454,6 +483,8 @@ def _event_payload(event: Event) -> dict[str, object]:
         "id": event.id,
         "name": event.name,
         "owner_id": event.owner_id,
+        "route_id": event.route_id,
+        "activity_id": event.activity_id,
         "private": event.private,
         "town": event.town,
         "state": event.state,

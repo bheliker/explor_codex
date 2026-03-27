@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
+
+if TYPE_CHECKING:
+    pass
 
 
 class Route(Base):
@@ -39,4 +43,5 @@ class Route(Base):
     address: Mapped[str | None] = mapped_column(String(2048))
 
     creator = relationship("User")
+    groups = relationship("Group", secondary="group_routes", back_populates="routes")
     segments = relationship("Segment", secondary="route_segments", back_populates="routes")

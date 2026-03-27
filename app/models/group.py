@@ -13,6 +13,14 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 
+group_routes = Table(
+    "group_routes",
+    Base.metadata,
+    Column("group", Integer, ForeignKey("group.id"), primary_key=True),
+    Column("route", Integer, ForeignKey("route.id"), primary_key=True),
+)
+
+
 group_membership = Table(
     "group_membership",
     Base.metadata,
@@ -63,6 +71,7 @@ class Group(Base):
     calendars = relationship("Calendar", back_populates="group")
     dues_schedule = relationship("GroupDues", back_populates="group")
     links = relationship("GroupExternalUrl", back_populates="group")
+    routes = relationship("Route", secondary=group_routes, back_populates="groups")
     members = relationship("Membership", secondary=group_membership, backref="groups")
 
     def join(self, user: "User") -> None:

@@ -4,7 +4,7 @@ from app.models.activity import Activity
 from app.models.calendar import Calendar
 from app.models.event import Event, calendar_events
 from app.models.event_fee import EventFee
-from app.models.group import Group, group_membership
+from app.models.group import Group, group_membership, group_routes
 from app.models.group_dues import GroupDues
 from app.models.group_link import GroupExternalUrl
 from app.models.lookup import (
@@ -42,6 +42,7 @@ __all__ = [
     "calendar_events",
     "event_attendance",
     "group_membership",
+    "group_routes",
     "route_segments",
     "missing_event_invitation_status_names",
     "missing_group_role_names",

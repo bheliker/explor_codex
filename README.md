@@ -30,6 +30,7 @@ The app exposes:
 - `/api/groups/<id>/memberships`
 - `/api/groups/<id>/links`
 - `/api/groups/<id>/dues`
+- `/api/groups/<id>/routes`
 - `/api/events`
 - `/api/events/<id>/calendar-links`
 - `/api/events/<id>/rsvps`
@@ -66,8 +67,8 @@ need to reassert them in an app context, use `app.bootstrap.ensure_canonical_loo
 Thin domain services now live in `app/services/` and provide a stable place for group and event
 actions such as membership creation, RSVP updates, fee/link creation, and point-of-interest
 creation. The JSON API routes in `app/routes.py` call into those services rather than embedding
-business logic directly in Flask handlers. Routes, segments, and activities now follow the same
-thin service/API pattern.
+business logic directly in Flask handlers. Routes, segments, activities, and group-route linkage
+now follow the same thin service/API pattern.
 
 ## Project layout
 

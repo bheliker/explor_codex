@@ -5,6 +5,7 @@ from app.services.events import add_event_fee, attach_calendar, create_event, se
 from app.services.groups import (
     add_group_dues,
     add_group_link,
+    attach_route_to_group,
     create_group,
     ensure_group_membership,
 )
@@ -16,6 +17,7 @@ __all__ = [
     "add_event_fee",
     "add_group_dues",
     "add_group_link",
+    "attach_route_to_group",
     "attach_calendar",
     "create_activity",
     "create_point_of_interest",

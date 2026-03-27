@@ -26,6 +26,7 @@ from app.services import (
     add_group_dues,
     add_group_link,
     attach_calendar,
+    attach_route_to_group,
     attach_segment_to_route,
     create_activity,
     create_event,
@@ -268,6 +269,21 @@ def test_group_can_own_dues_schedule(app: Flask, database: None) -> None:
         assert dues.group is not None
         assert dues.group.name == "Dues Club"
         assert group.dues_schedule[0].fee == 99.0
+
+
+def test_group_can_link_routes(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+
+        group = Group(name="Route Club", shortname="route-club")
+        route = create_route(name="Club Route")
+        db.session.add(group)
+        db.session.commit()
+
+        attach_route_to_group(group, route)
+
+        assert group.routes[0].id == route.id
+        assert route.groups[0].id == group.id
 
 
 def test_calendar_can_link_events(app: Flask, database: None) -> None:
@@ -793,6 +809,61 @@ def test_api_event_can_link_route_and_activity(
         "private": False,
         "town": None,
         "state": None,
+    }
+
+
+def test_api_group_can_attach_and_list_routes(
+    app: Flask,
+    client: FlaskClient,
+    database: None,
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        group = Group(name="API Route Group", shortname="api-route-group")
+        route = create_route(name="API Group Route")
+        db.session.add(group)
+        db.session.commit()
+        group_id = group.id
+        route_id = route.id
+
+    attach_response = client.post(
+        f"/api/groups/{group_id}/routes",
+        json={"route_id": route_id},
+    )
+    assert attach_response.status_code == 201
+    assert attach_response.get_json() == {
+        "group_id": group_id,
+        "route_ids": [route_id],
+    }
+
+    list_response = client.get(f"/api/groups/{group_id}/routes")
+    assert list_response.status_code == 200
+    assert list_response.get_json() == {
+        "items": [
+            {
+                "id": route_id,
+                "creator_id": None,
+                "name": "API Group Route",
+                "desc": None,
+                "private": None,
+                "duration": None,
+                "length": None,
+                "elevation_gain": None,
+                "type": None,
+                "subtype": None,
+                "src": None,
+                "src_id": None,
+                "start_latitude": None,
+                "start_longitude": None,
+                "end_latitude": None,
+                "end_longitude": None,
+                "city": None,
+                "state": None,
+                "country": None,
+                "address": None,
+                "map_thumbnail": None,
+            }
+        ]
     }
 
 

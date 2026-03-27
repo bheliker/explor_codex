@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.extensions import db
-from app.models import Group, GroupDues, GroupExternalUrl, Membership, User
+from app.models import Group, GroupDues, GroupExternalUrl, Membership, Route, User
 
 
 def create_group(
@@ -69,6 +69,13 @@ def add_group_dues(
     db.session.add(dues)
     db.session.commit()
     return dues
+
+
+def attach_route_to_group(group: Group, route: Route) -> Group:
+    if route not in group.routes:
+        group.routes.append(route)
+        db.session.commit()
+    return group
 
 
 def _join_group(group: Group, user: User) -> Membership:
