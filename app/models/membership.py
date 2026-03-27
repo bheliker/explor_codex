@@ -2,10 +2,17 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import Column, ForeignKey, Integer, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
+
+event_attendance = Table(
+    "event_attendance",
+    Base.metadata,
+    Column("events", Integer, ForeignKey("event.id"), primary_key=True),
+    Column("attendance", Integer, ForeignKey("event_invitation.id"), primary_key=True),
+)
 
 
 class Membership(Base):
@@ -35,5 +42,6 @@ class EventInvitation(Base):
     fee_paid_date: Mapped[datetime | None]
     waiver_date: Mapped[datetime | None]
 
+    events = relationship("Event", secondary=event_attendance, back_populates="participants")
     user = relationship("User")
     status = relationship("EventInvitationStatus")

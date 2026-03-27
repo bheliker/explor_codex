@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
+
+if TYPE_CHECKING:
+    from app.models.membership import EventInvitation
+    from app.models.user import User
 
 calendar_events = Table(
     "calendar_events",
@@ -46,3 +51,17 @@ class Event(Base):
     latlng: Mapped[str | None] = mapped_column(String(256))
 
     calendars = relationship("Calendar", secondary=calendar_events, back_populates="events")
+    participants = relationship(
+        "EventInvitation",
+        secondary="event_attendance",
+        back_populates="events",
+    )
+
+    def get_participation(self, user: User) -> EventInvitation | None:
+        return next(
+            (participant for participant in self.participants if participant.user_id == user.id),
+            None,
+        )
+
+    def has_participant(self, user: User) -> bool:
+        return self.get_participation(user) is not None

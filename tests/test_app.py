@@ -138,3 +138,22 @@ def test_calendar_can_link_events(app: Flask, database: None) -> None:
 
         assert calendar.events[0].name == "Hill Climb"
         assert event.calendars[0].name == "Race Calendar"
+
+
+def test_event_can_link_participants(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+
+        user = User(username="attendee", email="attendee@example.com", password_hash="x")
+        status = EventInvitationStatus(name="attending")
+        invitation = EventInvitation(user=user, status=status)
+        event = Event(name="Spring Classic")
+
+        event.participants.append(invitation)
+        db.session.add_all([user, status, invitation, event])
+        db.session.commit()
+
+        assert event.has_participant(user) is True
+        participation = event.get_participation(user)
+        assert participation is not None
+        assert participation.status.name == "attending"
