@@ -81,3 +81,15 @@ class Event(Base):
         else:
             participation.status = status
         return participation
+
+    def invite(self, user: User) -> EventInvitation:
+        return self.ensure_participation(user, status_name="invited")
+
+    def mark_interested(self, user: User) -> EventInvitation:
+        return self.ensure_participation(user, status_name="interested")
+
+    def mark_attending(self, user: User) -> EventInvitation:
+        return self.ensure_participation(user, status_name="attending")
+
+    def mark_not_attending(self, user: User) -> EventInvitation:
+        return self.ensure_participation(user, status_name="not_attending")

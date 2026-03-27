@@ -369,3 +369,35 @@ def test_event_ensure_participation_rejects_unknown_status(app: Flask, database:
             assert "Unknown event invitation status" in str(exc)
         else:
             raise AssertionError("expected ValueError for unknown status")
+
+
+def test_event_rsvp_helpers_use_canonical_status_names(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+
+        statuses = [
+            EventInvitationStatus(name="invited"),
+            EventInvitationStatus(name="interested"),
+            EventInvitationStatus(name="attending"),
+            EventInvitationStatus(name="not_attending"),
+        ]
+        user = User(username="rsvp-helpers", email="rsvp-helpers@example.com", password_hash="x")
+        event = Event(name="Summer Rally")
+        db.session.add_all([*statuses, user, event])
+        db.session.commit()
+
+        invitation = event.invite(user)
+        db.session.commit()
+        assert invitation.status.name == "invited"
+
+        invitation = event.mark_interested(user)
+        db.session.commit()
+        assert invitation.status.name == "interested"
+
+        invitation = event.mark_attending(user)
+        db.session.commit()
+        assert invitation.status.name == "attending"
+
+        invitation = event.mark_not_attending(user)
+        db.session.commit()
+        assert invitation.status.name == "not_attending"
