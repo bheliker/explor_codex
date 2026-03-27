@@ -13,6 +13,9 @@ This file is the local instruction scratchpad for future Codex work in this repo
 - Check formatting: `uv run ruff format --check .`
 - Format code: `uv run ruff format .`
 - Run type checks: `uv run mypy app tests`
+- Migrate the DB: `sqlite+pysqlite:////tmp/*.db`
+	- `uv run flask --app 'app:create_app()' db upgrade`
+	- `DATABASE_URL=sqlite+pysqlite:////tmp/explor_calendar_verify.db uv run flask --app 'app:create_app()' db upgrade`
 
 ## Code Layout
 - Application code lives in `app/`
