@@ -12,6 +12,11 @@ EVENT_INVITATION_STATUS_NAMES = (
     "interested",
     "not_attending",
 )
+GROUP_ROLE_NAMES = (
+    "admin",
+    "member",
+    "pending",
+)
 
 
 class GroupRole(Base):
@@ -19,6 +24,10 @@ class GroupRole(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(unique=True)
+
+    @classmethod
+    def by_name(cls, name: str) -> "GroupRole | None":
+        return db.session.query(cls).filter_by(name=name).one_or_none()
 
 
 class EventInvitationStatus(Base):
@@ -35,3 +44,8 @@ class EventInvitationStatus(Base):
 def missing_event_invitation_status_names(existing_names: Iterable[str]) -> list[str]:
     known = set(existing_names)
     return [name for name in EVENT_INVITATION_STATUS_NAMES if name not in known]
+
+
+def missing_group_role_names(existing_names: Iterable[str]) -> list[str]:
+    known = set(existing_names)
+    return [name for name in GROUP_ROLE_NAMES if name not in known]

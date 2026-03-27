@@ -65,3 +65,19 @@ class Event(Base):
 
     def has_participant(self, user: User) -> bool:
         return self.get_participation(user) is not None
+
+    def ensure_participation(self, user: User, *, status_name: str) -> EventInvitation:
+        from app.models.lookup import EventInvitationStatus
+        from app.models.membership import EventInvitation
+
+        status = EventInvitationStatus.by_name(status_name)
+        if status is None:
+            raise ValueError(f"Unknown event invitation status: {status_name}")
+
+        participation = self.get_participation(user)
+        if participation is None:
+            participation = EventInvitation(user=user, status=status)
+            self.participants.append(participation)
+        else:
+            participation.status = status
+        return participation

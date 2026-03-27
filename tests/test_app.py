@@ -5,6 +5,7 @@ from app.config import Config, TestConfig
 from app.extensions import login_manager
 from app.models import (
     EVENT_INVITATION_STATUS_NAMES,
+    GROUP_ROLE_NAMES,
     Calendar,
     Event,
     EventInvitation,
@@ -14,6 +15,7 @@ from app.models import (
     Membership,
     User,
     missing_event_invitation_status_names,
+    missing_group_role_names,
 )
 
 
@@ -72,7 +74,7 @@ def test_membership_models_persist_relationships(app: Flask, database: None) -> 
         db = app.extensions["sqlalchemy"]
 
         user = User(username="member", email="member@example.com", password_hash="x")
-        role = GroupRole(name="organizer")
+        role = GroupRole(name="admin")
         status = EventInvitationStatus(name="attending")
         db.session.add_all([user, role, status])
         db.session.commit()
@@ -83,7 +85,7 @@ def test_membership_models_persist_relationships(app: Flask, database: None) -> 
         db.session.commit()
 
         assert membership.user.id == user.id
-        assert membership.role.name == "organizer"
+        assert membership.role.name == "admin"
         assert invitation.status.name == "attending"
 
 
@@ -92,8 +94,8 @@ def test_group_membership_helpers(app: Flask, database: None) -> None:
         db = app.extensions["sqlalchemy"]
 
         user = User(username="groupuser", email="groupuser@example.com", password_hash="x")
-        member_role = GroupRole(id=2, name="member")
-        pending_role = GroupRole(id=3, name="pending")
+        member_role = GroupRole(name="member")
+        pending_role = GroupRole(name="pending")
         group = Group(name="Explor Riders", shortname="explor-riders", invite_only=False)
 
         db.session.add_all([user, member_role, pending_role, group])
@@ -110,6 +112,32 @@ def test_group_membership_helpers(app: Flask, database: None) -> None:
         db.session.commit()
 
         assert group.is_member(user) is False
+
+
+def test_group_join_uses_role_names(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+
+        user = User(username="joiner", email="joiner@example.com", password_hash="x")
+        member_role = GroupRole(name="member")
+        pending_role = GroupRole(name="pending")
+        public_group = Group(name="Open Group", shortname="open-group", invite_only=False)
+        private_group = Group(name="Private Group", shortname="private-group", invite_only=True)
+
+        db.session.add_all([user, member_role, pending_role, public_group, private_group])
+        db.session.commit()
+
+        public_group.join(user)
+        private_group.join(user)
+        db.session.commit()
+
+        public_participation = public_group.get_membership(user)
+        private_participation = private_group.get_membership(user)
+
+        assert public_participation is not None
+        assert private_participation is not None
+        assert public_participation.role.name == "member"
+        assert private_participation.role.name == "pending"
 
 
 def test_group_can_own_calendars(app: Flask, database: None) -> None:
@@ -170,9 +198,18 @@ def test_event_invitation_status_constants_are_complete() -> None:
     )
 
 
+def test_group_role_constants_are_complete() -> None:
+    assert GROUP_ROLE_NAMES == ("admin", "member", "pending")
+
+
 def test_missing_event_invitation_status_names() -> None:
     missing = missing_event_invitation_status_names(["invited", "attending"])
     assert missing == ["interested", "not_attending"]
+
+
+def test_missing_group_role_names() -> None:
+    missing = missing_group_role_names(["admin"])
+    assert missing == ["member", "pending"]
 
 
 def test_event_invitation_status_lookup_by_name(app: Flask, database: None) -> None:
@@ -185,3 +222,56 @@ def test_event_invitation_status_lookup_by_name(app: Flask, database: None) -> N
         found = EventInvitationStatus.by_name("interested")
         assert found is not None
         assert found.id == status.id
+
+
+def test_group_role_lookup_by_name(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        role = GroupRole(name="member")
+        db.session.add(role)
+        db.session.commit()
+
+        found = GroupRole.by_name("member")
+        assert found is not None
+        assert found.id == role.id
+
+
+def test_event_ensure_participation_by_status_name(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+
+        invited = EventInvitationStatus(name="invited")
+        attending = EventInvitationStatus(name="attending")
+        user = User(username="rsvp", email="rsvp@example.com", password_hash="x")
+        event = Event(name="Town Ride")
+        db.session.add_all([invited, attending, user, event])
+        db.session.commit()
+
+        created = event.ensure_participation(user, status_name="invited")
+        db.session.add(created)
+        db.session.commit()
+
+        assert created.status.name == "invited"
+        assert event.get_participation(user) is not None
+
+        updated = event.ensure_participation(user, status_name="attending")
+        db.session.commit()
+
+        assert updated.id == created.id
+        assert updated.status.name == "attending"
+
+
+def test_event_ensure_participation_rejects_unknown_status(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        user = User(username="oops", email="oops@example.com", password_hash="x")
+        event = Event(name="Mystery Ride")
+        db.session.add_all([user, event])
+        db.session.commit()
+
+        try:
+            event.ensure_participation(user, status_name="maybe")
+        except ValueError as exc:
+            assert "Unknown event invitation status" in str(exc)
+        else:
+            raise AssertionError("expected ValueError for unknown status")

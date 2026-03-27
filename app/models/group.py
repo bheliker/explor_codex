@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.extensions import Base
 
 if TYPE_CHECKING:
+    from app.models.membership import Membership
     from app.models.user import User
 
 
@@ -64,15 +65,23 @@ class Group(Base):
 
     def join(self, user: "User") -> None:
         if not self.is_member(user):
-            role_id = 3 if self.invite_only else 2
+            from app.models.lookup import GroupRole
             from app.models.membership import Membership
 
-            self.members.append(Membership(user_id=user.id, role_id=role_id))
+            role_name = "pending" if self.invite_only else "member"
+            role = GroupRole.by_name(role_name)
+            if role is None:
+                raise ValueError(f"Unknown group role: {role_name}")
+
+            self.members.append(Membership(user_id=user.id, role_id=role.id))
 
     def leave(self, user: "User") -> None:
-        membership = next((member for member in self.members if member.user_id == user.id), None)
+        membership = self.get_membership(user)
         if membership is not None:
             self.members.remove(membership)
 
     def is_member(self, user: "User") -> bool:
-        return any(member.user_id == user.id for member in self.members)
+        return self.get_membership(user) is not None
+
+    def get_membership(self, user: "User") -> "Membership | None":
+        return next((member for member in self.members if member.user_id == user.id), None)
