@@ -557,6 +557,37 @@ def test_event_services_create_and_extend_event(app: Flask, database: None) -> N
         assert event.calendars[0].id == calendar.id
         assert participation.status.name == "attending"
         assert event.fees[0].id == fee.id
+        assert event.route_id is None
+        assert event.activity_id is None
+
+
+def test_event_can_link_route_and_activity(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        athlete = User(
+            username="event-athlete",
+            email="event-athlete@example.com",
+            password_hash="x",
+        )
+        owner = User(
+            username="event-owner",
+            email="event-owner@example.com",
+            password_hash="x",
+        )
+        db.session.add_all([athlete, owner])
+        db.session.commit()
+
+        route = create_route(name="Event Route")
+        activity = create_activity(athlete=athlete, route=route, name="Event Activity")
+        event = create_event(
+            name="Linked Event",
+            owner=owner,
+            route=route,
+            activity=activity,
+        )
+
+        assert event.route_id == route.id
+        assert event.activity_id == activity.id
 
 
 def test_api_endpoints_exercise_group_and_event_flows(
@@ -669,6 +700,8 @@ def test_api_endpoints_exercise_group_and_event_flows(
         "id": event_payload["id"],
         "name": "API Event",
         "owner_id": owner_id,
+        "route_id": None,
+        "activity_id": None,
         "private": False,
         "town": "Berkeley",
         "state": "CA",
@@ -713,6 +746,53 @@ def test_api_endpoints_exercise_group_and_event_flows(
         "name": "API Event Fee",
         "fee": 18.0,
         "duration": 1,
+    }
+
+
+def test_api_event_can_link_route_and_activity(
+    app: Flask,
+    client: FlaskClient,
+    database: None,
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        owner = User(
+            username="linked-event-owner",
+            email="linked-event-owner@example.com",
+            password_hash="x",
+        )
+        athlete = User(
+            username="linked-event-athlete",
+            email="linked-event-athlete@example.com",
+            password_hash="x",
+        )
+        db.session.add_all([owner, athlete])
+        db.session.commit()
+        route = create_route(name="Linked API Route")
+        activity = create_activity(athlete=athlete, route=route, name="Linked API Activity")
+        owner_id = owner.id
+        route_id = route.id
+        activity_id = activity.id
+
+    response = client.post(
+        "/api/events",
+        json={
+            "name": "Linked API Event",
+            "owner_id": owner_id,
+            "route_id": route_id,
+            "activity_id": activity_id,
+        },
+    )
+    assert response.status_code == 201
+    assert response.get_json() == {
+        "id": response.get_json()["id"],
+        "name": "Linked API Event",
+        "owner_id": owner_id,
+        "route_id": route_id,
+        "activity_id": activity_id,
+        "private": False,
+        "town": None,
+        "state": None,
     }
 
 

@@ -49,9 +49,13 @@ class Event(Base):
     state: Mapped[str | None] = mapped_column(String(256))
     country: Mapped[str | None] = mapped_column(String(256))
     latlng: Mapped[str | None] = mapped_column(String(256))
+    route_id: Mapped[int | None] = mapped_column(ForeignKey("route.id"))
+    activity_id: Mapped[int | None] = mapped_column(ForeignKey("activity.id"))
 
     calendars = relationship("Calendar", secondary=calendar_events, back_populates="events")
     fees = relationship("EventFee", back_populates="event")
+    route = relationship("Route")
+    activity = relationship("Activity")
     participants = relationship(
         "EventInvitation",
         secondary="event_attendance",

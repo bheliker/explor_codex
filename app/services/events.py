@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from app.extensions import db
-from app.models import Calendar, Event, EventFee, EventInvitation, User
+from app.models import Activity, Calendar, Event, EventFee, EventInvitation, Route, User
 
 
 def create_event(
     *,
     name: str,
     owner: User | None = None,
+    route: Route | None = None,
+    activity: Activity | None = None,
     private: bool = False,
     description: str | None = None,
     town: str | None = None,
@@ -16,6 +18,8 @@ def create_event(
     event = Event(
         name=name,
         owner_id=owner.id if owner is not None else None,
+        route=route,
+        activity=activity,
         private=private,
         description=description,
         town=town,
