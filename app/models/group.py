@@ -61,6 +61,7 @@ class Group(Base):
     admin_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"))
 
     calendars = relationship("Calendar", back_populates="group")
+    dues_schedule = relationship("GroupDues", back_populates="group")
     links = relationship("GroupExternalUrl", back_populates="group")
     members = relationship("Membership", secondary=group_membership, backref="groups")
 
