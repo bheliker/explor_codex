@@ -3,7 +3,15 @@ from flask.testing import FlaskClient
 
 from app.config import Config, TestConfig
 from app.extensions import login_manager
-from app.models import EventInvitation, EventInvitationStatus, Group, GroupRole, Membership, User
+from app.models import (
+    Calendar,
+    EventInvitation,
+    EventInvitationStatus,
+    Group,
+    GroupRole,
+    Membership,
+    User,
+)
 
 
 def test_index_route(client: FlaskClient) -> None:
@@ -99,3 +107,18 @@ def test_group_membership_helpers(app: Flask, database: None) -> None:
         db.session.commit()
 
         assert group.is_member(user) is False
+
+
+def test_group_can_own_calendars(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+
+        group = Group(name="Calendar Club", shortname="calendar-club")
+        calendar = Calendar(name="Club Calendar", group=group, type="club")
+
+        db.session.add_all([group, calendar])
+        db.session.commit()
+
+        assert calendar.group is not None
+        assert calendar.group.name == "Calendar Club"
+        assert group.calendars[0].name == "Club Calendar"

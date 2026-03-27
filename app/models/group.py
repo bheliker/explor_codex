@@ -59,6 +59,7 @@ class Group(Base):
     full_address: Mapped[str | None] = mapped_column(String(2048))
     admin_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"))
 
+    calendars = relationship("Calendar", back_populates="group")
     members = relationship("Membership", secondary=group_membership, backref="groups")
 
     def join(self, user: "User") -> None:
