@@ -30,6 +30,7 @@ This file is the local instruction scratchpad for future Codex work in this repo
 
 ## Commit Workflow
 - After each code change, propose a git commit title and body.
+	- `git add ` commands are always ok as part of a commit
 - Wait for explicit user approval before running `git add` or `git commit`.
 	- If Agents are running independently of the User, create and commit to a branch and only ask permission to merge into main when the feature or task is complete and working on the branch.
 - Only create the commit or merge after the user approves the proposed message.
