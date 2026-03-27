@@ -4,6 +4,7 @@ from flask.testing import FlaskClient
 from app.config import Config, TestConfig
 from app.extensions import login_manager
 from app.models import (
+    EVENT_INVITATION_STATUS_NAMES,
     Calendar,
     Event,
     EventInvitation,
@@ -12,6 +13,7 @@ from app.models import (
     GroupRole,
     Membership,
     User,
+    missing_event_invitation_status_names,
 )
 
 
@@ -157,3 +159,29 @@ def test_event_can_link_participants(app: Flask, database: None) -> None:
         participation = event.get_participation(user)
         assert participation is not None
         assert participation.status.name == "attending"
+
+
+def test_event_invitation_status_constants_are_complete() -> None:
+    assert EVENT_INVITATION_STATUS_NAMES == (
+        "invited",
+        "attending",
+        "interested",
+        "not_attending",
+    )
+
+
+def test_missing_event_invitation_status_names() -> None:
+    missing = missing_event_invitation_status_names(["invited", "attending"])
+    assert missing == ["interested", "not_attending"]
+
+
+def test_event_invitation_status_lookup_by_name(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        status = EventInvitationStatus(name="interested")
+        db.session.add(status)
+        db.session.commit()
+
+        found = EventInvitationStatus.by_name("interested")
+        assert found is not None
+        assert found.id == status.id
