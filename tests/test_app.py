@@ -29,8 +29,10 @@ from app.services import (
     create_event,
     create_group,
     create_point_of_interest,
+    create_route,
     ensure_group_membership,
     list_points_of_interest,
+    list_routes,
     set_rsvp,
 )
 
@@ -793,6 +795,140 @@ def test_api_point_of_interest_endpoints(app: Flask, client: FlaskClient, databa
                 "url": "https://example.com/viewpoint",
                 "description": "Panoramic ridge stop",
                 "icon": "binoculars",
+            }
+        ]
+    }
+
+
+def test_route_services_create_and_filter(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        creator = User(
+            username="route-creator",
+            email="route-creator@example.com",
+            password_hash="x",
+        )
+        other_user = User(
+            username="route-other",
+            email="route-other@example.com",
+            password_hash="x",
+        )
+        db.session.add_all([creator, other_user])
+        db.session.commit()
+
+        route = create_route(
+            creator=creator,
+            name="Redwood Loop",
+            desc="Mixed terrain training route",
+            private=False,
+            length=54.2,
+            elevation_gain=1200.0,
+            route_type="ride",
+            subtype="mixed",
+            start_latitude=37.82,
+            start_longitude=-122.24,
+            end_latitude=37.82,
+            end_longitude=-122.24,
+            city="Oakland",
+            state="CA",
+        )
+        create_route(
+            creator=other_user,
+            name="City Spin",
+            route_type="ride",
+        )
+
+        creator_routes = list_routes(creator=creator)
+
+        assert len(creator_routes) == 1
+        assert creator_routes[0].id == route.id
+        assert creator_routes[0].length == 54.2
+
+
+def test_api_route_endpoints(app: Flask, client: FlaskClient, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        creator = User(username="api-route", email="api-route@example.com", password_hash="x")
+        db.session.add(creator)
+        db.session.commit()
+        creator_id = creator.id
+
+    create_response = client.post(
+        "/api/routes",
+        json={
+            "creator_id": creator_id,
+            "name": "Marin Headlands",
+            "desc": "Classic coastal loop",
+            "private": False,
+            "duration": 10800.0,
+            "length": 67.5,
+            "elevation_gain": 1800.0,
+            "type": "ride",
+            "subtype": "road",
+            "src": "manual",
+            "src_id": "route-123",
+            "start_latitude": 37.83,
+            "start_longitude": -122.48,
+            "end_latitude": 37.83,
+            "end_longitude": -122.48,
+            "city": "Sausalito",
+            "state": "CA",
+            "country": "USA",
+            "address": "Bridgeway",
+            "map_thumbnail": "https://example.com/maps/marin.png",
+        },
+    )
+    assert create_response.status_code == 201
+    assert create_response.get_json() == {
+        "id": create_response.get_json()["id"],
+        "creator_id": creator_id,
+        "name": "Marin Headlands",
+        "desc": "Classic coastal loop",
+        "private": False,
+        "duration": 10800.0,
+        "length": 67.5,
+        "elevation_gain": 1800.0,
+        "type": "ride",
+        "subtype": "road",
+        "src": "manual",
+        "src_id": "route-123",
+        "start_latitude": 37.83,
+        "start_longitude": -122.48,
+        "end_latitude": 37.83,
+        "end_longitude": -122.48,
+        "city": "Sausalito",
+        "state": "CA",
+        "country": "USA",
+        "address": "Bridgeway",
+        "map_thumbnail": "https://example.com/maps/marin.png",
+    }
+
+    list_response = client.get(f"/api/routes?creator_id={creator_id}")
+    assert list_response.status_code == 200
+    assert list_response.get_json() == {
+        "items": [
+            {
+                "id": create_response.get_json()["id"],
+                "creator_id": creator_id,
+                "name": "Marin Headlands",
+                "desc": "Classic coastal loop",
+                "private": False,
+                "duration": 10800.0,
+                "length": 67.5,
+                "elevation_gain": 1800.0,
+                "type": "ride",
+                "subtype": "road",
+                "src": "manual",
+                "src_id": "route-123",
+                "start_latitude": 37.83,
+                "start_longitude": -122.48,
+                "end_latitude": 37.83,
+                "end_longitude": -122.48,
+                "city": "Sausalito",
+                "state": "CA",
+                "country": "USA",
+                "address": "Bridgeway",
+                "map_thumbnail": "https://example.com/maps/marin.png",
             }
         ]
     }

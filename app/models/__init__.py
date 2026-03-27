@@ -16,6 +16,7 @@ from app.models.lookup import (
 )
 from app.models.membership import EventInvitation, Membership, event_attendance
 from app.models.point_of_interest import PointOfInterest
+from app.models.route import Route
 from app.models.user import User
 
 __all__ = [
@@ -32,6 +33,7 @@ __all__ = [
     "GroupRole",
     "Membership",
     "PointOfInterest",
+    "Route",
     "User",
     "calendar_events",
     "event_attendance",

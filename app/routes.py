@@ -17,6 +17,7 @@ from app.models import (
     GroupExternalUrl,
     Membership,
     PointOfInterest,
+    Route,
     User,
 )
 from app.services import (
@@ -27,8 +28,10 @@ from app.services import (
     create_event,
     create_group,
     create_point_of_interest,
+    create_route,
     ensure_group_membership,
     list_points_of_interest,
+    list_routes,
     set_rsvp,
 )
 
@@ -189,6 +192,49 @@ def create_point_of_interest_route() -> tuple[dict[str, object], int]:
     return _point_of_interest_payload(point), HTTPStatus.CREATED
 
 
+@bp.get("/api/routes")
+def list_routes_route() -> tuple[dict[str, object], int]:
+    creator = None
+    creator_id = request.args.get("creator_id", type=int)
+    if creator_id is not None:
+        creator = _get_or_404(User, creator_id)
+    routes = list_routes(creator=creator)
+    return {"items": [_route_payload(route) for route in routes]}, HTTPStatus.OK
+
+
+@bp.post("/api/routes")
+def create_route_route() -> tuple[dict[str, object], int]:
+    payload = _json_payload()
+    creator = (
+        _get_or_404(User, _required_int(payload, "creator_id"))
+        if payload.get("creator_id") is not None
+        else None
+    )
+    route = create_route(
+        creator=creator,
+        name=_required_str(payload, "name"),
+        desc=_optional_str(payload, "desc"),
+        private=_optional_nullable_bool(payload, "private"),
+        duration=_optional_float(payload, "duration"),
+        length=_optional_float(payload, "length"),
+        elevation_gain=_optional_float(payload, "elevation_gain"),
+        route_type=_optional_str(payload, "type"),
+        subtype=_optional_str(payload, "subtype"),
+        src=_optional_str(payload, "src"),
+        src_id=_optional_str(payload, "src_id"),
+        start_latitude=_optional_float(payload, "start_latitude"),
+        start_longitude=_optional_float(payload, "start_longitude"),
+        end_latitude=_optional_float(payload, "end_latitude"),
+        end_longitude=_optional_float(payload, "end_longitude"),
+        city=_optional_str(payload, "city"),
+        state=_optional_str(payload, "state"),
+        country=_optional_str(payload, "country"),
+        address=_optional_str(payload, "address"),
+        map_thumbnail=_optional_str(payload, "map_thumbnail"),
+    )
+    return _route_payload(route), HTTPStatus.CREATED
+
+
 def _json_payload() -> dict[str, Any]:
     return cast(dict[str, Any], request.get_json(force=True, silent=False))
 
@@ -241,6 +287,15 @@ def _optional_float(payload: dict[str, Any], key: str) -> float | None:
 
 def _optional_bool(payload: dict[str, Any], key: str, *, default: bool) -> bool:
     value = payload.get(key, default)
+    if not isinstance(value, bool):
+        abort(HTTPStatus.BAD_REQUEST)
+    return value
+
+
+def _optional_nullable_bool(payload: dict[str, Any], key: str) -> bool | None:
+    value = payload.get(key)
+    if value is None:
+        return None
     if not isinstance(value, bool):
         abort(HTTPStatus.BAD_REQUEST)
     return value
@@ -327,4 +382,30 @@ def _point_of_interest_payload(point: PointOfInterest) -> dict[str, object]:
         "url": point.url,
         "description": point.description,
         "icon": point.icon,
+    }
+
+
+def _route_payload(route: Route) -> dict[str, object]:
+    return {
+        "id": route.id,
+        "creator_id": route.creator_id,
+        "name": route.name,
+        "desc": route.desc,
+        "private": route.private,
+        "duration": route.duration,
+        "length": route.length,
+        "elevation_gain": route.elevation_gain,
+        "type": route.type,
+        "subtype": route.subtype,
+        "src": route.src,
+        "src_id": route.src_id,
+        "start_latitude": route.start_latitude,
+        "start_longitude": route.start_longitude,
+        "end_latitude": route.end_latitude,
+        "end_longitude": route.end_longitude,
+        "city": route.city,
+        "state": route.state,
+        "country": route.country,
+        "address": route.address,
+        "map_thumbnail": route.map_thumbnail,
     }
