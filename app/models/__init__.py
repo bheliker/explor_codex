@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.models.calendar import Calendar
 from app.models.event import Event, calendar_events
 from app.models.group import Group, group_membership
+from app.models.group_link import GroupExternalUrl
 from app.models.lookup import (
     EVENT_INVITATION_STATUS_NAMES,
     GROUP_ROLE_NAMES,
@@ -22,6 +23,7 @@ __all__ = [
     "EventInvitation",
     "EventInvitationStatus",
     "Group",
+    "GroupExternalUrl",
     "GroupRole",
     "Membership",
     "User",

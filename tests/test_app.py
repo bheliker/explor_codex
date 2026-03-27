@@ -11,6 +11,7 @@ from app.models import (
     EventInvitation,
     EventInvitationStatus,
     Group,
+    GroupExternalUrl,
     GroupRole,
     Membership,
     User,
@@ -204,6 +205,26 @@ def test_group_can_own_calendars(app: Flask, database: None) -> None:
         assert calendar.group is not None
         assert calendar.group.name == "Calendar Club"
         assert group.calendars[0].name == "Club Calendar"
+
+
+def test_group_can_own_external_links(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+
+        group = Group(name="Link Club", shortname="link-club")
+        link = GroupExternalUrl(
+            group=group,
+            name="Main Site",
+            type="website",
+            url="https://example.com",
+        )
+
+        db.session.add_all([group, link])
+        db.session.commit()
+
+        assert link.group is not None
+        assert link.group.name == "Link Club"
+        assert group.links[0].url == "https://example.com"
 
 
 def test_calendar_can_link_events(app: Flask, database: None) -> None:
