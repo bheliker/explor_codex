@@ -6,6 +6,7 @@ from sqlalchemy import Boolean, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
+from app.models.event import calendar_events
 
 
 class Calendar(Base):
@@ -28,4 +29,5 @@ class Calendar(Base):
     profile_photo: Mapped[str | None] = mapped_column(String(2048))
     notes: Mapped[str | None] = mapped_column(String(2048))
 
+    events = relationship("Event", secondary=calendar_events, back_populates="calendars")
     group = relationship("Group", back_populates="calendars")

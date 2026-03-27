@@ -5,6 +5,7 @@ from app.config import Config, TestConfig
 from app.extensions import login_manager
 from app.models import (
     Calendar,
+    Event,
     EventInvitation,
     EventInvitationStatus,
     Group,
@@ -122,3 +123,18 @@ def test_group_can_own_calendars(app: Flask, database: None) -> None:
         assert calendar.group is not None
         assert calendar.group.name == "Calendar Club"
         assert group.calendars[0].name == "Club Calendar"
+
+
+def test_calendar_can_link_events(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+
+        calendar = Calendar(name="Race Calendar")
+        event = Event(name="Hill Climb", town="Berkeley", state="CA", private=False)
+        calendar.events.append(event)
+
+        db.session.add(calendar)
+        db.session.commit()
+
+        assert calendar.events[0].name == "Hill Climb"
+        assert event.calendars[0].name == "Race Calendar"
