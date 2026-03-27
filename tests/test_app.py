@@ -1,6 +1,7 @@
 from flask import Flask
 from flask.testing import FlaskClient
 
+from app.bootstrap import ensure_canonical_lookup_rows
 from app.config import Config, TestConfig
 from app.extensions import login_manager
 from app.models import (
@@ -19,6 +20,16 @@ from app.models import (
     User,
     missing_event_invitation_status_names,
     missing_group_role_names,
+)
+from app.services import (
+    add_event_fee,
+    add_group_dues,
+    add_group_link,
+    attach_calendar,
+    create_event,
+    create_group,
+    ensure_group_membership,
+    set_rsvp,
 )
 
 
@@ -352,6 +363,16 @@ def test_group_role_lookup_by_name(app: Flask, database: None) -> None:
         assert found.id == role.id
 
 
+def test_ensure_canonical_lookup_rows(app: Flask, database: None) -> None:
+    with app.app_context():
+        result = ensure_canonical_lookup_rows()
+
+        assert result["event_invitation_statuses"] == list(EVENT_INVITATION_STATUS_NAMES)
+        assert result["group_roles"] == list(GROUP_ROLE_NAMES)
+        assert EventInvitationStatus.by_name("attending") is not None
+        assert GroupRole.by_name("member") is not None
+
+
 def test_membership_role_helpers(app: Flask, database: None) -> None:
     with app.app_context():
         db = app.extensions["sqlalchemy"]
@@ -466,3 +487,221 @@ def test_event_rsvp_helpers_use_canonical_status_names(app: Flask, database: Non
         invitation = event.mark_not_attending(user)
         db.session.commit()
         assert invitation.status.name == "not_attending"
+
+
+def test_group_services_create_and_extend_group(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        ensure_canonical_lookup_rows()
+        user = User(username="service-group", email="service-group@example.com", password_hash="x")
+        db.session.add(user)
+        db.session.commit()
+
+        group = create_group(name="Service Group", shortname="service-group", invite_only=True)
+        membership = ensure_group_membership(group, user)
+        link = add_group_link(group, name="Club Site", url="https://example.com/groups/service")
+        dues = add_group_dues(
+            group,
+            name="Annual Dues",
+            fee=55.0,
+            duration=365,
+            description="Service layer dues",
+        )
+
+        assert membership.role.name == "pending"
+        assert group.links[0].id == link.id
+        assert group.dues_schedule[0].id == dues.id
+
+
+def test_event_services_create_and_extend_event(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        ensure_canonical_lookup_rows()
+        owner = User(username="service-owner", email="service-owner@example.com", password_hash="x")
+        attendee = User(
+            username="service-attendee",
+            email="service-attendee@example.com",
+            password_hash="x",
+        )
+        group = Group(name="Service Calendar Group", shortname="service-calendar-group")
+        calendar = Calendar(name="Service Calendar", group=group, type="club")
+        db.session.add_all([owner, attendee, group, calendar])
+        db.session.commit()
+
+        event = create_event(
+            name="Service Event",
+            owner=owner,
+            description="Thin service event",
+            town="Oakland",
+            state="CA",
+        )
+        attach_calendar(event, calendar)
+        participation = set_rsvp(event, attendee, status_name="attending")
+        fee = add_event_fee(
+            event,
+            name="Service Entry",
+            fee=25.0,
+            duration=1,
+            description="Single-day entry",
+        )
+
+        assert event.calendars[0].id == calendar.id
+        assert participation.status.name == "attending"
+        assert event.fees[0].id == fee.id
+
+
+def test_api_endpoints_exercise_group_and_event_flows(
+    app: Flask,
+    client: FlaskClient,
+    database: None,
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        owner = User(username="api-owner", email="api-owner@example.com", password_hash="x")
+        attendee = User(
+            username="api-attendee",
+            email="api-attendee@example.com",
+            password_hash="x",
+        )
+        group = Group(name="API Calendar Group", shortname="api-calendar-group")
+        calendar = Calendar(name="API Calendar", group=group, type="club")
+        db.session.add_all([owner, attendee, group, calendar])
+        db.session.commit()
+        owner_id = owner.id
+        attendee_id = attendee.id
+        calendar_id = calendar.id
+
+    bootstrap_response = client.post("/api/bootstrap/lookup-rows", json={})
+    assert bootstrap_response.status_code == 200
+    assert bootstrap_response.get_json() == {
+        "event_invitation_statuses": list(EVENT_INVITATION_STATUS_NAMES),
+        "group_roles": list(GROUP_ROLE_NAMES),
+    }
+
+    group_response = client.post(
+        "/api/groups",
+        json={
+            "name": "API Group",
+            "shortname": "api-group",
+            "invite_only": True,
+        },
+    )
+    assert group_response.status_code == 201
+    group_payload = group_response.get_json()
+    assert group_payload == {
+        "id": group_payload["id"],
+        "name": "API Group",
+        "shortname": "api-group",
+        "invite_only": True,
+        "private": False,
+    }
+    group_id = group_payload["id"]
+
+    membership_response = client.post(
+        f"/api/groups/{group_id}/memberships",
+        json={"user_id": owner_id},
+    )
+    assert membership_response.status_code == 201
+    assert membership_response.get_json() == {
+        "group_id": group_id,
+        "membership_id": membership_response.get_json()["membership_id"],
+        "user_id": owner_id,
+        "role_name": "pending",
+    }
+
+    link_response = client.post(
+        f"/api/groups/{group_id}/links",
+        json={
+            "name": "API Site",
+            "type": "website",
+            "url": "https://example.com/api-group",
+        },
+    )
+    assert link_response.status_code == 201
+    assert link_response.get_json() == {
+        "group_id": group_id,
+        "link_id": link_response.get_json()["link_id"],
+        "name": "API Site",
+        "type": "website",
+        "url": "https://example.com/api-group",
+    }
+
+    dues_response = client.post(
+        f"/api/groups/{group_id}/dues",
+        json={
+            "name": "API Dues",
+            "fee": 42.5,
+            "duration": 365,
+            "description": "API-created dues",
+        },
+    )
+    assert dues_response.status_code == 201
+    assert dues_response.get_json() == {
+        "group_id": group_id,
+        "dues_id": dues_response.get_json()["dues_id"],
+        "name": "API Dues",
+        "fee": 42.5,
+        "duration": 365,
+    }
+
+    event_response = client.post(
+        "/api/events",
+        json={
+            "name": "API Event",
+            "owner_id": owner_id,
+            "description": "Created through the thin API",
+            "town": "Berkeley",
+            "state": "CA",
+        },
+    )
+    assert event_response.status_code == 201
+    event_payload = event_response.get_json()
+    assert event_payload == {
+        "id": event_payload["id"],
+        "name": "API Event",
+        "owner_id": owner_id,
+        "private": False,
+        "town": "Berkeley",
+        "state": "CA",
+    }
+    event_id = event_payload["id"]
+
+    calendar_link_response = client.post(
+        f"/api/events/{event_id}/calendar-links",
+        json={"calendar_id": calendar_id},
+    )
+    assert calendar_link_response.status_code == 201
+    assert calendar_link_response.get_json() == {
+        "event_id": event_id,
+        "calendar_ids": [calendar_id],
+    }
+
+    rsvp_response = client.post(
+        f"/api/events/{event_id}/rsvps",
+        json={"user_id": attendee_id, "status_name": "attending"},
+    )
+    assert rsvp_response.status_code == 201
+    assert rsvp_response.get_json() == {
+        "event_id": event_id,
+        "participation_id": rsvp_response.get_json()["participation_id"],
+        "user_id": attendee_id,
+        "status_name": "attending",
+    }
+
+    fee_response = client.post(
+        f"/api/events/{event_id}/fees",
+        json={
+            "name": "API Event Fee",
+            "fee": 18.0,
+            "duration": 1,
+            "description": "API-created fee",
+        },
+    )
+    assert fee_response.status_code == 201
+    assert fee_response.get_json() == {
+        "event_id": event_id,
+        "fee_id": fee_response.get_json()["fee_id"],
+        "name": "API Event Fee",
+        "fee": 18.0,
+        "duration": 1,
+    }

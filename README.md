@@ -25,6 +25,15 @@ The app exposes:
 
 - `/`
 - `/health`
+- `/api/bootstrap/lookup-rows`
+- `/api/groups`
+- `/api/groups/<id>/memberships`
+- `/api/groups/<id>/links`
+- `/api/groups/<id>/dues`
+- `/api/events`
+- `/api/events/<id>/calendar-links`
+- `/api/events/<id>/rsvps`
+- `/api/events/<id>/fees`
 
 ## Development checks
 
@@ -44,6 +53,16 @@ uv run flask --app 'app:create_app()' db upgrade
 Set `DATABASE_URL` to override the local default. Legacy `postgres://...` URLs are normalized
 to `postgresql+psycopg://...` automatically.
 
+Canonical lookup rows for RSVP statuses and group roles are seeded by migrations. If you ever
+need to reassert them in an app context, use `app.bootstrap.ensure_canonical_lookup_rows()`.
+
+## Services
+
+Thin domain services now live in `app/services/` and provide a stable place for group and event
+actions such as membership creation, RSVP updates, and fee/link creation. The JSON API routes in
+`app/routes.py` call into those services rather than embedding business logic directly in Flask
+handlers.
+
 ## Project layout
 
 ```text
@@ -51,12 +70,28 @@ to `postgresql+psycopg://...` automatically.
 ├── AGENTS.md
 ├── app/
 │   ├── __init__.py
+│   ├── auth.py
+│   ├── bootstrap.py
 │   ├── config.py
 │   ├── extensions.py
 │   ├── models/
-│   │   └── __init__.py
+│   │   ├── __init__.py
+│   │   ├── calendar.py
+│   │   ├── event.py
+│   │   ├── event_fee.py
+│   │   ├── group.py
+│   │   ├── group_dues.py
+│   │   ├── group_link.py
+│   │   ├── lookup.py
+│   │   ├── membership.py
+│   │   └── user.py
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── events.py
+│   │   └── groups.py
 │   └── routes.py
 ├── docker-compose.yml
+├── migrations/
 ├── pyproject.toml
 ├── tests/
 │   ├── conftest.py
