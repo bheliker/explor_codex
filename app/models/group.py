@@ -64,16 +64,8 @@ class Group(Base):
     members = relationship("Membership", secondary=group_membership, backref="groups")
 
     def join(self, user: "User") -> None:
-        if not self.is_member(user):
-            from app.models.lookup import GroupRole
-            from app.models.membership import Membership
-
-            role_name = "pending" if self.invite_only else "member"
-            role = GroupRole.by_name(role_name)
-            if role is None:
-                raise ValueError(f"Unknown group role: {role_name}")
-
-            self.members.append(Membership(user_id=user.id, role_id=role.id))
+        role_name = "pending" if self.invite_only else "member"
+        self.ensure_membership(user, role_name=role_name)
 
     def leave(self, user: "User") -> None:
         membership = self.get_membership(user)
@@ -85,3 +77,38 @@ class Group(Base):
 
     def get_membership(self, user: "User") -> "Membership | None":
         return next((member for member in self.members if member.user_id == user.id), None)
+
+    def ensure_membership(self, user: "User", *, role_name: str) -> "Membership":
+        from app.models.lookup import GroupRole
+        from app.models.membership import Membership
+
+        role = GroupRole.by_name(role_name)
+        if role is None:
+            raise ValueError(f"Unknown group role: {role_name}")
+
+        membership = self.get_membership(user)
+        if membership is None:
+            membership = Membership(user=user, role=role)
+            self.members.append(membership)
+        else:
+            membership.set_role_by_name(role_name)
+        return membership
+
+    def has_role(self, user: "User", role_name: str) -> bool:
+        membership = self.get_membership(user)
+        return membership.has_role(role_name) if membership is not None else False
+
+    def is_pending(self, user: "User") -> bool:
+        return self.has_role(user, "pending")
+
+    def is_admin(self, user: "User") -> bool:
+        return self.has_role(user, "admin")
+
+    def is_active_member(self, user: "User") -> bool:
+        return self.has_role(user, "member") or self.has_role(user, "admin")
+
+    def approve_membership(self, user: "User") -> "Membership":
+        return self.ensure_membership(user, role_name="member")
+
+    def promote_to_admin(self, user: "User") -> "Membership":
+        return self.ensure_membership(user, role_name="admin")

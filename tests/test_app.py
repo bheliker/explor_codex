@@ -140,6 +140,57 @@ def test_group_join_uses_role_names(app: Flask, database: None) -> None:
         assert private_participation.role.name == "pending"
 
 
+def test_group_membership_transition_helpers(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+
+        admin_role = GroupRole(name="admin")
+        member_role = GroupRole(name="member")
+        pending_role = GroupRole(name="pending")
+        user = User(username="transition", email="transition@example.com", password_hash="x")
+        group = Group(name="Helpers Group", shortname="helpers-group", invite_only=True)
+
+        db.session.add_all([admin_role, member_role, pending_role, user, group])
+        db.session.commit()
+
+        pending_membership = group.ensure_membership(user, role_name="pending")
+        db.session.commit()
+
+        assert group.is_pending(user) is True
+        assert group.is_active_member(user) is False
+        assert pending_membership.role.name == "pending"
+
+        member_membership = group.approve_membership(user)
+        db.session.commit()
+
+        assert member_membership.id == pending_membership.id
+        assert group.is_active_member(user) is True
+        assert group.has_role(user, "member") is True
+
+        admin_membership = group.promote_to_admin(user)
+        db.session.commit()
+
+        assert admin_membership.id == pending_membership.id
+        assert group.is_admin(user) is True
+
+
+def test_group_ensure_membership_rejects_unknown_role(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+
+        user = User(username="unknown-role", email="unknown-role@example.com", password_hash="x")
+        group = Group(name="Unknown Role Group", shortname="unknown-role-group")
+        db.session.add_all([user, group])
+        db.session.commit()
+
+        try:
+            group.ensure_membership(user, role_name="vip")
+        except ValueError as exc:
+            assert "Unknown group role" in str(exc)
+        else:
+            raise AssertionError("expected ValueError for unknown group role")
+
+
 def test_group_can_own_calendars(app: Flask, database: None) -> None:
     with app.app_context():
         db = app.extensions["sqlalchemy"]
@@ -234,6 +285,49 @@ def test_group_role_lookup_by_name(app: Flask, database: None) -> None:
         found = GroupRole.by_name("member")
         assert found is not None
         assert found.id == role.id
+
+
+def test_membership_role_helpers(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+
+        admin = GroupRole(name="admin")
+        member = GroupRole(name="member")
+        pending = GroupRole(name="pending")
+        user = User(username="roles", email="roles@example.com", password_hash="x")
+        membership = Membership(user=user, role=member)
+        db.session.add_all([admin, member, pending, user, membership])
+        db.session.commit()
+
+        assert membership.is_member() is True
+        assert membership.is_pending() is False
+        assert membership.is_admin() is False
+
+        membership.set_role_by_name("pending")
+        db.session.commit()
+        assert membership.is_pending() is True
+
+        membership.set_role_by_name("admin")
+        db.session.commit()
+        assert membership.is_admin() is True
+
+
+def test_membership_set_role_by_name_rejects_unknown_role(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+
+        member = GroupRole(name="member")
+        user = User(username="badrole", email="badrole@example.com", password_hash="x")
+        membership = Membership(user=user, role=member)
+        db.session.add_all([member, user, membership])
+        db.session.commit()
+
+        try:
+            membership.set_role_by_name("vip")
+        except ValueError as exc:
+            assert "Unknown group role" in str(exc)
+        else:
+            raise AssertionError("expected ValueError for unknown role")
 
 
 def test_event_ensure_participation_by_status_name(app: Flask, database: None) -> None:
