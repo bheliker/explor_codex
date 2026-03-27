@@ -28,7 +28,9 @@ from app.services import (
     attach_calendar,
     create_event,
     create_group,
+    create_point_of_interest,
     ensure_group_membership,
+    list_points_of_interest,
     set_rsvp,
 )
 
@@ -704,4 +706,93 @@ def test_api_endpoints_exercise_group_and_event_flows(
         "name": "API Event Fee",
         "fee": 18.0,
         "duration": 1,
+    }
+
+
+def test_point_of_interest_services_create_and_filter(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        owner = User(username="poi-owner", email="poi-owner@example.com", password_hash="x")
+        other_user = User(username="poi-other", email="poi-other@example.com", password_hash="x")
+        db.session.add_all([owner, other_user])
+        db.session.commit()
+
+        trailhead = create_point_of_interest(
+            owner=owner,
+            name="Redwood Trailhead",
+            poi_type="trailhead",
+            subtype="gravel",
+            lat=37.8,
+            lon=-122.2,
+            description="Forest start",
+            icon="tree",
+        )
+        create_point_of_interest(
+            owner=other_user,
+            name="Coffee Stop",
+            poi_type="cafe",
+            lat=37.81,
+            lon=-122.21,
+        )
+
+        owned_points = list_points_of_interest(owner=owner)
+
+        assert len(owned_points) == 1
+        assert owned_points[0].id == trailhead.id
+        assert owned_points[0].type == "trailhead"
+
+
+def test_api_point_of_interest_endpoints(app: Flask, client: FlaskClient, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        owner = User(username="api-poi", email="api-poi@example.com", password_hash="x")
+        db.session.add(owner)
+        db.session.commit()
+        owner_id = owner.id
+
+    create_response = client.post(
+        "/api/points-of-interest",
+        json={
+            "owner_id": owner_id,
+            "name": "Summit Viewpoint",
+            "type": "viewpoint",
+            "subtype": "scenic",
+            "lat": 37.91,
+            "lon": -122.51,
+            "url": "https://example.com/viewpoint",
+            "description": "Panoramic ridge stop",
+            "icon": "binoculars",
+        },
+    )
+    assert create_response.status_code == 201
+    assert create_response.get_json() == {
+        "id": create_response.get_json()["id"],
+        "owner_id": owner_id,
+        "name": "Summit Viewpoint",
+        "type": "viewpoint",
+        "subtype": "scenic",
+        "lat": 37.91,
+        "lon": -122.51,
+        "url": "https://example.com/viewpoint",
+        "description": "Panoramic ridge stop",
+        "icon": "binoculars",
+    }
+
+    list_response = client.get(f"/api/points-of-interest?owner_id={owner_id}")
+    assert list_response.status_code == 200
+    assert list_response.get_json() == {
+        "items": [
+            {
+                "id": create_response.get_json()["id"],
+                "owner_id": owner_id,
+                "name": "Summit Viewpoint",
+                "type": "viewpoint",
+                "subtype": "scenic",
+                "lat": 37.91,
+                "lon": -122.51,
+                "url": "https://example.com/viewpoint",
+                "description": "Panoramic ridge stop",
+                "icon": "binoculars",
+            }
+        ]
     }

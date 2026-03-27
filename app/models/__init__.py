@@ -15,6 +15,7 @@ from app.models.lookup import (
     missing_group_role_names,
 )
 from app.models.membership import EventInvitation, Membership, event_attendance
+from app.models.point_of_interest import PointOfInterest
 from app.models.user import User
 
 __all__ = [
@@ -30,6 +31,7 @@ __all__ = [
     "GroupExternalUrl",
     "GroupRole",
     "Membership",
+    "PointOfInterest",
     "User",
     "calendar_events",
     "event_attendance",

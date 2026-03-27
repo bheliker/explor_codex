@@ -16,6 +16,7 @@ from app.models import (
     GroupDues,
     GroupExternalUrl,
     Membership,
+    PointOfInterest,
     User,
 )
 from app.services import (
@@ -25,7 +26,9 @@ from app.services import (
     attach_calendar,
     create_event,
     create_group,
+    create_point_of_interest,
     ensure_group_membership,
+    list_points_of_interest,
     set_rsvp,
 )
 
@@ -154,6 +157,38 @@ def create_event_fee_route(event_id: int) -> tuple[dict[str, object], int]:
     return _event_fee_payload(event, fee), HTTPStatus.CREATED
 
 
+@bp.get("/api/points-of-interest")
+def list_points_of_interest_route() -> tuple[dict[str, object], int]:
+    owner = None
+    owner_id = request.args.get("owner_id", type=int)
+    if owner_id is not None:
+        owner = _get_or_404(User, owner_id)
+    points = list_points_of_interest(owner=owner)
+    return {"items": [_point_of_interest_payload(point) for point in points]}, HTTPStatus.OK
+
+
+@bp.post("/api/points-of-interest")
+def create_point_of_interest_route() -> tuple[dict[str, object], int]:
+    payload = _json_payload()
+    owner = (
+        _get_or_404(User, _required_int(payload, "owner_id"))
+        if payload.get("owner_id") is not None
+        else None
+    )
+    point = create_point_of_interest(
+        owner=owner,
+        name=_required_str(payload, "name"),
+        poi_type=_optional_str(payload, "type"),
+        subtype=_optional_str(payload, "subtype"),
+        lat=_optional_float(payload, "lat"),
+        lon=_optional_float(payload, "lon"),
+        url=_optional_str(payload, "url"),
+        description=_optional_str(payload, "description"),
+        icon=_optional_str(payload, "icon"),
+    )
+    return _point_of_interest_payload(point), HTTPStatus.CREATED
+
+
 def _json_payload() -> dict[str, Any]:
     return cast(dict[str, Any], request.get_json(force=True, silent=False))
 
@@ -190,6 +225,15 @@ def _required_int(payload: dict[str, Any], key: str) -> int:
 
 def _required_float(payload: dict[str, Any], key: str) -> float:
     value = payload.get(key)
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        abort(HTTPStatus.BAD_REQUEST)
+    return float(value)
+
+
+def _optional_float(payload: dict[str, Any], key: str) -> float | None:
+    value = payload.get(key)
+    if value is None:
+        return None
     if isinstance(value, bool) or not isinstance(value, int | float):
         abort(HTTPStatus.BAD_REQUEST)
     return float(value)
@@ -268,4 +312,19 @@ def _event_fee_payload(event: Event, fee: EventFee) -> dict[str, object]:
         "name": fee.name,
         "fee": fee.fee,
         "duration": fee.duration,
+    }
+
+
+def _point_of_interest_payload(point: PointOfInterest) -> dict[str, object]:
+    return {
+        "id": point.id,
+        "owner_id": point.owner_id,
+        "name": point.name,
+        "type": point.type,
+        "subtype": point.subtype,
+        "lat": point.lat,
+        "lon": point.lon,
+        "url": point.url,
+        "description": point.description,
+        "icon": point.icon,
     }
