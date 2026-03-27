@@ -26,6 +26,7 @@ from app.services import (
     add_event_fee,
     add_group_dues,
     add_group_link,
+    add_route_link,
     attach_calendar,
     attach_route_to_group,
     attach_segment_to_route,
@@ -271,6 +272,25 @@ def create_route_route() -> tuple[dict[str, object], int]:
     return _route_payload(route), HTTPStatus.CREATED
 
 
+@bp.get("/api/routes/<int:route_id>/links")
+def list_route_links_route(route_id: int) -> tuple[dict[str, object], int]:
+    route = _get_or_404(Route, route_id)
+    return {"items": [_route_link_payload(route, link) for link in route.links]}, HTTPStatus.OK
+
+
+@bp.post("/api/routes/<int:route_id>/links")
+def create_route_link_route(route_id: int) -> tuple[dict[str, object], int]:
+    payload = _json_payload()
+    route = _get_or_404(Route, route_id)
+    link = add_route_link(
+        route,
+        name=_required_str(payload, "name"),
+        url=_required_str(payload, "url"),
+        link_type=_required_str({"type": payload.get("type", "website")}, "type"),
+    )
+    return _route_link_payload(route, link), HTTPStatus.CREATED
+
+
 @bp.post("/api/routes/<int:route_id>/segments")
 def attach_segment_to_route_route(route_id: int) -> tuple[dict[str, object], int]:
     payload = _json_payload()
@@ -475,6 +495,16 @@ def _group_dues_payload(group: Group, dues: GroupDues) -> dict[str, object]:
         "name": dues.name,
         "fee": dues.fee,
         "duration": dues.duration,
+    }
+
+
+def _route_link_payload(route: Route, link: GroupExternalUrl) -> dict[str, object]:
+    return {
+        "route_id": route.id,
+        "link_id": link.id,
+        "name": link.name,
+        "type": link.type,
+        "url": link.url,
     }
 
 

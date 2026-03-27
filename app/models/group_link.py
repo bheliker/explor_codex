@@ -14,6 +14,7 @@ class GroupExternalUrl(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     url: Mapped[str | None] = mapped_column(String(2048))
     group_id: Mapped[int | None] = mapped_column("owner", ForeignKey("group.id"))
+    route_id: Mapped[int | None] = mapped_column(ForeignKey("route.id"))
     date_created: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     date_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     type: Mapped[str | None] = mapped_column(String(128))
@@ -25,3 +26,4 @@ class GroupExternalUrl(Base):
     img: Mapped[str | None] = mapped_column(String(2048))
 
     group = relationship("Group", back_populates="links")
+    route = relationship("Route", back_populates="links")

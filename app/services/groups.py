@@ -51,6 +51,19 @@ def add_group_link(
     return link
 
 
+def add_route_link(
+    route: Route,
+    *,
+    name: str,
+    url: str,
+    link_type: str = "website",
+) -> GroupExternalUrl:
+    link = GroupExternalUrl(route=route, name=name, type=link_type, url=url)
+    db.session.add(link)
+    db.session.commit()
+    return link
+
+
 def add_group_dues(
     group: Group,
     *,

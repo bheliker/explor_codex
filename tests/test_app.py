@@ -25,6 +25,7 @@ from app.services import (
     add_event_fee,
     add_group_dues,
     add_group_link,
+    add_route_link,
     attach_calendar,
     attach_route_to_group,
     attach_segment_to_route,
@@ -284,6 +285,20 @@ def test_group_can_link_routes(app: Flask, database: None) -> None:
 
         assert group.routes[0].id == route.id
         assert route.groups[0].id == group.id
+
+
+def test_route_can_own_external_links(app: Flask, database: None) -> None:
+    with app.app_context():
+        route = create_route(name="Linked Route")
+        link = add_route_link(
+            route,
+            name="Ride Details",
+            url="https://example.com/routes/linked",
+        )
+
+        assert route.links[0].id == link.id
+        assert link.route is not None
+        assert link.route.id == route.id
 
 
 def test_calendar_can_link_events(app: Flask, database: None) -> None:
@@ -862,6 +877,47 @@ def test_api_group_can_attach_and_list_routes(
                 "country": None,
                 "address": None,
                 "map_thumbnail": None,
+            }
+        ]
+    }
+
+
+def test_api_route_can_attach_and_list_links(
+    app: Flask,
+    client: FlaskClient,
+    database: None,
+) -> None:
+    with app.app_context():
+        route = create_route(name="API Linked Route")
+        route_id = route.id
+
+    attach_response = client.post(
+        f"/api/routes/{route_id}/links",
+        json={
+            "name": "Route Site",
+            "type": "website",
+            "url": "https://example.com/routes/api-linked",
+        },
+    )
+    assert attach_response.status_code == 201
+    assert attach_response.get_json() == {
+        "route_id": route_id,
+        "link_id": attach_response.get_json()["link_id"],
+        "name": "Route Site",
+        "type": "website",
+        "url": "https://example.com/routes/api-linked",
+    }
+
+    list_response = client.get(f"/api/routes/{route_id}/links")
+    assert list_response.status_code == 200
+    assert list_response.get_json() == {
+        "items": [
+            {
+                "route_id": route_id,
+                "link_id": attach_response.get_json()["link_id"],
+                "name": "Route Site",
+                "type": "website",
+                "url": "https://example.com/routes/api-linked",
             }
         ]
     }

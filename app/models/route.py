@@ -44,4 +44,5 @@ class Route(Base):
 
     creator = relationship("User")
     groups = relationship("Group", secondary="group_routes", back_populates="routes")
+    links = relationship("GroupExternalUrl", back_populates="route")
     segments = relationship("Segment", secondary="route_segments", back_populates="routes")

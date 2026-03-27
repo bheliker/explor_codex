@@ -37,6 +37,7 @@ The app exposes:
 - `/api/events/<id>/fees`
 - `/api/points-of-interest`
 - `/api/routes`
+- `/api/routes/<id>/links`
 - `/api/routes/<id>/segments`
 - `/api/segments`
 - `/api/activities`
