@@ -7,6 +7,7 @@ from app.extensions import login_manager
 from app.models import (
     EVENT_INVITATION_STATUS_NAMES,
     GROUP_ROLE_NAMES,
+    Activity,
     Calendar,
     Event,
     EventFee,
@@ -16,7 +17,9 @@ from app.models import (
     GroupDues,
     GroupExternalUrl,
     GroupRole,
+    Image,
     Membership,
+    Segment,
     User,
     missing_event_invitation_status_names,
     missing_group_role_names,
@@ -542,6 +545,43 @@ def test_event_rsvp_helpers_use_canonical_status_names(app: Flask, database: Non
         invitation = event.mark_not_attending(user)
         db.session.commit()
         assert invitation.status.name == "not_attending"
+
+
+def test_trimmed_image_model_persists_relationships(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        photographer = User(
+            username="photographer",
+            email="photographer@example.com",
+            password_hash="x",
+        )
+        group = Group(name="Image Group", shortname="image-group")
+        segment = Segment(name="Image Segment")
+        activity = Activity(name="Image Activity")
+        db.session.add_all([photographer, group, segment, activity])
+        db.session.commit()
+
+        image = Image(
+            img_medium="https://example.com/images/medium.jpg",
+            img_thumb="https://example.com/images/thumb.jpg",
+            title="Golden Hour",
+            caption="Evening light",
+            url="https://example.com/images/full.jpg",
+            latlng="37.8,-122.2",
+            geoll='{"type":"Point","coordinates":[-122.2,37.8]}',
+            photographer=photographer,
+            group=group,
+            segment=segment,
+            activity=activity,
+        )
+        db.session.add(image)
+        db.session.commit()
+
+        assert image.photographer_id == photographer.id
+        assert image.group_id == group.id
+        assert image.segment_id == segment.id
+        assert image.activity_id == activity.id
+        assert image.geoll == '{"type":"Point","coordinates":[-122.2,37.8]}'
 
 
 def test_group_services_create_and_extend_group(app: Flask, database: None) -> None:

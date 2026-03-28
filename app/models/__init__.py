@@ -7,6 +7,7 @@ from app.models.event_fee import EventFee
 from app.models.group import Group, group_membership, group_routes
 from app.models.group_dues import GroupDues
 from app.models.group_link import GroupExternalUrl
+from app.models.image import Image
 from app.models.lookup import (
     EVENT_INVITATION_STATUS_NAMES,
     GROUP_ROLE_NAMES,
@@ -34,6 +35,7 @@ __all__ = [
     "GroupDues",
     "GroupExternalUrl",
     "GroupRole",
+    "Image",
     "Membership",
     "PointOfInterest",
     "Route",
