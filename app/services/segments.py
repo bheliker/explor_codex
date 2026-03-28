@@ -27,6 +27,8 @@ def create_segment(
     start_longitude: float | None = None,
     end_latitude: float | None = None,
     end_longitude: float | None = None,
+    summary_polyline: str | None = None,
+    full_track: str | None = None,
     track_hash: str | None = None,
     track_maxspeed: float | None = None,
 ) -> Segment:
@@ -50,6 +52,8 @@ def create_segment(
         start_longitude=start_longitude,
         end_latitude=end_latitude,
         end_longitude=end_longitude,
+        summary_polyline=summary_polyline,
+        full_track=full_track,
         track_hash=track_hash,
         track_maxspeed=track_maxspeed,
     )

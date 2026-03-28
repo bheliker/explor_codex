@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, String, Table
+from sqlalchemy import Column, DateTime, Float, ForeignKey, String, Table, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
@@ -40,6 +40,8 @@ class Segment(Base):
     start_latitude: Mapped[float | None] = mapped_column(Float)
     end_longitude: Mapped[float | None] = mapped_column(Float)
     end_latitude: Mapped[float | None] = mapped_column(Float)
+    summary_polyline: Mapped[str | None] = mapped_column(Text)
+    full_track: Mapped[str | None] = mapped_column(Text)
     track_hash: Mapped[str | None] = mapped_column(String(32), index=True, unique=True)
     track_maxspeed: Mapped[float | None] = mapped_column(Float)
     record_date: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))

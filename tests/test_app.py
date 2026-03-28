@@ -872,6 +872,8 @@ def test_api_group_can_attach_and_list_routes(
                 "start_longitude": None,
                 "end_latitude": None,
                 "end_longitude": None,
+                "summary_polyline": None,
+                "full_track": None,
                 "city": None,
                 "state": None,
                 "country": None,
@@ -1041,6 +1043,8 @@ def test_route_services_create_and_filter(app: Flask, database: None) -> None:
             start_longitude=-122.24,
             end_latitude=37.82,
             end_longitude=-122.24,
+            summary_polyline='{"type":"LineString","coordinates":[[-122.24,37.82],[-122.2,37.84]]}',
+            full_track='{"type":"LineString","coordinates":[[-122.24,37.82,10],[-122.2,37.84,25]]}',
             city="Oakland",
             state="CA",
         )
@@ -1055,9 +1059,14 @@ def test_route_services_create_and_filter(app: Flask, database: None) -> None:
         assert len(creator_routes) == 1
         assert creator_routes[0].id == route.id
         assert creator_routes[0].length == 54.2
+        assert creator_routes[0].summary_polyline is not None
+        assert creator_routes[0].full_track is not None
 
 
 def test_api_route_endpoints(app: Flask, client: FlaskClient, database: None) -> None:
+    summary_polyline = '{"type":"LineString","coordinates":[[-122.48,37.83],[-122.45,37.85]]}'
+    full_track = '{"type":"LineString","coordinates":[[-122.48,37.83,5],[-122.45,37.85,15]]}'
+
     with app.app_context():
         db = app.extensions["sqlalchemy"]
         creator = User(username="api-route", email="api-route@example.com", password_hash="x")
@@ -1083,6 +1092,8 @@ def test_api_route_endpoints(app: Flask, client: FlaskClient, database: None) ->
             "start_longitude": -122.48,
             "end_latitude": 37.83,
             "end_longitude": -122.48,
+            "summary_polyline": summary_polyline,
+            "full_track": full_track,
             "city": "Sausalito",
             "state": "CA",
             "country": "USA",
@@ -1108,6 +1119,8 @@ def test_api_route_endpoints(app: Flask, client: FlaskClient, database: None) ->
         "start_longitude": -122.48,
         "end_latitude": 37.83,
         "end_longitude": -122.48,
+        "summary_polyline": summary_polyline,
+        "full_track": full_track,
         "city": "Sausalito",
         "state": "CA",
         "country": "USA",
@@ -1136,6 +1149,8 @@ def test_api_route_endpoints(app: Flask, client: FlaskClient, database: None) ->
                 "start_longitude": -122.48,
                 "end_latitude": 37.83,
                 "end_longitude": -122.48,
+                "summary_polyline": summary_polyline,
+                "full_track": full_track,
                 "city": "Sausalito",
                 "state": "CA",
                 "country": "USA",
@@ -1163,6 +1178,8 @@ def test_segment_services_create_and_attach_to_route(app: Flask, database: None)
             length=4.8,
             elevation_gain=420.0,
             segment_type="climb",
+            summary_polyline='{"type":"LineString","coordinates":[[-122.3,37.8],[-122.28,37.82]]}',
+            full_track='{"type":"LineString","coordinates":[[-122.3,37.8,20],[-122.28,37.82,110]]}',
             track_hash="seg-climb-001",
         )
         attach_segment_to_route(route, segment)
@@ -1171,11 +1188,16 @@ def test_segment_services_create_and_attach_to_route(app: Flask, database: None)
 
         assert len(segments) == 1
         assert segments[0].id == segment.id
+        assert segments[0].summary_polyline is not None
+        assert segments[0].full_track is not None
         assert route.segments[0].id == segment.id
         assert segment.routes[0].id == route.id
 
 
 def test_api_segment_endpoints(app: Flask, client: FlaskClient, database: None) -> None:
+    summary_polyline = '{"type":"LineString","coordinates":[[-122.6,37.9],[-122.5,37.84]]}'
+    full_track = '{"type":"LineString","coordinates":[[-122.6,37.9,50],[-122.5,37.84,12]]}'
+
     create_response = client.post(
         "/api/segments",
         json={
@@ -1198,6 +1220,8 @@ def test_api_segment_endpoints(app: Flask, client: FlaskClient, database: None) 
             "start_longitude": -122.6,
             "end_latitude": 37.84,
             "end_longitude": -122.5,
+            "summary_polyline": summary_polyline,
+            "full_track": full_track,
             "track_hash": "segment-123-hash",
             "track_maxspeed": 18.7,
         },
@@ -1224,6 +1248,8 @@ def test_api_segment_endpoints(app: Flask, client: FlaskClient, database: None) 
         "start_longitude": -122.6,
         "end_latitude": 37.84,
         "end_longitude": -122.5,
+        "summary_polyline": summary_polyline,
+        "full_track": full_track,
         "track_hash": "segment-123-hash",
         "track_maxspeed": 18.7,
     }
@@ -1253,6 +1279,8 @@ def test_api_segment_endpoints(app: Flask, client: FlaskClient, database: None) 
                 "start_longitude": -122.6,
                 "end_latitude": 37.84,
                 "end_longitude": -122.5,
+                "summary_polyline": summary_polyline,
+                "full_track": full_track,
                 "track_hash": "segment-123-hash",
                 "track_maxspeed": 18.7,
             }

@@ -71,6 +71,10 @@ creation. The JSON API routes in `app/routes.py` call into those services rather
 business logic directly in Flask handlers. Routes, segments, activities, and group-route linkage
 now follow the same thin service/API pattern.
 
+Routes and segments now also carry stored `summary_polyline` and `full_track` payload fields. They
+are currently treated as transport/storage fields first; spatial querying and PostGIS-specific
+behavior are still deferred to later slices.
+
 ## Project layout
 
 ```text

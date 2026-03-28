@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
@@ -36,6 +36,8 @@ class Route(Base):
     start_latitude: Mapped[float | None] = mapped_column(Float)
     end_longitude: Mapped[float | None] = mapped_column(Float)
     end_latitude: Mapped[float | None] = mapped_column(Float)
+    summary_polyline: Mapped[str | None] = mapped_column(Text)
+    full_track: Mapped[str | None] = mapped_column(Text)
     map_thumbnail: Mapped[str | None] = mapped_column(String(2048))
     city: Mapped[str | None] = mapped_column(String(256))
     state: Mapped[str | None] = mapped_column(String(256))
