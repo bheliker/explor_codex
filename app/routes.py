@@ -71,6 +71,13 @@ def create_group_route() -> tuple[dict[str, object], int]:
         shortname=_required_str(payload, "shortname"),
         invite_only=_optional_bool(payload, "invite_only", default=False),
         private=_optional_bool(payload, "private", default=False),
+        home_town=_optional_str(payload, "home_town"),
+        home_state=_optional_str(payload, "home_state"),
+        home_country=_optional_str(payload, "home_country"),
+        home_latlng=_optional_str(payload, "home_latlng"),
+        home_add=_optional_str(payload, "home_add"),
+        full_address=_optional_str(payload, "full_address"),
+        geoll=_optional_str(payload, "geoll"),
     )
     return _group_payload(group), HTTPStatus.CREATED
 
@@ -473,6 +480,13 @@ def _group_payload(group: Group) -> dict[str, object]:
         "shortname": group.shortname,
         "invite_only": group.invite_only,
         "private": group.private,
+        "home_town": group.home_town,
+        "home_state": group.home_state,
+        "home_country": group.home_country,
+        "home_latlng": group.home_latlng,
+        "home_add": group.home_add,
+        "full_address": group.full_address,
+        "geoll": group.geoll,
     }
 
 

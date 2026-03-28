@@ -7,6 +7,7 @@ from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, St
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
+from app.geometry import point_type, to_api_point_geometry, to_storage_point_geometry
 
 if TYPE_CHECKING:
     from app.models.membership import Membership
@@ -66,6 +67,7 @@ class Group(Base):
     home_latlng: Mapped[str | None] = mapped_column(String(256))
     home_add: Mapped[str | None] = mapped_column(String(256))
     full_address: Mapped[str | None] = mapped_column(String(2048))
+    _geoll: Mapped[object | None] = mapped_column("geoll", point_type())
     admin_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"))
 
     calendars = relationship("Calendar", back_populates="group")
@@ -123,3 +125,11 @@ class Group(Base):
 
     def promote_to_admin(self, user: "User") -> "Membership":
         return self.ensure_membership(user, role_name="admin")
+
+    @property
+    def geoll(self) -> str | None:
+        return to_api_point_geometry(self, "geoll", self._geoll)
+
+    @geoll.setter
+    def geoll(self, value: str | None) -> None:
+        self._geoll = to_storage_point_geometry(value)

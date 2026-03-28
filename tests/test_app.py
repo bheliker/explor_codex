@@ -537,7 +537,15 @@ def test_group_services_create_and_extend_group(app: Flask, database: None) -> N
         db.session.add(user)
         db.session.commit()
 
-        group = create_group(name="Service Group", shortname="service-group", invite_only=True)
+        group = create_group(
+            name="Service Group",
+            shortname="service-group",
+            invite_only=True,
+            home_town="Oakland",
+            home_state="CA",
+            home_country="USA",
+            geoll='{"type":"Point","coordinates":[-122.2711,37.8044]}',
+        )
         membership = ensure_group_membership(group, user)
         link = add_group_link(group, name="Club Site", url="https://example.com/groups/service")
         dues = add_group_dues(
@@ -551,6 +559,8 @@ def test_group_services_create_and_extend_group(app: Flask, database: None) -> N
         assert membership.role.name == "pending"
         assert group.links[0].id == link.id
         assert group.dues_schedule[0].id == dues.id
+        assert group.home_latlng == "37.8044,-122.2711"
+        assert group.geoll == '{"type":"Point","coordinates":[-122.2711,37.8044]}'
 
 
 def test_event_services_create_and_extend_event(app: Flask, database: None) -> None:
@@ -655,6 +665,13 @@ def test_api_endpoints_exercise_group_and_event_flows(
             "name": "API Group",
             "shortname": "api-group",
             "invite_only": True,
+            "home_town": "Berkeley",
+            "home_state": "CA",
+            "home_country": "USA",
+            "home_latlng": "37.8715,-122.273",
+            "home_add": "2000 Center St",
+            "full_address": "2000 Center St, Berkeley, CA",
+            "geoll": '{"type":"Point","coordinates":[-122.273,37.8715]}',
         },
     )
     assert group_response.status_code == 201
@@ -665,6 +682,13 @@ def test_api_endpoints_exercise_group_and_event_flows(
         "shortname": "api-group",
         "invite_only": True,
         "private": False,
+        "home_town": "Berkeley",
+        "home_state": "CA",
+        "home_country": "USA",
+        "home_latlng": "37.8715,-122.273",
+        "home_add": "2000 Center St",
+        "full_address": "2000 Center St, Berkeley, CA",
+        "geoll": '{"type":"Point","coordinates":[-122.273,37.8715]}',
     }
     group_id = group_payload["id"]
 

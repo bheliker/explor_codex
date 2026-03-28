@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.extensions import db
+from app.geometry import point_coordinates
 from app.models import Group, GroupDues, GroupExternalUrl, Membership, Route, User
 
 
@@ -10,12 +11,32 @@ def create_group(
     shortname: str,
     invite_only: bool = False,
     private: bool = False,
+    home_town: str | None = None,
+    home_state: str | None = None,
+    home_country: str | None = None,
+    home_latlng: str | None = None,
+    home_add: str | None = None,
+    full_address: str | None = None,
+    geoll: str | None = None,
 ) -> Group:
+    if geoll is not None and home_latlng is None:
+        coordinates = point_coordinates(geoll)
+        if coordinates is not None:
+            lon, lat = coordinates
+            home_latlng = f"{lat},{lon}"
+
     group = Group(
         name=name,
         shortname=shortname,
         invite_only=invite_only,
         private=private,
+        home_town=home_town,
+        home_state=home_state,
+        home_country=home_country,
+        home_latlng=home_latlng,
+        home_add=home_add,
+        full_address=full_address,
+        geoll=geoll,
     )
     db.session.add(group)
     db.session.commit()
