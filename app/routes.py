@@ -30,6 +30,7 @@ from app.services import (
     add_route_link,
     attach_calendar,
     attach_image_to_event,
+    attach_image_to_poi,
     attach_route_to_group,
     attach_segment_to_route,
     create_activity,
@@ -250,6 +251,24 @@ def list_points_of_interest_route() -> tuple[dict[str, object], int]:
         owner = _get_or_404(User, owner_id)
     points = list_points_of_interest(owner=owner)
     return {"items": [_point_of_interest_payload(point) for point in points]}, HTTPStatus.OK
+
+
+@bp.get("/api/points-of-interest/<int:point_id>/images")
+def list_point_of_interest_images_route(point_id: int) -> tuple[dict[str, object], int]:
+    point = _get_or_404(PointOfInterest, point_id)
+    return {"items": [_image_payload(image) for image in point.images]}, HTTPStatus.OK
+
+
+@bp.post("/api/points-of-interest/<int:point_id>/images")
+def attach_point_of_interest_image_route(point_id: int) -> tuple[dict[str, object], int]:
+    payload = _json_payload()
+    point = _get_or_404(PointOfInterest, point_id)
+    image = _get_or_404(Image, _required_int(payload, "image_id"))
+    attach_image_to_poi(point, image)
+    return {
+        "point_id": point.id,
+        "image_ids": [linked_image.id for linked_image in point.images],
+    }, HTTPStatus.CREATED
 
 
 @bp.post("/api/points-of-interest")

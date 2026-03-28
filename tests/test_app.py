@@ -31,6 +31,7 @@ from app.services import (
     add_route_link,
     attach_calendar,
     attach_image_to_event,
+    attach_image_to_poi,
     attach_route_to_group,
     attach_segment_to_route,
     create_activity,
@@ -636,6 +637,39 @@ def test_image_services_create_and_filter(app: Flask, database: None) -> None:
         assert activity_images[0].geoll == '{"type":"Point","coordinates":[-122.3,37.82]}'
         assert segment.images[0].id == image.id
         assert activity.images[0].id == image.id
+
+
+def test_poi_can_link_images(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        owner = User(
+            username="poi-image-owner",
+            email="poi-image-owner@example.com",
+            password_hash="x",
+        )
+        photographer = User(
+            username="poi-image-photographer",
+            email="poi-image-photographer@example.com",
+            password_hash="x",
+        )
+        db.session.add_all([owner, photographer])
+        db.session.commit()
+
+        point = create_point_of_interest(
+            owner=owner,
+            name="POI Image Stop",
+            poi_type="viewpoint",
+            geoll='{"type":"Point","coordinates":[-122.45,37.86]}',
+        )
+        image = create_image(
+            photographer=photographer,
+            img_medium="https://example.com/poi/image.jpg",
+            title="POI Image",
+        )
+        attach_image_to_poi(point, image)
+
+        assert point.images[0].id == image.id
+        assert image.pois[0].id == point.id
 
 
 def test_group_services_create_and_extend_group(app: Flask, database: None) -> None:
@@ -1248,6 +1282,53 @@ def test_api_point_of_interest_endpoints(app: Flask, client: FlaskClient, databa
                 "url": "https://example.com/viewpoint",
                 "description": "Panoramic ridge stop",
                 "icon": "binoculars",
+            }
+        ]
+    }
+
+    image_create_response = client.post(
+        "/api/images",
+        json={
+            "photographer_id": owner_id,
+            "img_medium": "https://example.com/poi/api-image.jpg",
+            "title": "POI API Image",
+        },
+    )
+    assert image_create_response.status_code == 201
+    image_id = image_create_response.get_json()["id"]
+
+    poi_image_response = client.post(
+        f"/api/points-of-interest/{create_response.get_json()['id']}/images",
+        json={"image_id": image_id},
+    )
+    assert poi_image_response.status_code == 201
+    assert poi_image_response.get_json() == {
+        "point_id": create_response.get_json()["id"],
+        "image_ids": [image_id],
+    }
+
+    poi_image_list_response = client.get(
+        f"/api/points-of-interest/{create_response.get_json()['id']}/images"
+    )
+    assert poi_image_list_response.status_code == 200
+    assert poi_image_list_response.get_json() == {
+        "items": [
+            {
+                "id": image_id,
+                "photographer_id": owner_id,
+                "group_id": None,
+                "segment_id": None,
+                "activity_id": None,
+                "img_small": None,
+                "img_medium": "https://example.com/poi/api-image.jpg",
+                "img_large": None,
+                "img_thumb": None,
+                "alt_txt": None,
+                "title": "POI API Image",
+                "caption": None,
+                "latlng": None,
+                "geoll": None,
+                "url": None,
             }
         ]
     }

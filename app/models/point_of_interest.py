@@ -2,11 +2,18 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, String
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
 from app.geometry import point_type, to_api_point_geometry, to_storage_point_geometry
+
+poi_images = Table(
+    "poi_images",
+    Base.metadata,
+    Column("poi", Integer, ForeignKey("points_of_interest.id"), primary_key=True),
+    Column("image", Integer, ForeignKey("image.id"), primary_key=True),
+)
 
 
 class PointOfInterest(Base):
@@ -27,6 +34,7 @@ class PointOfInterest(Base):
     icon: Mapped[str | None] = mapped_column(String(256))
 
     owner = relationship("User")
+    images = relationship("Image", secondary=poi_images, back_populates="pois")
 
     @property
     def geoll(self) -> str | None:

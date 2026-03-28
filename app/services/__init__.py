@@ -10,7 +10,12 @@ from app.services.groups import (
     create_group,
     ensure_group_membership,
 )
-from app.services.images import attach_image_to_event, create_image, list_images
+from app.services.images import (
+    attach_image_to_event,
+    attach_image_to_poi,
+    create_image,
+    list_images,
+)
 from app.services.points_of_interest import create_point_of_interest, list_points_of_interest
 from app.services.routes import create_route, list_routes
 from app.services.segments import attach_segment_to_route, create_segment, list_segments
@@ -23,6 +28,7 @@ __all__ = [
     "attach_route_to_group",
     "attach_calendar",
     "attach_image_to_event",
+    "attach_image_to_poi",
     "create_activity",
     "create_point_of_interest",
     "create_event",

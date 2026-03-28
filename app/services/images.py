@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import Select, select
 
 from app.extensions import db
-from app.models import Activity, Event, Group, Image, Segment, User
+from app.models import Activity, Event, Group, Image, PointOfInterest, Segment, User
 
 
 def create_image(
@@ -68,3 +68,10 @@ def attach_image_to_event(event: Event, image: Image) -> Event:
         event.images.append(image)
         db.session.commit()
     return event
+
+
+def attach_image_to_poi(point_of_interest: PointOfInterest, image: Image) -> PointOfInterest:
+    if image not in point_of_interest.images:
+        point_of_interest.images.append(image)
+        db.session.commit()
+    return point_of_interest

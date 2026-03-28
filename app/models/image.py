@@ -33,6 +33,7 @@ class Image(Base):
     segment = relationship("Segment", back_populates="images")
     activity = relationship("Activity", back_populates="images")
     events = relationship("Event", secondary="event_images", back_populates="images")
+    pois = relationship("PointOfInterest", secondary="poi_images", back_populates="images")
     photographer = relationship("User")
 
     @property

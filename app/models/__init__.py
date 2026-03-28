@@ -17,7 +17,7 @@ from app.models.lookup import (
     missing_group_role_names,
 )
 from app.models.membership import EventInvitation, Membership, event_attendance
-from app.models.point_of_interest import PointOfInterest
+from app.models.point_of_interest import PointOfInterest, poi_images
 from app.models.route import Route
 from app.models.segment import Segment, route_segments
 from app.models.user import User
@@ -45,6 +45,7 @@ __all__ = [
     "event_attendance",
     "group_membership",
     "group_routes",
+    "poi_images",
     "route_segments",
     "missing_event_invitation_status_names",
     "missing_group_role_names",
