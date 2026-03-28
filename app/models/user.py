@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import Base, db
+from app.geometry import point_type, to_api_point_geometry, to_storage_point_geometry
 
 
 class User(UserMixin, Base):
@@ -21,6 +22,12 @@ class User(UserMixin, Base):
     firstname: Mapped[str | None] = mapped_column(db.String(64))
     lastname: Mapped[str | None] = mapped_column(db.String(64))
     account_type: Mapped[str | None] = mapped_column(db.String(64))
+    home_town: Mapped[str | None] = mapped_column(db.String(256))
+    home_state: Mapped[str | None] = mapped_column(db.String(256))
+    home_country: Mapped[str | None] = mapped_column(db.String(256))
+    home_gym: Mapped[str | None] = mapped_column(db.String(256))
+    home_latlng: Mapped[str | None] = mapped_column(db.String(256))
+    _geoll: Mapped[object | None] = mapped_column("geoll", point_type())
     active: Mapped[bool] = mapped_column(default=True)
     init_date: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
     update_date: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
@@ -31,6 +38,14 @@ class User(UserMixin, Base):
 
     def check_password(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
+
+    @property
+    def geoll(self) -> str | None:
+        return to_api_point_geometry(self, "geoll", self._geoll)
+
+    @geoll.setter
+    def geoll(self, value: str | None) -> None:
+        self._geoll = to_storage_point_geometry(value)
 
     def get_reset_password_token(self) -> str:
         serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])

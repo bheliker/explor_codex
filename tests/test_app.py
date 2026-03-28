@@ -80,7 +80,16 @@ def test_app_registers_login_manager() -> None:
 
 def test_user_password_and_reset_token_round_trip(app: Flask, database: None) -> None:
     with app.app_context():
-        user = User(username="brett", email="brett@example.com")
+        user = User(
+            username="brett",
+            email="brett@example.com",
+            home_town="Oakland",
+            home_state="CA",
+            home_country="USA",
+            home_gym="Lake Merritt",
+            home_latlng="37.8044,-122.2711",
+            geoll='{"type":"Point","coordinates":[-122.2711,37.8044]}',
+        )
         user.set_password("secret123")
         db = app.extensions["sqlalchemy"]
         db.session.add(user)
@@ -92,6 +101,12 @@ def test_user_password_and_reset_token_round_trip(app: Flask, database: None) ->
         restored = User.verify_reset_password_token(token)
         assert restored is not None
         assert restored.id == user.id
+        assert restored.home_town == "Oakland"
+        assert restored.home_state == "CA"
+        assert restored.home_country == "USA"
+        assert restored.home_gym == "Lake Merritt"
+        assert restored.home_latlng == "37.8044,-122.2711"
+        assert restored.geoll == '{"type":"Point","coordinates":[-122.2711,37.8044]}'
 
 
 def test_membership_models_persist_relationships(app: Flask, database: None) -> None:
