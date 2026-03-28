@@ -1,0 +1,7 @@
+# ~/.codex/config.toml  or  .codex/config.toml
+sandbox_mode = "workspace-write"
+approval_policy = "never"
+
+[sandbox_workspace_write]
+writable_roots = ["/tmp/explor_codex_db", " /Users/bheliker/Documents/_Projects/explor/explor_codex"]
+
