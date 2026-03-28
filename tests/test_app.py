@@ -584,6 +584,8 @@ def test_trimmed_image_model_persists_relationships(app: Flask, database: None) 
         assert image.segment_id == segment.id
         assert image.activity_id == activity.id
         assert image.geoll == '{"type":"Point","coordinates":[-122.2,37.8]}'
+        assert segment.images[0].id == image.id
+        assert activity.images[0].id == image.id
 
 
 def test_image_services_create_and_filter(app: Flask, database: None) -> None:
@@ -631,6 +633,8 @@ def test_image_services_create_and_filter(app: Flask, database: None) -> None:
         assert len(activity_images) == 1
         assert activity_images[0].id == image.id
         assert activity_images[0].geoll == '{"type":"Point","coordinates":[-122.3,37.82]}'
+        assert segment.images[0].id == image.id
+        assert activity.images[0].id == image.id
 
 
 def test_group_services_create_and_extend_group(app: Flask, database: None) -> None:

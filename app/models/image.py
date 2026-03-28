@@ -30,8 +30,8 @@ class Image(Base):
     url: Mapped[str | None] = mapped_column(String(2048))
 
     group = relationship("Group")
-    segment = relationship("Segment")
-    activity = relationship("Activity")
+    segment = relationship("Segment", back_populates="images")
+    activity = relationship("Activity", back_populates="images")
     photographer = relationship("User")
 
     @property

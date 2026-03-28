@@ -45,6 +45,7 @@ class Activity(Base):
 
     athlete = relationship("User")
     route = relationship("Route")
+    images = relationship("Image", back_populates="activity")
 
     @property
     def summary_polyline(self) -> str | None:

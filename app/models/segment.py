@@ -48,6 +48,7 @@ class Segment(Base):
     record_date: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     routes = relationship("Route", secondary=route_segments, back_populates="segments")
+    images = relationship("Image", back_populates="segment")
 
     @property
     def summary_polyline(self) -> str | None:
