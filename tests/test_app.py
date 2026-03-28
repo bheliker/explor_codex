@@ -947,8 +947,7 @@ def test_point_of_interest_services_create_and_filter(app: Flask, database: None
             owner=other_user,
             name="Coffee Stop",
             poi_type="cafe",
-            lat=37.81,
-            lon=-122.21,
+            geoll='{"type":"Point","coordinates":[-122.21,37.81]}',
         )
 
         owned_points = list_points_of_interest(owner=owner)
@@ -956,9 +955,12 @@ def test_point_of_interest_services_create_and_filter(app: Flask, database: None
         assert len(owned_points) == 1
         assert owned_points[0].id == trailhead.id
         assert owned_points[0].type == "trailhead"
+        assert owned_points[0].geoll == '{"type":"Point","coordinates":[-122.2,37.8]}'
 
 
 def test_api_point_of_interest_endpoints(app: Flask, client: FlaskClient, database: None) -> None:
+    geoll = '{"type":"Point","coordinates":[-122.51,37.91]}'
+
     with app.app_context():
         db = app.extensions["sqlalchemy"]
         owner = User(username="api-poi", email="api-poi@example.com", password_hash="x")
@@ -975,6 +977,7 @@ def test_api_point_of_interest_endpoints(app: Flask, client: FlaskClient, databa
             "subtype": "scenic",
             "lat": 37.91,
             "lon": -122.51,
+            "geoll": geoll,
             "url": "https://example.com/viewpoint",
             "description": "Panoramic ridge stop",
             "icon": "binoculars",
@@ -989,6 +992,7 @@ def test_api_point_of_interest_endpoints(app: Flask, client: FlaskClient, databa
         "subtype": "scenic",
         "lat": 37.91,
         "lon": -122.51,
+        "geoll": geoll,
         "url": "https://example.com/viewpoint",
         "description": "Panoramic ridge stop",
         "icon": "binoculars",
@@ -1006,6 +1010,7 @@ def test_api_point_of_interest_endpoints(app: Flask, client: FlaskClient, databa
                 "subtype": "scenic",
                 "lat": 37.91,
                 "lon": -122.51,
+                "geoll": geoll,
                 "url": "https://example.com/viewpoint",
                 "description": "Panoramic ridge stop",
                 "icon": "binoculars",

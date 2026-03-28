@@ -3,6 +3,7 @@ from __future__ import annotations
 from sqlalchemy import Select, select
 
 from app.extensions import db
+from app.geometry import point_coordinates
 from app.models import PointOfInterest, User
 
 
@@ -14,10 +15,18 @@ def create_point_of_interest(
     subtype: str | None = None,
     lat: float | None = None,
     lon: float | None = None,
+    geoll: str | None = None,
     url: str | None = None,
     description: str | None = None,
     icon: str | None = None,
 ) -> PointOfInterest:
+    if geoll is None and lat is not None and lon is not None:
+        geoll = f'{{"type":"Point","coordinates":[{lon},{lat}]}}'
+    if geoll is not None and (lat is None or lon is None):
+        coordinates = point_coordinates(geoll)
+        if coordinates is not None:
+            lon, lat = coordinates
+
     point_of_interest = PointOfInterest(
         owner=owner,
         name=name,
@@ -25,6 +34,7 @@ def create_point_of_interest(
         subtype=subtype,
         lat=lat,
         lon=lon,
+        geoll=geoll,
         url=url,
         description=description,
         icon=icon,

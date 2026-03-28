@@ -6,6 +6,7 @@ from sqlalchemy import DateTime, Float, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
+from app.geometry import point_type, to_api_point_geometry, to_storage_point_geometry
 
 
 class PointOfInterest(Base):
@@ -17,6 +18,7 @@ class PointOfInterest(Base):
     subtype: Mapped[str | None] = mapped_column(String(128))
     lon: Mapped[float | None] = mapped_column(Float)
     lat: Mapped[float | None] = mapped_column(Float)
+    _geoll: Mapped[object | None] = mapped_column("geoll", point_type())
     name: Mapped[str | None] = mapped_column(String(256))
     url: Mapped[str | None] = mapped_column(String(2048))
     description: Mapped[str | None] = mapped_column(String(2048))
@@ -25,3 +27,11 @@ class PointOfInterest(Base):
     icon: Mapped[str | None] = mapped_column(String(256))
 
     owner = relationship("User")
+
+    @property
+    def geoll(self) -> str | None:
+        return to_api_point_geometry(self, "geoll", self._geoll)
+
+    @geoll.setter
+    def geoll(self, value: str | None) -> None:
+        self._geoll = to_storage_point_geometry(value)

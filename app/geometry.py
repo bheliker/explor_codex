@@ -37,6 +37,10 @@ def linestring_z_type() -> GeometryType:
     return GeometryType("LINESTRINGZ")
 
 
+def point_type() -> GeometryType:
+    return GeometryType("POINT")
+
+
 def to_storage_geometry(value: str | None) -> str | None:
     if value is None:
         return None
@@ -45,6 +49,17 @@ def to_storage_geometry(value: str | None) -> str | None:
         return None
     if stripped.startswith("{"):
         return _geojson_text_to_wkt(stripped)
+    return stripped
+
+
+def to_storage_point_geometry(value: str | None) -> str | None:
+    if value is None:
+        return None
+    stripped = value.strip()
+    if not stripped:
+        return None
+    if stripped.startswith("{"):
+        return _geojson_text_to_point_wkt(stripped)
     return stripped
 
 
@@ -64,6 +79,40 @@ def to_api_geometry(instance: Any, attribute_name: str, value: Any) -> str | Non
     return str(value)
 
 
+def to_api_point_geometry(instance: Any, attribute_name: str, value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return _point_wkt_to_geojson_text(value) if not value.lstrip().startswith("{") else value
+    if isinstance(value, WKBElement):
+        session = object_session(instance)
+        if session is None or getattr(instance, "id", None) is None:
+            return None
+        model = type(instance)
+        column = getattr(model, f"_{attribute_name}")
+        statement = select(func.ST_AsGeoJSON(column)).where(model.id == instance.id)
+        result = session.scalar(statement)
+        return (
+            json.dumps(_normalize_numbers(json.loads(result)), separators=(",", ":"))
+            if result
+            else None
+        )
+    return str(value)
+
+
+def point_coordinates(value: str | None) -> tuple[float, float] | None:
+    if value is None:
+        return None
+    stripped = value.strip()
+    if not stripped:
+        return None
+    geometry = shape(json.loads(stripped)) if stripped.startswith("{") else load_wkt(stripped)
+    if geometry.geom_type != "Point":
+        raise ValueError("Only Point geometry is supported")
+    x, y = geometry.coords[0]
+    return float(x), float(y)
+
+
 def _geojson_text_to_wkt(value: str) -> str:
     payload = json.loads(value)
     geometry_payload = payload["geometry"] if payload.get("type") == "Feature" else payload
@@ -75,10 +124,29 @@ def _geojson_text_to_wkt(value: str) -> str:
     return to_wkt(geometry, rounding_precision=-1)
 
 
+def _geojson_text_to_point_wkt(value: str) -> str:
+    payload = json.loads(value)
+    geometry_payload = payload["geometry"] if payload.get("type") == "Feature" else payload
+    geometry = shape(geometry_payload)
+    if geometry.geom_type != "Point":
+        raise ValueError("Only Point geometry is supported")
+    if geometry.is_empty:
+        raise ValueError("Point coordinates are required")
+    return to_wkt(geometry, rounding_precision=-1)
+
+
 def _wkt_to_geojson_text(value: str) -> str:
     geometry = load_wkt(value)
     if geometry.geom_type != "LineString":
         raise ValueError("Only LINESTRING WKT is supported")
+    payload = json.loads(to_geojson(geometry))
+    return json.dumps(_normalize_numbers(payload), separators=(",", ":"))
+
+
+def _point_wkt_to_geojson_text(value: str) -> str:
+    geometry = load_wkt(value)
+    if geometry.geom_type != "Point":
+        raise ValueError("Only POINT WKT is supported")
     payload = json.loads(to_geojson(geometry))
     return json.dumps(_normalize_numbers(payload), separators=(",", ":"))
 
