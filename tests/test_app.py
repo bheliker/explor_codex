@@ -35,11 +35,13 @@ from app.services import (
     create_activity,
     create_event,
     create_group,
+    create_image,
     create_point_of_interest,
     create_route,
     create_segment,
     ensure_group_membership,
     list_activities,
+    list_images,
     list_points_of_interest,
     list_routes,
     list_segments,
@@ -582,6 +584,53 @@ def test_trimmed_image_model_persists_relationships(app: Flask, database: None) 
         assert image.segment_id == segment.id
         assert image.activity_id == activity.id
         assert image.geoll == '{"type":"Point","coordinates":[-122.2,37.8]}'
+
+
+def test_image_services_create_and_filter(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        photographer = User(
+            username="service-photographer",
+            email="service-photographer@example.com",
+            password_hash="x",
+        )
+        other = User(username="service-other", email="service-other@example.com", password_hash="x")
+        group = Group(name="Image Service Group", shortname="image-service-group")
+        segment = Segment(name="Image Service Segment")
+        activity = Activity(name="Image Service Activity")
+        db.session.add_all([photographer, other, group, segment, activity])
+        db.session.commit()
+
+        image = create_image(
+            photographer=photographer,
+            group=group,
+            segment=segment,
+            activity=activity,
+            img_medium="https://example.com/service-medium.jpg",
+            img_thumb="https://example.com/service-thumb.jpg",
+            title="Service Image",
+            geoll='{"type":"Point","coordinates":[-122.3,37.82]}',
+        )
+        create_image(
+            photographer=other,
+            img_medium="https://example.com/other-medium.jpg",
+            title="Other Image",
+        )
+
+        photographer_images = list_images(photographer=photographer)
+        group_images = list_images(group=group)
+        segment_images = list_images(segment=segment)
+        activity_images = list_images(activity=activity)
+
+        assert len(photographer_images) == 1
+        assert photographer_images[0].id == image.id
+        assert len(group_images) == 1
+        assert group_images[0].id == image.id
+        assert len(segment_images) == 1
+        assert segment_images[0].id == image.id
+        assert len(activity_images) == 1
+        assert activity_images[0].id == image.id
+        assert activity_images[0].geoll == '{"type":"Point","coordinates":[-122.3,37.82]}'
 
 
 def test_group_services_create_and_extend_group(app: Flask, database: None) -> None:
@@ -1554,6 +1603,91 @@ def test_api_activity_endpoints(app: Flask, client: FlaskClient, database: None)
                 "end_longitude": -122.42,
                 "summary_polyline": summary_polyline,
                 "full_track": full_track,
+            }
+        ]
+    }
+
+
+def test_api_image_endpoints(app: Flask, client: FlaskClient, database: None) -> None:
+    geoll = '{"type":"Point","coordinates":[-122.41,37.78]}'
+
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        photographer = User(
+            username="api-photographer",
+            email="api-photographer@example.com",
+            password_hash="x",
+        )
+        group = Group(name="API Image Group", shortname="api-image-group")
+        segment = Segment(name="API Image Segment")
+        activity = Activity(name="API Image Activity")
+        db.session.add_all([photographer, group, segment, activity])
+        db.session.commit()
+        photographer_id = photographer.id
+        group_id = group.id
+        segment_id = segment.id
+        activity_id = activity.id
+
+    create_response = client.post(
+        "/api/images",
+        json={
+            "photographer_id": photographer_id,
+            "group_id": group_id,
+            "segment_id": segment_id,
+            "activity_id": activity_id,
+            "img_small": "https://example.com/api-small.jpg",
+            "img_medium": "https://example.com/api-medium.jpg",
+            "img_large": "https://example.com/api-large.jpg",
+            "img_thumb": "https://example.com/api-thumb.jpg",
+            "alt_txt": "Foggy overlook",
+            "title": "API Image",
+            "caption": "Morning marine layer",
+            "latlng": "37.78,-122.41",
+            "geoll": geoll,
+            "url": "https://example.com/api-full.jpg",
+        },
+    )
+    assert create_response.status_code == 201
+    assert create_response.get_json() == {
+        "id": create_response.get_json()["id"],
+        "photographer_id": photographer_id,
+        "group_id": group_id,
+        "segment_id": segment_id,
+        "activity_id": activity_id,
+        "img_small": "https://example.com/api-small.jpg",
+        "img_medium": "https://example.com/api-medium.jpg",
+        "img_large": "https://example.com/api-large.jpg",
+        "img_thumb": "https://example.com/api-thumb.jpg",
+        "alt_txt": "Foggy overlook",
+        "title": "API Image",
+        "caption": "Morning marine layer",
+        "latlng": "37.78,-122.41",
+        "geoll": geoll,
+        "url": "https://example.com/api-full.jpg",
+    }
+
+    list_response = client.get(
+        f"/api/images?photographer_id={photographer_id}&group_id={group_id}&segment_id={segment_id}&activity_id={activity_id}"
+    )
+    assert list_response.status_code == 200
+    assert list_response.get_json() == {
+        "items": [
+            {
+                "id": create_response.get_json()["id"],
+                "photographer_id": photographer_id,
+                "group_id": group_id,
+                "segment_id": segment_id,
+                "activity_id": activity_id,
+                "img_small": "https://example.com/api-small.jpg",
+                "img_medium": "https://example.com/api-medium.jpg",
+                "img_large": "https://example.com/api-large.jpg",
+                "img_thumb": "https://example.com/api-thumb.jpg",
+                "alt_txt": "Foggy overlook",
+                "title": "API Image",
+                "caption": "Morning marine layer",
+                "latlng": "37.78,-122.41",
+                "geoll": geoll,
+                "url": "https://example.com/api-full.jpg",
             }
         ]
     }

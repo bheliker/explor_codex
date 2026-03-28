@@ -36,6 +36,7 @@ The app exposes:
 - `/api/events/<id>/rsvps`
 - `/api/events/<id>/fees`
 - `/api/points-of-interest`
+- `/api/images`
 - `/api/routes`
 - `/api/routes/<id>/links`
 - `/api/routes/<id>/segments`
@@ -66,10 +67,10 @@ need to reassert them in an app context, use `app.bootstrap.ensure_canonical_loo
 ## Services
 
 Thin domain services now live in `app/services/` and provide a stable place for group and event
-actions such as membership creation, RSVP updates, fee/link creation, and point-of-interest
-creation. The JSON API routes in `app/routes.py` call into those services rather than embedding
-business logic directly in Flask handlers. Routes, segments, activities, and group-route linkage
-now follow the same thin service/API pattern.
+actions such as membership creation, RSVP updates, fee/link creation, point-of-interest creation,
+and image creation. The JSON API routes in `app/routes.py` call into those services rather than
+embedding business logic directly in Flask handlers. Routes, segments, activities, images, and
+group-route linkage now follow the same thin service/API pattern.
 
 Routes, segments, and activities now carry `summary_polyline` and `full_track` geometry payloads.
 POIs now also carry a `geoll` point geometry alongside their compatibility `lat` and `lon` fields.

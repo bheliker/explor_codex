@@ -16,6 +16,7 @@ from app.models import (
     Group,
     GroupDues,
     GroupExternalUrl,
+    Image,
     Membership,
     PointOfInterest,
     Route,
@@ -33,11 +34,13 @@ from app.services import (
     create_activity,
     create_event,
     create_group,
+    create_image,
     create_point_of_interest,
     create_route,
     create_segment,
     ensure_group_membership,
     list_activities,
+    list_images,
     list_points_of_interest,
     list_routes,
     list_segments,
@@ -407,6 +410,71 @@ def create_activity_route() -> tuple[dict[str, object], int]:
     return _activity_payload(activity), HTTPStatus.CREATED
 
 
+@bp.get("/api/images")
+def list_images_route() -> tuple[dict[str, object], int]:
+    photographer = None
+    group = None
+    segment = None
+    activity = None
+    photographer_id = request.args.get("photographer_id", type=int)
+    group_id = request.args.get("group_id", type=int)
+    segment_id = request.args.get("segment_id", type=int)
+    activity_id = request.args.get("activity_id", type=int)
+    if photographer_id is not None:
+        photographer = _get_or_404(User, photographer_id)
+    if group_id is not None:
+        group = _get_or_404(Group, group_id)
+    if segment_id is not None:
+        segment = _get_or_404(Segment, segment_id)
+    if activity_id is not None:
+        activity = _get_or_404(Activity, activity_id)
+    images = list_images(
+        photographer=photographer,
+        group=group,
+        segment=segment,
+        activity=activity,
+    )
+    return {"items": [_image_payload(image) for image in images]}, HTTPStatus.OK
+
+
+@bp.post("/api/images")
+def create_image_route() -> tuple[dict[str, object], int]:
+    payload = _json_payload()
+    image = create_image(
+        photographer=(
+            _get_or_404(User, _required_int(payload, "photographer_id"))
+            if payload.get("photographer_id") is not None
+            else None
+        ),
+        group=(
+            _get_or_404(Group, _required_int(payload, "group_id"))
+            if payload.get("group_id") is not None
+            else None
+        ),
+        segment=(
+            _get_or_404(Segment, _required_int(payload, "segment_id"))
+            if payload.get("segment_id") is not None
+            else None
+        ),
+        activity=(
+            _get_or_404(Activity, _required_int(payload, "activity_id"))
+            if payload.get("activity_id") is not None
+            else None
+        ),
+        img_small=_optional_str(payload, "img_small"),
+        img_medium=_optional_str(payload, "img_medium"),
+        img_large=_optional_str(payload, "img_large"),
+        img_thumb=_optional_str(payload, "img_thumb"),
+        alt_txt=_optional_str(payload, "alt_txt"),
+        title=_optional_str(payload, "title"),
+        caption=_optional_str(payload, "caption"),
+        latlng=_optional_str(payload, "latlng"),
+        geoll=_optional_str(payload, "geoll"),
+        url=_optional_str(payload, "url"),
+    )
+    return _image_payload(image), HTTPStatus.CREATED
+
+
 def _json_payload() -> dict[str, Any]:
     return cast(dict[str, Any], request.get_json(force=True, silent=False))
 
@@ -662,4 +730,24 @@ def _activity_payload(activity: Activity) -> dict[str, object]:
         "end_longitude": activity.end_longitude,
         "summary_polyline": activity.summary_polyline,
         "full_track": activity.full_track,
+    }
+
+
+def _image_payload(image: Image) -> dict[str, object]:
+    return {
+        "id": image.id,
+        "photographer_id": image.photographer_id,
+        "group_id": image.group_id,
+        "segment_id": image.segment_id,
+        "activity_id": image.activity_id,
+        "img_small": image.img_small,
+        "img_medium": image.img_medium,
+        "img_large": image.img_large,
+        "img_thumb": image.img_thumb,
+        "alt_txt": image.alt_txt,
+        "title": image.title,
+        "caption": image.caption,
+        "latlng": image.latlng,
+        "geoll": image.geoll,
+        "url": image.url,
     }
