@@ -7,6 +7,7 @@ from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, Tabl
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
+from app.geometry import point_type, to_api_point_geometry, to_storage_point_geometry
 
 if TYPE_CHECKING:
     from app.models.membership import EventInvitation
@@ -49,6 +50,7 @@ class Event(Base):
     state: Mapped[str | None] = mapped_column(String(256))
     country: Mapped[str | None] = mapped_column(String(256))
     latlng: Mapped[str | None] = mapped_column(String(256))
+    _geoll: Mapped[object | None] = mapped_column("geoll", point_type())
     route_id: Mapped[int | None] = mapped_column(ForeignKey("route.id"))
     activity_id: Mapped[int | None] = mapped_column(ForeignKey("activity.id"))
 
@@ -98,3 +100,11 @@ class Event(Base):
 
     def mark_not_attending(self, user: User) -> EventInvitation:
         return self.ensure_participation(user, status_name="not_attending")
+
+    @property
+    def geoll(self) -> str | None:
+        return to_api_point_geometry(self, "geoll", self._geoll)
+
+    @geoll.setter
+    def geoll(self, value: str | None) -> None:
+        self._geoll = to_storage_point_geometry(value)

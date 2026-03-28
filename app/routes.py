@@ -171,8 +171,19 @@ def create_event_route() -> tuple[dict[str, object], int]:
         ),
         private=_optional_bool(payload, "private", default=False),
         description=_optional_str(payload, "description"),
+        url=_optional_str(payload, "url"),
+        reg_url=_optional_str(payload, "reg_url"),
+        photo_url=_optional_str(payload, "photo_url"),
+        logo=_optional_str(payload, "logo"),
+        profile_photo=_optional_str(payload, "profile_photo"),
+        notes=_optional_str(payload, "notes"),
+        lat=_optional_float(payload, "lat"),
+        lon=_optional_float(payload, "lon"),
         town=_optional_str(payload, "town"),
         state=_optional_str(payload, "state"),
+        country=_optional_str(payload, "country"),
+        latlng=_optional_str(payload, "latlng"),
+        geoll=_optional_str(payload, "geoll"),
     )
     return _event_payload(event), HTTPStatus.CREATED
 
@@ -611,8 +622,19 @@ def _event_payload(event: Event) -> dict[str, object]:
         "route_id": event.route_id,
         "activity_id": event.activity_id,
         "private": event.private,
+        "url": event.url,
+        "reg_url": event.reg_url,
+        "photo_url": event.photo_url,
+        "logo": event.logo,
+        "profile_photo": event.profile_photo,
+        "notes": event.notes,
+        "lat": event.lat,
+        "lon": event.lon,
         "town": event.town,
         "state": event.state,
+        "country": event.country,
+        "latlng": event.latlng,
+        "geoll": event.geoll,
     }
 
 

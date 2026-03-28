@@ -693,8 +693,17 @@ def test_event_services_create_and_extend_event(app: Flask, database: None) -> N
             name="Service Event",
             owner=owner,
             description="Thin service event",
+            url="https://example.com/events/service-event",
+            reg_url="https://example.com/events/service-event/register",
+            photo_url="https://example.com/events/service-event.jpg",
+            logo="https://example.com/events/service-logo.png",
+            profile_photo="https://example.com/events/service-profile.png",
+            notes="Bring lights for the return ride.",
+            lat=37.8044,
+            lon=-122.2711,
             town="Oakland",
             state="CA",
+            country="USA",
         )
         attach_calendar(event, calendar)
         participation = set_rsvp(event, attendee, status_name="attending")
@@ -711,6 +720,8 @@ def test_event_services_create_and_extend_event(app: Flask, database: None) -> N
         assert event.fees[0].id == fee.id
         assert event.route_id is None
         assert event.activity_id is None
+        assert event.latlng == "37.8044,-122.2711"
+        assert event.geoll == '{"type":"Point","coordinates":[-122.2711,37.8044]}'
 
 
 def test_event_can_link_route_and_activity(app: Flask, database: None) -> None:
@@ -860,8 +871,17 @@ def test_api_endpoints_exercise_group_and_event_flows(
             "name": "API Event",
             "owner_id": owner_id,
             "description": "Created through the thin API",
+            "url": "https://example.com/events/api-event",
+            "reg_url": "https://example.com/events/api-event/register",
+            "photo_url": "https://example.com/events/api-event.jpg",
+            "logo": "https://example.com/events/api-logo.png",
+            "profile_photo": "https://example.com/events/api-profile.png",
+            "notes": "Meet ten minutes early.",
+            "lat": 37.8715,
+            "lon": -122.273,
             "town": "Berkeley",
             "state": "CA",
+            "country": "USA",
         },
     )
     assert event_response.status_code == 201
@@ -873,8 +893,19 @@ def test_api_endpoints_exercise_group_and_event_flows(
         "route_id": None,
         "activity_id": None,
         "private": False,
+        "url": "https://example.com/events/api-event",
+        "reg_url": "https://example.com/events/api-event/register",
+        "photo_url": "https://example.com/events/api-event.jpg",
+        "logo": "https://example.com/events/api-logo.png",
+        "profile_photo": "https://example.com/events/api-profile.png",
+        "notes": "Meet ten minutes early.",
+        "lat": 37.8715,
+        "lon": -122.273,
         "town": "Berkeley",
         "state": "CA",
+        "country": "USA",
+        "latlng": "37.8715,-122.273",
+        "geoll": '{"type":"Point","coordinates":[-122.273,37.8715]}',
     }
     event_id = event_payload["id"]
 
@@ -961,8 +992,19 @@ def test_api_event_can_link_route_and_activity(
         "route_id": route_id,
         "activity_id": activity_id,
         "private": False,
+        "url": None,
+        "reg_url": None,
+        "photo_url": None,
+        "logo": None,
+        "profile_photo": None,
+        "notes": None,
+        "lat": None,
+        "lon": None,
         "town": None,
         "state": None,
+        "country": None,
+        "latlng": None,
+        "geoll": None,
     }
 
 
