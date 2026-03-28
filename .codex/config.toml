@@ -3,5 +3,7 @@ sandbox_mode = "workspace-write"
 approval_policy = "never"
 
 [sandbox_workspace_write]
-writable_roots = ["/tmp/explor_codex_db", " /Users/bheliker/Documents/_Projects/explor/explor_codex"]
-
+writable_roots = [
+  "/Users/bheliker/Documents/_Projects/explor/explor_codex",
+  "/Users/bheliker/Documents/_Projects/explor/explor_codex/.codex-tmp/migration-dbs",
+]

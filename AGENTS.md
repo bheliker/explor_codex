@@ -13,9 +13,10 @@ This file is the local instruction scratchpad for future Codex work in this repo
 - Check formatting: `uv run ruff format --check .`
 - Format code: `uv run ruff format .`
 - Run type checks: `uv run mypy app tests`
-- Migrate the DB: `sqlite+pysqlite:////tmp/*.db`
+- Migration verification DBs live under `./.codex-tmp/migration-dbs/`
+- Migrate the DB: `sqlite+pysqlite:////Users/bheliker/Documents/_Projects/explor/explor_codex/.codex-tmp/migration-dbs/*.db`
 	- `uv run flask --app 'app:create_app()' db upgrade`
-	- `DATABASE_URL=sqlite+pysqlite:////tmp/*.db uv run flask --app 'app:create_app()' db upgrade`
+	- `DATABASE_URL=sqlite+pysqlite:////Users/bheliker/Documents/_Projects/explor/explor_codex/.codex-tmp/migration-dbs/<task>.db uv run flask --app 'app:create_app()' db upgrade`
 
 ## Code Layout
 - Application code lives in `app/`
@@ -45,4 +46,5 @@ This file is the local instruction scratchpad for future Codex work in this repo
 ## Working notes
 
 - Prefer short, specific instructions over long general advice.
+- Prefer repo-local migration verification databases over shared `/tmp`.
 - Update this file as the project evolves.

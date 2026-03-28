@@ -6,3 +6,7 @@ __pycache__/
 .ruff_cache/
 .DS_Store
 .env
+.codex-tmp/**
+!.codex-tmp/.gitkeep
+!.codex-tmp/migration-dbs/
+!.codex-tmp/migration-dbs/.gitkeep
