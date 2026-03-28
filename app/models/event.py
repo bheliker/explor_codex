@@ -20,6 +20,13 @@ calendar_events = Table(
     Column("events", Integer, ForeignKey("event.id"), primary_key=True),
 )
 
+event_images = Table(
+    "event_images",
+    Base.metadata,
+    Column("event", Integer, ForeignKey("event.id"), primary_key=True),
+    Column("image", Integer, ForeignKey("image.id"), primary_key=True),
+)
+
 
 class Event(Base):
     __tablename__ = "event"
@@ -58,6 +65,7 @@ class Event(Base):
     fees = relationship("EventFee", back_populates="event")
     route = relationship("Route")
     activity = relationship("Activity")
+    images = relationship("Image", secondary=event_images, back_populates="events")
     participants = relationship(
         "EventInvitation",
         secondary="event_attendance",

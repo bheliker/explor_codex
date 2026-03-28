@@ -29,6 +29,7 @@ from app.services import (
     add_group_link,
     add_route_link,
     attach_calendar,
+    attach_image_to_event,
     attach_route_to_group,
     attach_segment_to_route,
     create_activity,
@@ -221,6 +222,24 @@ def create_event_fee_route(event_id: int) -> tuple[dict[str, object], int]:
         description=_optional_str(payload, "description"),
     )
     return _event_fee_payload(event, fee), HTTPStatus.CREATED
+
+
+@bp.get("/api/events/<int:event_id>/images")
+def list_event_images_route(event_id: int) -> tuple[dict[str, object], int]:
+    event = _get_or_404(Event, event_id)
+    return {"items": [_image_payload(image) for image in event.images]}, HTTPStatus.OK
+
+
+@bp.post("/api/events/<int:event_id>/images")
+def attach_event_image_route(event_id: int) -> tuple[dict[str, object], int]:
+    payload = _json_payload()
+    event = _get_or_404(Event, event_id)
+    image = _get_or_404(Image, _required_int(payload, "image_id"))
+    attach_image_to_event(event, image)
+    return {
+        "event_id": event.id,
+        "image_ids": [linked_image.id for linked_image in event.images],
+    }, HTTPStatus.CREATED
 
 
 @bp.get("/api/points-of-interest")

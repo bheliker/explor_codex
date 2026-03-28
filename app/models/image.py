@@ -32,6 +32,7 @@ class Image(Base):
     group = relationship("Group", foreign_keys=[group_id])
     segment = relationship("Segment", back_populates="images")
     activity = relationship("Activity", back_populates="images")
+    events = relationship("Event", secondary="event_images", back_populates="images")
     photographer = relationship("User")
 
     @property

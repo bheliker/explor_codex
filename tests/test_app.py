@@ -30,6 +30,7 @@ from app.services import (
     add_group_link,
     add_route_link,
     attach_calendar,
+    attach_image_to_event,
     attach_route_to_group,
     attach_segment_to_route,
     create_activity,
@@ -714,6 +715,12 @@ def test_event_services_create_and_extend_event(app: Flask, database: None) -> N
             duration=1,
             description="Single-day entry",
         )
+        image = create_image(
+            photographer=owner,
+            img_medium="https://example.com/events/service-image.jpg",
+            title="Service Event Image",
+        )
+        attach_image_to_event(event, image)
 
         assert event.calendars[0].id == calendar.id
         assert participation.status.name == "attending"
@@ -722,6 +729,7 @@ def test_event_services_create_and_extend_event(app: Flask, database: None) -> N
         assert event.activity_id is None
         assert event.latlng == "37.8044,-122.2711"
         assert event.geoll == '{"type":"Point","coordinates":[-122.2711,37.8044]}'
+        assert event.images[0].id == image.id
 
 
 def test_event_can_link_route_and_activity(app: Flask, database: None) -> None:
@@ -865,6 +873,17 @@ def test_api_endpoints_exercise_group_and_event_flows(
         "duration": 365,
     }
 
+    image_create_response = client.post(
+        "/api/images",
+        json={
+            "photographer_id": owner_id,
+            "img_medium": "https://example.com/events/api-image.jpg",
+            "title": "API Event Image",
+        },
+    )
+    assert image_create_response.status_code == 201
+    image_id = image_create_response.get_json()["id"]
+
     event_response = client.post(
         "/api/events",
         json={
@@ -917,6 +936,40 @@ def test_api_endpoints_exercise_group_and_event_flows(
     assert calendar_link_response.get_json() == {
         "event_id": event_id,
         "calendar_ids": [calendar_id],
+    }
+
+    event_image_response = client.post(
+        f"/api/events/{event_id}/images",
+        json={"image_id": image_id},
+    )
+    assert event_image_response.status_code == 201
+    assert event_image_response.get_json() == {
+        "event_id": event_id,
+        "image_ids": [image_id],
+    }
+
+    event_image_list_response = client.get(f"/api/events/{event_id}/images")
+    assert event_image_list_response.status_code == 200
+    assert event_image_list_response.get_json() == {
+        "items": [
+            {
+                "id": image_id,
+                "photographer_id": owner_id,
+                "group_id": None,
+                "segment_id": None,
+                "activity_id": None,
+                "img_small": None,
+                "img_medium": "https://example.com/events/api-image.jpg",
+                "img_large": None,
+                "img_thumb": None,
+                "alt_txt": None,
+                "title": "API Event Image",
+                "caption": None,
+                "latlng": None,
+                "geoll": None,
+                "url": None,
+            }
+        ]
     }
 
     rsvp_response = client.post(

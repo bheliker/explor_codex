@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import Select, select
 
 from app.extensions import db
-from app.models import Activity, Group, Image, Segment, User
+from app.models import Activity, Event, Group, Image, Segment, User
 
 
 def create_image(
@@ -61,3 +61,10 @@ def list_images(
     if activity is not None:
         statement = statement.where(Image.activity_id == activity.id)
     return list(db.session.scalars(statement))
+
+
+def attach_image_to_event(event: Event, image: Image) -> Event:
+    if image not in event.images:
+        event.images.append(image)
+        db.session.commit()
+    return event
