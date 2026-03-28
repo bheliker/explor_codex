@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, String, Table
+from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, String, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
@@ -27,6 +27,7 @@ class Segment(Base):
     duration: Mapped[float | None] = mapped_column(Float)
     length: Mapped[float | None] = mapped_column(Float)
     elevation_gain: Mapped[float | None] = mapped_column(Float)
+    elevation_array: Mapped[list[float] | None] = mapped_column(JSON)
     elevation_loss: Mapped[float | None] = mapped_column(Float)
     elev_high: Mapped[float | None] = mapped_column(Float)
     elev_low: Mapped[float | None] = mapped_column(Float)
@@ -34,6 +35,7 @@ class Segment(Base):
     grade: Mapped[float | None] = mapped_column(Float)
     type: Mapped[str | None] = mapped_column(String(128))
     subtype: Mapped[str | None] = mapped_column(String(128))
+    tags: Mapped[list[str] | None] = mapped_column(JSON)
     src: Mapped[str | None] = mapped_column(String(128))
     src_id: Mapped[str | None] = mapped_column(String(128))
     src_url: Mapped[str | None] = mapped_column(String(2048))

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
@@ -27,6 +27,8 @@ class Route(Base):
     duration: Mapped[float | None] = mapped_column(Float)
     length: Mapped[float | None] = mapped_column(Float)
     elevation_gain: Mapped[float | None] = mapped_column(Float)
+    tags: Mapped[list[str] | None] = mapped_column(JSON)
+    elevation_array: Mapped[list[float] | None] = mapped_column(JSON)
     type: Mapped[str | None] = mapped_column(String(128))
     subtype: Mapped[str | None] = mapped_column(String(128))
     grade: Mapped[float | None] = mapped_column(Float)

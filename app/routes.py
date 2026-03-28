@@ -320,6 +320,8 @@ def create_route_route() -> tuple[dict[str, object], int]:
         duration=_optional_float(payload, "duration"),
         length=_optional_float(payload, "length"),
         elevation_gain=_optional_float(payload, "elevation_gain"),
+        tags=_optional_str_list(payload, "tags"),
+        elevation_array=_optional_float_list(payload, "elevation_array"),
         route_type=_optional_str(payload, "type"),
         subtype=_optional_str(payload, "subtype"),
         src=_optional_str(payload, "src"),
@@ -385,6 +387,7 @@ def create_segment_route() -> tuple[dict[str, object], int]:
         duration=_optional_float(payload, "duration"),
         length=_optional_float(payload, "length"),
         elevation_gain=_optional_float(payload, "elevation_gain"),
+        elevation_array=_optional_float_list(payload, "elevation_array"),
         elevation_loss=_optional_float(payload, "elevation_loss"),
         elev_high=_optional_float(payload, "elev_high"),
         elev_low=_optional_float(payload, "elev_low"),
@@ -392,6 +395,7 @@ def create_segment_route() -> tuple[dict[str, object], int]:
         grade=_optional_float(payload, "grade"),
         segment_type=_optional_str(payload, "type"),
         subtype=_optional_str(payload, "subtype"),
+        tags=_optional_str_list(payload, "tags"),
         src=_optional_str(payload, "src"),
         src_id=_optional_str(payload, "src_id"),
         src_url=_optional_str(payload, "src_url"),
@@ -586,6 +590,29 @@ def _optional_bool(payload: dict[str, Any], key: str, *, default: bool) -> bool:
     return value
 
 
+def _optional_str_list(payload: dict[str, Any], key: str) -> list[str] | None:
+    value = payload.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+        abort(HTTPStatus.BAD_REQUEST)
+    return value
+
+
+def _optional_float_list(payload: dict[str, Any], key: str) -> list[float] | None:
+    value = payload.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, list):
+        abort(HTTPStatus.BAD_REQUEST)
+    converted: list[float] = []
+    for item in value:
+        if isinstance(item, bool) or not isinstance(item, int | float):
+            abort(HTTPStatus.BAD_REQUEST)
+        converted.append(float(item))
+    return converted
+
+
 def _optional_nullable_bool(payload: dict[str, Any], key: str) -> bool | None:
     value = payload.get(key)
     if value is None:
@@ -721,6 +748,8 @@ def _route_payload(route: Route) -> dict[str, object]:
         "duration": route.duration,
         "length": route.length,
         "elevation_gain": route.elevation_gain,
+        "tags": route.tags,
+        "elevation_array": route.elevation_array,
         "type": route.type,
         "subtype": route.subtype,
         "src": route.src,
@@ -747,6 +776,7 @@ def _segment_payload(segment: Segment) -> dict[str, object]:
         "duration": segment.duration,
         "length": segment.length,
         "elevation_gain": segment.elevation_gain,
+        "elevation_array": segment.elevation_array,
         "elevation_loss": segment.elevation_loss,
         "elev_high": segment.elev_high,
         "elev_low": segment.elev_low,
@@ -754,6 +784,7 @@ def _segment_payload(segment: Segment) -> dict[str, object]:
         "grade": segment.grade,
         "type": segment.type,
         "subtype": segment.subtype,
+        "tags": segment.tags,
         "src": segment.src,
         "src_id": segment.src_id,
         "src_url": segment.src_url,

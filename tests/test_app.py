@@ -1132,6 +1132,8 @@ def test_api_group_can_attach_and_list_routes(
                 "duration": None,
                 "length": None,
                 "elevation_gain": None,
+                "tags": None,
+                "elevation_array": None,
                 "type": None,
                 "subtype": None,
                 "src": None,
@@ -1357,6 +1359,8 @@ def test_route_services_create_and_filter(app: Flask, database: None) -> None:
             private=False,
             length=54.2,
             elevation_gain=1200.0,
+            tags=["road", "climbing"],
+            elevation_array=[32.0, 45.5, 128.2],
             route_type="ride",
             subtype="mixed",
             start_latitude=37.82,
@@ -1379,6 +1383,8 @@ def test_route_services_create_and_filter(app: Flask, database: None) -> None:
         assert len(creator_routes) == 1
         assert creator_routes[0].id == route.id
         assert creator_routes[0].length == 54.2
+        assert creator_routes[0].tags == ["road", "climbing"]
+        assert creator_routes[0].elevation_array == [32.0, 45.5, 128.2]
         assert creator_routes[0].summary_polyline is not None
         assert creator_routes[0].full_track is not None
 
@@ -1404,6 +1410,8 @@ def test_api_route_endpoints(app: Flask, client: FlaskClient, database: None) ->
             "duration": 10800.0,
             "length": 67.5,
             "elevation_gain": 1800.0,
+            "tags": ["coastal", "road"],
+            "elevation_array": [0, 45.5, 120],
             "type": "ride",
             "subtype": "road",
             "src": "manual",
@@ -1431,6 +1439,8 @@ def test_api_route_endpoints(app: Flask, client: FlaskClient, database: None) ->
         "duration": 10800.0,
         "length": 67.5,
         "elevation_gain": 1800.0,
+        "tags": ["coastal", "road"],
+        "elevation_array": [0.0, 45.5, 120.0],
         "type": "ride",
         "subtype": "road",
         "src": "manual",
@@ -1461,6 +1471,8 @@ def test_api_route_endpoints(app: Flask, client: FlaskClient, database: None) ->
                 "duration": 10800.0,
                 "length": 67.5,
                 "elevation_gain": 1800.0,
+                "tags": ["coastal", "road"],
+                "elevation_array": [0.0, 45.5, 120.0],
                 "type": "ride",
                 "subtype": "road",
                 "src": "manual",
@@ -1497,7 +1509,9 @@ def test_segment_services_create_and_attach_to_route(app: Flask, database: None)
             name="Climb Segment",
             length=4.8,
             elevation_gain=420.0,
+            elevation_array=[10.0, 55.5, 90.0],
             segment_type="climb",
+            tags=["climb", "ocean"],
             summary_polyline='{"type":"LineString","coordinates":[[-122.3,37.8],[-122.28,37.82]]}',
             full_track='{"type":"LineString","coordinates":[[-122.3,37.8,20],[-122.28,37.82,110]]}',
             track_hash="seg-climb-001",
@@ -1508,6 +1522,8 @@ def test_segment_services_create_and_attach_to_route(app: Flask, database: None)
 
         assert len(segments) == 1
         assert segments[0].id == segment.id
+        assert segments[0].elevation_array == [10.0, 55.5, 90.0]
+        assert segments[0].tags == ["climb", "ocean"]
         assert segments[0].summary_polyline is not None
         assert segments[0].full_track is not None
         assert route.segments[0].id == segment.id
@@ -1526,6 +1542,7 @@ def test_api_segment_endpoints(app: Flask, client: FlaskClient, database: None) 
             "duration": 720.0,
             "length": 6.4,
             "elevation_gain": 40.0,
+            "elevation_array": [4, 20.5, 44],
             "elevation_loss": 310.0,
             "elev_high": 280.0,
             "elev_low": 12.0,
@@ -1533,6 +1550,7 @@ def test_api_segment_endpoints(app: Flask, client: FlaskClient, database: None) 
             "grade": -4.2,
             "type": "descent",
             "subtype": "road",
+            "tags": ["descent", "road"],
             "src": "manual",
             "src_id": "segment-123",
             "src_url": "https://example.com/segments/123",
@@ -1554,6 +1572,7 @@ def test_api_segment_endpoints(app: Flask, client: FlaskClient, database: None) 
         "duration": 720.0,
         "length": 6.4,
         "elevation_gain": 40.0,
+        "elevation_array": [4.0, 20.5, 44.0],
         "elevation_loss": 310.0,
         "elev_high": 280.0,
         "elev_low": 12.0,
@@ -1561,6 +1580,7 @@ def test_api_segment_endpoints(app: Flask, client: FlaskClient, database: None) 
         "grade": -4.2,
         "type": "descent",
         "subtype": "road",
+        "tags": ["descent", "road"],
         "src": "manual",
         "src_id": "segment-123",
         "src_url": "https://example.com/segments/123",
@@ -1585,6 +1605,7 @@ def test_api_segment_endpoints(app: Flask, client: FlaskClient, database: None) 
                 "duration": 720.0,
                 "length": 6.4,
                 "elevation_gain": 40.0,
+                "elevation_array": [4.0, 20.5, 44.0],
                 "elevation_loss": 310.0,
                 "elev_high": 280.0,
                 "elev_low": 12.0,
@@ -1592,6 +1613,7 @@ def test_api_segment_endpoints(app: Flask, client: FlaskClient, database: None) 
                 "grade": -4.2,
                 "type": "descent",
                 "subtype": "road",
+                "tags": ["descent", "road"],
                 "src": "manual",
                 "src_id": "segment-123",
                 "src_url": "https://example.com/segments/123",
