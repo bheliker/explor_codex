@@ -60,7 +60,9 @@ class Group(Base):
     waiver_date: Mapped[datetime | None]
     logo: Mapped[str | None] = mapped_column(String(2048))
     profile_photo: Mapped[str | None] = mapped_column(String(2048))
-    hero_photo_id: Mapped[int | None] = mapped_column(ForeignKey("image.id"))
+    hero_photo_id: Mapped[int | None] = mapped_column(
+        ForeignKey("image.id", use_alter=True, name="fk_group_hero_photo_id_image")
+    )
     hero_video: Mapped[str | None] = mapped_column(String(2048))
     home_town: Mapped[str | None] = mapped_column(String(256))
     home_state: Mapped[str | None] = mapped_column(String(256))
