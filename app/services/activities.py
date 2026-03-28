@@ -35,6 +35,8 @@ def create_activity(
     start_longitude: float | None = None,
     end_latitude: float | None = None,
     end_longitude: float | None = None,
+    summary_polyline: str | None = None,
+    full_track: str | None = None,
 ) -> Activity:
     activity = Activity(
         athlete=athlete,
@@ -62,6 +64,8 @@ def create_activity(
         start_longitude=start_longitude,
         end_latitude=end_latitude,
         end_longitude=end_longitude,
+        summary_polyline=summary_polyline,
+        full_track=full_track,
     )
     db.session.add(activity)
     db.session.commit()

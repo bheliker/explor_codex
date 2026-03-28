@@ -393,6 +393,8 @@ def create_activity_route() -> tuple[dict[str, object], int]:
         start_longitude=_optional_float(payload, "start_longitude"),
         end_latitude=_optional_float(payload, "end_latitude"),
         end_longitude=_optional_float(payload, "end_longitude"),
+        summary_polyline=_optional_str(payload, "summary_polyline"),
+        full_track=_optional_str(payload, "full_track"),
     )
     return _activity_payload(activity), HTTPStatus.CREATED
 
@@ -642,4 +644,6 @@ def _activity_payload(activity: Activity) -> dict[str, object]:
         "start_longitude": activity.start_longitude,
         "end_latitude": activity.end_latitude,
         "end_longitude": activity.end_longitude,
+        "summary_polyline": activity.summary_polyline,
+        "full_track": activity.full_track,
     }

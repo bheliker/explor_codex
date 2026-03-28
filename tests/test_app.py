@@ -1341,6 +1341,8 @@ def test_activity_services_create_and_filter(app: Flask, database: None) -> None
             activity_type="ride",
             src="manual",
             src_id="activity-001",
+            summary_polyline='{"type":"LineString","coordinates":[[-122.42,37.78],[-122.38,37.8]]}',
+            full_track='{"type":"LineString","coordinates":[[-122.42,37.78,8],[-122.38,37.8,22]]}',
         )
         create_activity(
             athlete=other_athlete,
@@ -1356,9 +1358,14 @@ def test_activity_services_create_and_filter(app: Flask, database: None) -> None
         assert len(route_activities) == 1
         assert route_activities[0].id == activity.id
         assert route_activities[0].route_id == route.id
+        assert route_activities[0].summary_polyline is not None
+        assert route_activities[0].full_track is not None
 
 
 def test_api_activity_endpoints(app: Flask, client: FlaskClient, database: None) -> None:
+    summary_polyline = '{"type":"LineString","coordinates":[[-122.42,37.78],[-122.39,37.8]]}'
+    full_track = '{"type":"LineString","coordinates":[[-122.42,37.78,11],[-122.39,37.8,27]]}'
+
     with app.app_context():
         db = app.extensions["sqlalchemy"]
         athlete = User(
@@ -1398,6 +1405,8 @@ def test_api_activity_endpoints(app: Flask, client: FlaskClient, database: None)
             "start_longitude": -122.42,
             "end_latitude": 37.78,
             "end_longitude": -122.42,
+            "summary_polyline": summary_polyline,
+            "full_track": full_track,
         },
     )
     assert create_response.status_code == 201
@@ -1426,6 +1435,8 @@ def test_api_activity_endpoints(app: Flask, client: FlaskClient, database: None)
         "start_longitude": -122.42,
         "end_latitude": 37.78,
         "end_longitude": -122.42,
+        "summary_polyline": summary_polyline,
+        "full_track": full_track,
     }
 
     list_response = client.get(f"/api/activities?athlete_id={athlete_id}&route_id={route_id}")
@@ -1457,6 +1468,8 @@ def test_api_activity_endpoints(app: Flask, client: FlaskClient, database: None)
                 "start_longitude": -122.42,
                 "end_latitude": 37.78,
                 "end_longitude": -122.42,
+                "summary_polyline": summary_polyline,
+                "full_track": full_track,
             }
         ]
     }

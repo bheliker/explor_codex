@@ -6,6 +6,7 @@ from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
+from app.geometry import linestring_type, linestring_z_type, to_api_geometry, to_storage_geometry
 
 
 class Activity(Base):
@@ -38,7 +39,25 @@ class Activity(Base):
     start_latitude: Mapped[float | None] = mapped_column(Float)
     end_longitude: Mapped[float | None] = mapped_column(Float)
     end_latitude: Mapped[float | None] = mapped_column(Float)
+    _summary_polyline: Mapped[object | None] = mapped_column("summary_polyline", linestring_type())
+    _full_track: Mapped[object | None] = mapped_column("full_track", linestring_z_type())
     route_id: Mapped[int | None] = mapped_column(ForeignKey("route.id"))
 
     athlete = relationship("User")
     route = relationship("Route")
+
+    @property
+    def summary_polyline(self) -> str | None:
+        return to_api_geometry(self, "summary_polyline", self._summary_polyline)
+
+    @summary_polyline.setter
+    def summary_polyline(self, value: str | None) -> None:
+        self._summary_polyline = to_storage_geometry(value)
+
+    @property
+    def full_track(self) -> str | None:
+        return to_api_geometry(self, "full_track", self._full_track)
+
+    @full_track.setter
+    def full_track(self, value: str | None) -> None:
+        self._full_track = to_storage_geometry(value)
