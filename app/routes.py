@@ -81,6 +81,11 @@ def create_group_route() -> tuple[dict[str, object], int]:
         home_add=_optional_str(payload, "home_add"),
         full_address=_optional_str(payload, "full_address"),
         geoll=_optional_str(payload, "geoll"),
+        hero_photo=(
+            _get_or_404(Image, _required_int(payload, "hero_photo_id"))
+            if payload.get("hero_photo_id") is not None
+            else None
+        ),
     )
     return _group_payload(group), HTTPStatus.CREATED
 
@@ -555,6 +560,7 @@ def _group_payload(group: Group) -> dict[str, object]:
         "home_add": group.home_add,
         "full_address": group.full_address,
         "geoll": group.geoll,
+        "hero_photo_id": group.hero_photo_id,
     }
 
 

@@ -642,7 +642,8 @@ def test_group_services_create_and_extend_group(app: Flask, database: None) -> N
         db = app.extensions["sqlalchemy"]
         ensure_canonical_lookup_rows()
         user = User(username="service-group", email="service-group@example.com", password_hash="x")
-        db.session.add(user)
+        hero_photo = Image(img_medium="https://example.com/groups/hero.jpg")
+        db.session.add_all([user, hero_photo])
         db.session.commit()
 
         group = create_group(
@@ -653,6 +654,7 @@ def test_group_services_create_and_extend_group(app: Flask, database: None) -> N
             home_state="CA",
             home_country="USA",
             geoll='{"type":"Point","coordinates":[-122.2711,37.8044]}',
+            hero_photo=hero_photo,
         )
         membership = ensure_group_membership(group, user)
         link = add_group_link(group, name="Club Site", url="https://example.com/groups/service")
@@ -669,6 +671,7 @@ def test_group_services_create_and_extend_group(app: Flask, database: None) -> N
         assert group.dues_schedule[0].id == dues.id
         assert group.home_latlng == "37.8044,-122.2711"
         assert group.geoll == '{"type":"Point","coordinates":[-122.2711,37.8044]}'
+        assert group.hero_photo_id == hero_photo.id
 
 
 def test_event_services_create_and_extend_event(app: Flask, database: None) -> None:
@@ -752,13 +755,15 @@ def test_api_endpoints_exercise_group_and_event_flows(
             email="api-attendee@example.com",
             password_hash="x",
         )
+        hero_photo = Image(img_medium="https://example.com/groups/api-hero.jpg")
         group = Group(name="API Calendar Group", shortname="api-calendar-group")
         calendar = Calendar(name="API Calendar", group=group, type="club")
-        db.session.add_all([owner, attendee, group, calendar])
+        db.session.add_all([owner, attendee, hero_photo, group, calendar])
         db.session.commit()
         owner_id = owner.id
         attendee_id = attendee.id
         calendar_id = calendar.id
+        hero_photo_id = hero_photo.id
 
     bootstrap_response = client.post("/api/bootstrap/lookup-rows", json={})
     assert bootstrap_response.status_code == 200
@@ -780,6 +785,7 @@ def test_api_endpoints_exercise_group_and_event_flows(
             "home_add": "2000 Center St",
             "full_address": "2000 Center St, Berkeley, CA",
             "geoll": '{"type":"Point","coordinates":[-122.273,37.8715]}',
+            "hero_photo_id": hero_photo_id,
         },
     )
     assert group_response.status_code == 201
@@ -797,6 +803,7 @@ def test_api_endpoints_exercise_group_and_event_flows(
         "home_add": "2000 Center St",
         "full_address": "2000 Center St, Berkeley, CA",
         "geoll": '{"type":"Point","coordinates":[-122.273,37.8715]}',
+        "hero_photo_id": hero_photo_id,
     }
     group_id = group_payload["id"]
 

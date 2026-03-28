@@ -60,6 +60,7 @@ class Group(Base):
     waiver_date: Mapped[datetime | None]
     logo: Mapped[str | None] = mapped_column(String(2048))
     profile_photo: Mapped[str | None] = mapped_column(String(2048))
+    hero_photo_id: Mapped[int | None] = mapped_column(ForeignKey("image.id"))
     hero_video: Mapped[str | None] = mapped_column(String(2048))
     home_town: Mapped[str | None] = mapped_column(String(256))
     home_state: Mapped[str | None] = mapped_column(String(256))
@@ -75,6 +76,7 @@ class Group(Base):
     links = relationship("GroupExternalUrl", back_populates="group")
     routes = relationship("Route", secondary=group_routes, back_populates="groups")
     members = relationship("Membership", secondary=group_membership, backref="groups")
+    hero_photo = relationship("Image", foreign_keys=[hero_photo_id])
 
     def join(self, user: "User") -> None:
         role_name = "pending" if self.invite_only else "member"

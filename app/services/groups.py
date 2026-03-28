@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from app.extensions import db
 from app.geometry import point_coordinates
-from app.models import Group, GroupDues, GroupExternalUrl, Membership, Route, User
+from app.models import Group, GroupDues, GroupExternalUrl, Image, Membership, Route, User
 
 
 def create_group(
@@ -18,6 +18,7 @@ def create_group(
     home_add: str | None = None,
     full_address: str | None = None,
     geoll: str | None = None,
+    hero_photo: Image | None = None,
 ) -> Group:
     if geoll is not None and home_latlng is None:
         coordinates = point_coordinates(geoll)
@@ -37,6 +38,7 @@ def create_group(
         home_add=home_add,
         full_address=full_address,
         geoll=geoll,
+        hero_photo=hero_photo,
     )
     db.session.add(group)
     db.session.commit()

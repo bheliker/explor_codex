@@ -29,7 +29,7 @@ class Image(Base):
     _geoll: Mapped[object | None] = mapped_column("geoll", point_type())
     url: Mapped[str | None] = mapped_column(String(2048))
 
-    group = relationship("Group")
+    group = relationship("Group", foreign_keys=[group_id])
     segment = relationship("Segment", back_populates="images")
     activity = relationship("Activity", back_populates="images")
     photographer = relationship("User")
