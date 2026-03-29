@@ -20,6 +20,7 @@ from app.models import (
     Membership,
     PointOfInterest,
     Route,
+    SearchDocument,
     Segment,
     User,
 )
@@ -46,6 +47,9 @@ from app.services import (
     list_points_of_interest,
     list_routes,
     list_segments,
+    parse_search_types,
+    rebuild_search_documents,
+    search_documents,
     set_rsvp,
 )
 
@@ -66,6 +70,24 @@ def health() -> tuple[dict[str, str], int]:
 @bp.post("/api/bootstrap/lookup-rows")
 def bootstrap_lookup_rows() -> tuple[dict[str, list[str]], int]:
     return ensure_canonical_lookup_rows(), HTTPStatus.OK
+
+
+@bp.post("/api/search/reindex")
+def rebuild_search_index_route() -> tuple[dict[str, int], int]:
+    return {"indexed": rebuild_search_documents()}, HTTPStatus.OK
+
+
+@bp.get("/api/search")
+def search_route() -> tuple[dict[str, object], int]:
+    query = request.args.get("q", type=str)
+    if query is None or not query.strip():
+        abort(HTTPStatus.BAD_REQUEST)
+
+    parsed_types = parse_search_types(request.args.getlist("type"))
+    requested_limit = request.args.get("limit", default=25, type=int)
+    limit = min(max(requested_limit, 1), 100)
+    documents = search_documents(query=query, types=parsed_types or None, limit=limit)
+    return {"items": [_search_document_payload(document) for document in documents]}, HTTPStatus.OK
 
 
 @bp.post("/api/groups")
@@ -872,4 +894,15 @@ def _image_payload(image: Image) -> dict[str, object]:
         "geoll": image.geoll,
         "tags": image.tags,
         "url": image.url,
+    }
+
+
+def _search_document_payload(document: SearchDocument) -> dict[str, object]:
+    return {
+        "entity_type": document.entity_type,
+        "entity_id": document.entity_id,
+        "title": document.title,
+        "subtitle": document.subtitle,
+        "location": document.location,
+        "tags": document.tags,
     }

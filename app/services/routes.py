@@ -4,6 +4,7 @@ from sqlalchemy import Select, select
 
 from app.extensions import db
 from app.models import Route, User
+from app.services.search import index_instance
 
 
 def create_route(
@@ -60,6 +61,8 @@ def create_route(
         map_thumbnail=map_thumbnail,
     )
     db.session.add(route)
+    db.session.flush()
+    index_instance(route)
     db.session.commit()
     return route
 

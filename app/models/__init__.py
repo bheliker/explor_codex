@@ -19,6 +19,7 @@ from app.models.lookup import (
 from app.models.membership import EventInvitation, Membership, event_attendance
 from app.models.point_of_interest import PointOfInterest, poi_images
 from app.models.route import Route
+from app.models.search_document import SearchDocument
 from app.models.segment import Segment, route_segments
 from app.models.user import User
 
@@ -39,6 +40,7 @@ __all__ = [
     "Membership",
     "PointOfInterest",
     "Route",
+    "SearchDocument",
     "Segment",
     "User",
     "calendar_events",

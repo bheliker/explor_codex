@@ -19,6 +19,8 @@ from app.models import (
     GroupRole,
     Image,
     Membership,
+    PointOfInterest,
+    Route,
     Segment,
     User,
     missing_event_invitation_status_names,
@@ -47,6 +49,9 @@ from app.services import (
     list_points_of_interest,
     list_routes,
     list_segments,
+    parse_search_types,
+    rebuild_search_documents,
+    search_documents,
     set_rsvp,
 )
 
@@ -1975,3 +1980,133 @@ def test_api_image_endpoints(app: Flask, client: FlaskClient, database: None) ->
             }
         ]
     }
+
+
+def test_search_type_parser_normalizes_and_deduplicates() -> None:
+    assert parse_search_types(["Route", "event", "route", "unknown", ""]) == ["route", "event"]
+
+
+def test_search_rebuild_indexes_existing_domain_records(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        group = Group(
+            name="East Bay Riders",
+            shortname="east-bay-riders",
+            about_blurb="Weekly community rides in Oakland",
+            tags=["community", "road"],
+            home_town="Oakland",
+            home_state="CA",
+        )
+        route = Route(
+            name="Redwood Climb",
+            desc="Shaded climb through the redwoods",
+            tags=["climb", "redwoods"],
+            city="Oakland",
+            state="CA",
+        )
+        event = Event(
+            name="Sunrise Rollout",
+            description="Early social ride from the lake",
+            tags=["social", "road"],
+            town="Oakland",
+            state="CA",
+        )
+        point = PointOfInterest(
+            name="Joaquin Miller Trailhead",
+            description="Popular trailhead with parking",
+            tags=["trailhead", "parking"],
+            type="trailhead",
+        )
+        db.session.add_all([group, route, event, point])
+        db.session.commit()
+
+        indexed = rebuild_search_documents()
+        results = search_documents(query="oakland road")
+
+        assert indexed >= 4
+        assert any(
+            result.entity_type == "group" and result.title == "East Bay Riders"
+            for result in results
+        )
+        assert any(
+            result.entity_type == "event" and result.title == "Sunrise Rollout"
+            for result in results
+        )
+
+
+def test_search_indexes_new_service_records(app: Flask, database: None) -> None:
+    with app.app_context():
+        route = create_route(
+            name="Tilden Loop",
+            desc="Scenic rolling route above Berkeley",
+            tags=["scenic", "rolling"],
+            city="Berkeley",
+            state="CA",
+        )
+        segment = create_segment(
+            name="Seaview Climb",
+            desc="Steady fire road climb",
+            tags=["climb", "gravel"],
+        )
+        point = create_point_of_interest(
+            name="Inspiration Point",
+            poi_type="viewpoint",
+            description="Wide-open East Bay overlook",
+            tags=["viewpoint", "sunset"],
+        )
+
+        route_results = search_documents(query="berkeley scenic", types=["route"])
+        segment_results = search_documents(query="fire road climb", types=["segment"])
+        poi_results = search_documents(query="overlook sunset", types=["point_of_interest"])
+
+        assert [result.entity_id for result in route_results] == [route.id]
+        assert [result.entity_id for result in segment_results] == [segment.id]
+        assert [result.entity_id for result in poi_results] == [point.id]
+
+
+def test_api_search_and_reindex_endpoints(app: Flask, client: FlaskClient, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        group = Group(
+            name="Marin Gravel Crew",
+            shortname="marin-gravel",
+            about_blurb="Mixed-surface rides across Marin",
+            tags=["gravel", "mixed-surface"],
+            home_town="Mill Valley",
+            home_state="CA",
+        )
+        event = Event(
+            name="Bridge to Ridge",
+            description="Big Marin climbing day",
+            tags=["climbing", "marin"],
+            town="Sausalito",
+            state="CA",
+        )
+        db.session.add_all([group, event])
+        db.session.commit()
+
+    rebuild_response = client.post("/api/search/reindex", json={})
+    assert rebuild_response.status_code == 200
+    assert rebuild_response.get_json()["indexed"] >= 2
+
+    search_response = client.get("/api/search?q=marin&type=group&type=event")
+    assert search_response.status_code == 200
+    payload = search_response.get_json()
+    assert payload is not None
+    assert {item["title"] for item in payload["items"]} == {
+        "Bridge to Ridge",
+        "Marin Gravel Crew",
+    }
+    assert {(item["entity_type"], item["location"]) for item in payload["items"]} == {
+        ("event", "Sausalito, CA"),
+        ("group", "Mill Valley, CA"),
+    }
+
+    limited_response = client.get("/api/search?q=marin&limit=1")
+    assert limited_response.status_code == 200
+    limited_payload = limited_response.get_json()
+    assert limited_payload is not None
+    assert len(limited_payload["items"]) == 1
+
+    missing_query_response = client.get("/api/search")
+    assert missing_query_response.status_code == 400

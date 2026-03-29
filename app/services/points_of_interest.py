@@ -5,6 +5,7 @@ from sqlalchemy import Select, select
 from app.extensions import db
 from app.geometry import point_coordinates
 from app.models import PointOfInterest, User
+from app.services.search import index_instance
 
 
 def create_point_of_interest(
@@ -42,6 +43,8 @@ def create_point_of_interest(
         icon=icon,
     )
     db.session.add(point_of_interest)
+    db.session.flush()
+    index_instance(point_of_interest)
     db.session.commit()
     return point_of_interest
 

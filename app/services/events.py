@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.extensions import db
 from app.geometry import point_coordinates
 from app.models import Activity, Calendar, Event, EventFee, EventInvitation, Route, User
+from app.services.search import index_instance
 
 
 def create_event(
@@ -60,6 +61,8 @@ def create_event(
         geoll=geoll,
     )
     db.session.add(event)
+    db.session.flush()
+    index_instance(event)
     db.session.commit()
     return event
 

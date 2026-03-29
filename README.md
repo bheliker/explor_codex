@@ -26,6 +26,8 @@ The app exposes:
 - `/`
 - `/health`
 - `/api/bootstrap/lookup-rows`
+- `/api/search`
+- `/api/search/reindex`
 - `/api/groups`
 - `/api/groups/<id>/memberships`
 - `/api/groups/<id>/links`
@@ -72,6 +74,12 @@ and image creation. The JSON API routes in `app/routes.py` call into those servi
 embedding business logic directly in Flask handlers. Routes, segments, activities, images, and
 group-route linkage now follow the same thin service/API pattern.
 
+Search now follows the same service-first approach. `app/services/search.py` maintains a portable
+`search_document` index for groups, routes, segments, events, points of interest, and activities.
+Use `POST /api/search/reindex` to rebuild the index and `GET /api/search?q=...&type=...&limit=...`
+to query it. Search is intentionally app-level and cross-database for now; it does not depend on
+Postgres `TSVECTOR` columns or GIN indexes.
+
 Routes, segments, and activities now carry `summary_polyline` and `full_track` geometry payloads.
 POIs now also carry a `geoll` point geometry alongside their compatibility `lat` and `lon` fields.
 These are wired for PostGIS on Postgres while remaining verification-friendly on SQLite.
@@ -100,6 +108,7 @@ These are wired for PostGIS on Postgres while remaining verification-friendly on
 │   │   ├── membership.py
 │   │   ├── point_of_interest.py
 │   │   ├── route.py
+│   │   ├── search_document.py
 │   │   ├── segment.py
 │   │   └── user.py
 │   ├── services/
@@ -107,6 +116,7 @@ These are wired for PostGIS on Postgres while remaining verification-friendly on
 │   │   ├── activities.py
 │   │   ├── events.py
 │   │   ├── groups.py
+│   │   ├── search.py
 │   │   ├── points_of_interest.py
 │   │   ├── routes.py
 │   │   └── segments.py

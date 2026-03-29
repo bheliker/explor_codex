@@ -18,6 +18,13 @@ from app.services.images import (
 )
 from app.services.points_of_interest import create_point_of_interest, list_points_of_interest
 from app.services.routes import create_route, list_routes
+from app.services.search import (
+    SEARCHABLE_ENTITY_TYPES,
+    index_instance,
+    parse_search_types,
+    rebuild_search_documents,
+    search_documents,
+)
 from app.services.segments import attach_segment_to_route, create_segment, list_segments
 
 __all__ = [
@@ -40,8 +47,13 @@ __all__ = [
     "list_points_of_interest",
     "create_route",
     "create_segment",
+    "index_instance",
     "list_routes",
     "attach_segment_to_route",
     "list_segments",
+    "parse_search_types",
+    "rebuild_search_documents",
+    "SEARCHABLE_ENTITY_TYPES",
+    "search_documents",
     "set_rsvp",
 ]

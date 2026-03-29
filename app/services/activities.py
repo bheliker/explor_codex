@@ -6,6 +6,7 @@ from sqlalchemy import Select, select
 
 from app.extensions import db
 from app.models import Activity, Route, User
+from app.services.search import index_instance
 
 
 def create_activity(
@@ -70,6 +71,8 @@ def create_activity(
         full_track=full_track,
     )
     db.session.add(activity)
+    db.session.flush()
+    index_instance(activity)
     db.session.commit()
     return activity
 
