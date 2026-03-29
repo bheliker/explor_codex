@@ -28,6 +28,8 @@ This file is the local instruction scratchpad for future Codex work in this repo
 - Keep changes minimal and targeted.
 - Add or update tests for behavior changes.
 - Run tests, lint, and mypy before finishing substantive changes.
+- Read `WORKLOG.md` at the start of a new session before planning work.
+- Append a concise dated entry to `WORKLOG.md` after each substantive session covering what was investigated, what changed, what was decided, and why.
 
 ## Commit Workflow
 - After each code change, propose a git commit title and body.

@@ -1,0 +1,56 @@
+# WORKLOG.md
+
+This file records session history for `explor_codex` so future work can resume with context.
+
+## How to use this log
+- Read this file at the start of a new session before planning or making changes.
+- Append a new dated entry after each substantive work session.
+- Capture what we investigated, what changed, what we decided, and why.
+- Prefer concise, high-signal notes over exhaustive transcripts.
+
+## 2026-03-29
+
+### Investigated
+- Audited what remained from `explor_alpha` before redesigning search.
+- Confirmed the remaining unported pieces were mostly old framework-era or optional product features:
+  - `Role`, `RolesUsers`, `PaginatedAPIMixin`, `group_members`, `group_images`
+  - optional joins such as `followers` and `calendar_subscribers`
+- Evaluated whether DuckDB should replace SQLite or Postgres for local/test workflows.
+
+### Changed
+- Added a portable app-level search architecture:
+  - [app/models/search_document.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/models/search_document.py)
+  - [app/services/search.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/services/search.py)
+  - [migrations/versions/1cc7da553e57_add_search_documents_table.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/migrations/versions/1cc7da553e57_add_search_documents_table.py)
+- Wired search indexing into create flows for:
+  - groups
+  - routes
+  - segments
+  - events
+  - points of interest
+  - activities
+- Added search API endpoints in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py):
+  - `GET /api/search`
+  - `POST /api/search/reindex`
+- Added test coverage in [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py)
+- Updated [README.md](/Users/bheliker/Documents/_Projects/explor/explor_codex/README.md) to document the search surface.
+- Added this worklog and updated [AGENTS.md](/Users/bheliker/Documents/_Projects/explor/explor_codex/AGENTS.md) to require reading/updating it in future sessions.
+
+### Decisions
+- Stop importing old models for now and move into search/admin/UI redesign on top of the modernized domain.
+- Keep search app-level and cross-database first, using a `search_document` table plus normalized text matching.
+- Keep Postgres/PostGIS as the authoritative local app database.
+- Keep SQLite for disposable migration verification.
+- Do not replace the app’s main local/test DB behavior with DuckDB.
+- Treat DuckDB as optional future tooling for analytics or search experiments, not as the primary compatibility path.
+
+### Why
+- The remaining old models were either obsolete under the new architecture or optional product features rather than prerequisites.
+- App-level search gives us portability, easier tests, and simpler migrations while the data model is still evolving.
+- Postgres/PostGIS is still the best way to preserve geospatial correctness and compatibility with the inherited schema shape.
+- SQLite remains useful as a lightweight migration verifier because it is already integrated into the repo-local disposable DB workflow.
+
+### Notes for the next session
+- The next likely feature area is thin admin/UI work on top of the new search API.
+- Another good option is improving search freshness for future update/edit flows so reindexing is less manual.
+- Search is currently indexed on create flows and via explicit rebuilds; update-path indexing has not been added yet.
