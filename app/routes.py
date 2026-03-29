@@ -83,6 +83,10 @@ def create_group_route() -> tuple[dict[str, object], int]:
         home_add=_optional_str(payload, "home_add"),
         full_address=_optional_str(payload, "full_address"),
         geoll=_optional_str(payload, "geoll"),
+        preference_tags=_optional_str_list(payload, "preference_tags"),
+        tags=_optional_str_list(payload, "tags"),
+        rider_classes=_optional_str_list(payload, "rider_classes"),
+        ride_classes=_optional_str_list(payload, "ride_classes"),
         hero_photo=(
             _get_or_404(Image, _required_int(payload, "hero_photo_id"))
             if payload.get("hero_photo_id") is not None
@@ -114,6 +118,7 @@ def create_group_link_route(group_id: int) -> tuple[dict[str, object], int]:
         name=_required_str(payload, "name"),
         url=_required_str(payload, "url"),
         link_type=_required_str({"type": payload.get("type", "website")}, "type"),
+        tags=_optional_str_list(payload, "tags"),
     )
     return _group_link_payload(group, link), HTTPStatus.CREATED
 
@@ -128,6 +133,7 @@ def create_group_dues_route(group_id: int) -> tuple[dict[str, object], int]:
         fee=_required_float(payload, "fee"),
         duration=_required_int(payload, "duration"),
         description=_optional_str(payload, "description"),
+        tags=_optional_str_list(payload, "tags"),
     )
     return _group_dues_payload(group, dues), HTTPStatus.CREATED
 
@@ -179,6 +185,7 @@ def create_event_route() -> tuple[dict[str, object], int]:
         logo=_optional_str(payload, "logo"),
         profile_photo=_optional_str(payload, "profile_photo"),
         notes=_optional_str(payload, "notes"),
+        tags=_optional_str_list(payload, "tags"),
         lat=_optional_float(payload, "lat"),
         lon=_optional_float(payload, "lon"),
         town=_optional_str(payload, "town"),
@@ -221,6 +228,7 @@ def create_event_fee_route(event_id: int) -> tuple[dict[str, object], int]:
         fee=_required_float(payload, "fee"),
         duration=_required_int(payload, "duration"),
         description=_optional_str(payload, "description"),
+        tags=_optional_str_list(payload, "tags"),
     )
     return _event_fee_payload(event, fee), HTTPStatus.CREATED
 
@@ -289,6 +297,7 @@ def create_point_of_interest_route() -> tuple[dict[str, object], int]:
         geoll=_optional_str(payload, "geoll"),
         url=_optional_str(payload, "url"),
         description=_optional_str(payload, "description"),
+        tags=_optional_str_list(payload, "tags"),
         icon=_optional_str(payload, "icon"),
     )
     return _point_of_interest_payload(point), HTTPStatus.CREATED
@@ -356,6 +365,7 @@ def create_route_link_route(route_id: int) -> tuple[dict[str, object], int]:
         name=_required_str(payload, "name"),
         url=_required_str(payload, "url"),
         link_type=_required_str({"type": payload.get("type", "website")}, "type"),
+        tags=_optional_str_list(payload, "tags"),
     )
     return _route_link_payload(route, link), HTTPStatus.CREATED
 
@@ -445,6 +455,7 @@ def create_activity_route() -> tuple[dict[str, object], int]:
         desc=_optional_str(payload, "desc"),
         private=_optional_nullable_bool(payload, "private"),
         photo_url=_optional_str(payload, "photo_url"),
+        tags=_optional_str_list(payload, "tags"),
         duration=_optional_float(payload, "duration"),
         length=_optional_float(payload, "length"),
         elevation_gain=_optional_float(payload, "elevation_gain"),
@@ -528,6 +539,7 @@ def create_image_route() -> tuple[dict[str, object], int]:
         caption=_optional_str(payload, "caption"),
         latlng=_optional_str(payload, "latlng"),
         geoll=_optional_str(payload, "geoll"),
+        tags=_optional_str_list(payload, "tags"),
         url=_optional_str(payload, "url"),
     )
     return _image_payload(image), HTTPStatus.CREATED
@@ -636,6 +648,10 @@ def _group_payload(group: Group) -> dict[str, object]:
         "home_add": group.home_add,
         "full_address": group.full_address,
         "geoll": group.geoll,
+        "preference_tags": group.preference_tags,
+        "tags": group.tags,
+        "rider_classes": group.rider_classes,
+        "ride_classes": group.ride_classes,
         "hero_photo_id": group.hero_photo_id,
     }
 
@@ -655,6 +671,7 @@ def _group_link_payload(group: Group, link: GroupExternalUrl) -> dict[str, objec
         "link_id": link.id,
         "name": link.name,
         "type": link.type,
+        "tags": link.tags,
         "url": link.url,
     }
 
@@ -666,6 +683,7 @@ def _group_dues_payload(group: Group, dues: GroupDues) -> dict[str, object]:
         "name": dues.name,
         "fee": dues.fee,
         "duration": dues.duration,
+        "tags": dues.tags,
     }
 
 
@@ -675,6 +693,7 @@ def _route_link_payload(route: Route, link: GroupExternalUrl) -> dict[str, objec
         "link_id": link.id,
         "name": link.name,
         "type": link.type,
+        "tags": link.tags,
         "url": link.url,
     }
 
@@ -687,12 +706,14 @@ def _event_payload(event: Event) -> dict[str, object]:
         "route_id": event.route_id,
         "activity_id": event.activity_id,
         "private": event.private,
+        "description": event.description,
         "url": event.url,
         "reg_url": event.reg_url,
         "photo_url": event.photo_url,
         "logo": event.logo,
         "profile_photo": event.profile_photo,
         "notes": event.notes,
+        "tags": event.tags,
         "lat": event.lat,
         "lon": event.lon,
         "town": event.town,
@@ -719,6 +740,7 @@ def _event_fee_payload(event: Event, fee: EventFee) -> dict[str, object]:
         "name": fee.name,
         "fee": fee.fee,
         "duration": fee.duration,
+        "tags": fee.tags,
     }
 
 
@@ -734,6 +756,7 @@ def _point_of_interest_payload(point: PointOfInterest) -> dict[str, object]:
         "geoll": point.geoll,
         "url": point.url,
         "description": point.description,
+        "tags": point.tags,
         "icon": point.icon,
     }
 
@@ -808,6 +831,7 @@ def _activity_payload(activity: Activity) -> dict[str, object]:
         "desc": activity.desc,
         "private": activity.private,
         "photo_url": activity.photo_url,
+        "tags": activity.tags,
         "duration": activity.duration,
         "length": activity.length,
         "elevation_gain": activity.elevation_gain,
@@ -846,5 +870,6 @@ def _image_payload(image: Image) -> dict[str, object]:
         "caption": image.caption,
         "latlng": image.latlng,
         "geoll": image.geoll,
+        "tags": image.tags,
         "url": image.url,
     }

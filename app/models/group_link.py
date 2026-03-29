@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import JSON, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
@@ -21,7 +21,7 @@ class GroupExternalUrl(Base):
     subtype: Mapped[str | None] = mapped_column(String(128))
     name: Mapped[str | None] = mapped_column(String(256))
     description: Mapped[str | None] = mapped_column(String(2048))
-    tags: Mapped[str | None] = mapped_column(String(2048))
+    tags: Mapped[list[str] | None] = mapped_column(JSON)
     icon: Mapped[str | None] = mapped_column(String(256))
     img: Mapped[str | None] = mapped_column(String(2048))
 

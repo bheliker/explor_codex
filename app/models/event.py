@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, Table
+from sqlalchemy import JSON, Boolean, Column, Float, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
@@ -37,6 +37,7 @@ class Event(Base):
     private: Mapped[bool] = mapped_column(Boolean, default=False)
     owner_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"))
     email: Mapped[str | None] = mapped_column(String(120))
+    tags: Mapped[list[str] | None] = mapped_column(JSON)
     date_start: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
     date_end: Mapped[datetime | None]
     date_created: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))

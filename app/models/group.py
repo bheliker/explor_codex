@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Table
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
@@ -54,6 +54,10 @@ class Group(Base):
     primary_activity: Mapped[str | None] = mapped_column(String(64))
     type: Mapped[str | None] = mapped_column(String(128))
     subtype: Mapped[str | None] = mapped_column(String(128))
+    preference_tags: Mapped[list[str] | None] = mapped_column(JSON)
+    tags: Mapped[list[str] | None] = mapped_column(JSON)
+    rider_classes: Mapped[list[str] | None] = mapped_column(JSON)
+    ride_classes: Mapped[list[str] | None] = mapped_column(JSON)
     date_founded: Mapped[datetime | None]
     dues: Mapped[float | None] = mapped_column(Float)
     waiver_url: Mapped[str | None] = mapped_column(String(2048))

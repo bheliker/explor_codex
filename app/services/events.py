@@ -19,6 +19,7 @@ def create_event(
     logo: str | None = None,
     profile_photo: str | None = None,
     notes: str | None = None,
+    tags: list[str] | None = None,
     lat: float | None = None,
     lon: float | None = None,
     town: str | None = None,
@@ -49,6 +50,7 @@ def create_event(
         logo=logo,
         profile_photo=profile_photo,
         notes=notes,
+        tags=tags,
         lat=lat,
         lon=lon,
         town=town,
@@ -83,6 +85,7 @@ def add_event_fee(
     fee: float,
     duration: int,
     description: str | None = None,
+    tags: list[str] | None = None,
 ) -> EventFee:
     event_fee = EventFee(
         event=event,
@@ -90,6 +93,7 @@ def add_event_fee(
         description=description,
         fee=fee,
         duration=duration,
+        tags=tags,
     )
     db.session.add(event_fee)
     db.session.commit()

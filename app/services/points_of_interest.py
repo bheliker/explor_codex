@@ -18,6 +18,7 @@ def create_point_of_interest(
     geoll: str | None = None,
     url: str | None = None,
     description: str | None = None,
+    tags: list[str] | None = None,
     icon: str | None = None,
 ) -> PointOfInterest:
     if geoll is None and lat is not None and lon is not None:
@@ -37,6 +38,7 @@ def create_point_of_interest(
         geoll=geoll,
         url=url,
         description=description,
+        tags=tags,
         icon=icon,
     )
     db.session.add(point_of_interest)

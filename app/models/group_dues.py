@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import Float, ForeignKey, Integer, String
+from sqlalchemy import JSON, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
@@ -15,5 +15,6 @@ class GroupDues(Base):
     name: Mapped[str | None] = mapped_column(String(256))
     description: Mapped[str | None] = mapped_column(String(2048))
     duration: Mapped[int | None] = mapped_column(Integer)
+    tags: Mapped[list[str] | None] = mapped_column(JSON)
 
     group = relationship("Group", back_populates="dues_schedule")

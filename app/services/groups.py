@@ -19,6 +19,10 @@ def create_group(
     full_address: str | None = None,
     geoll: str | None = None,
     hero_photo: Image | None = None,
+    preference_tags: list[str] | None = None,
+    tags: list[str] | None = None,
+    rider_classes: list[str] | None = None,
+    ride_classes: list[str] | None = None,
 ) -> Group:
     if geoll is not None and home_latlng is None:
         coordinates = point_coordinates(geoll)
@@ -39,6 +43,10 @@ def create_group(
         full_address=full_address,
         geoll=geoll,
         hero_photo=hero_photo,
+        preference_tags=preference_tags,
+        tags=tags,
+        rider_classes=rider_classes,
+        ride_classes=ride_classes,
     )
     db.session.add(group)
     db.session.commit()
@@ -67,8 +75,9 @@ def add_group_link(
     name: str,
     url: str,
     link_type: str = "website",
+    tags: list[str] | None = None,
 ) -> GroupExternalUrl:
-    link = GroupExternalUrl(group=group, name=name, type=link_type, url=url)
+    link = GroupExternalUrl(group=group, name=name, type=link_type, url=url, tags=tags)
     db.session.add(link)
     db.session.commit()
     return link
@@ -80,8 +89,9 @@ def add_route_link(
     name: str,
     url: str,
     link_type: str = "website",
+    tags: list[str] | None = None,
 ) -> GroupExternalUrl:
-    link = GroupExternalUrl(route=route, name=name, type=link_type, url=url)
+    link = GroupExternalUrl(route=route, name=name, type=link_type, url=url, tags=tags)
     db.session.add(link)
     db.session.commit()
     return link
@@ -94,6 +104,7 @@ def add_group_dues(
     fee: float,
     duration: int,
     description: str | None = None,
+    tags: list[str] | None = None,
 ) -> GroupDues:
     dues = GroupDues(
         group=group,
@@ -101,6 +112,7 @@ def add_group_dues(
         description=description,
         fee=fee,
         duration=duration,
+        tags=tags,
     )
     db.session.add(dues)
     db.session.commit()

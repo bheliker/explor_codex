@@ -90,6 +90,8 @@ def test_user_password_and_reset_token_round_trip(app: Flask, database: None) ->
         user = User(
             username="brett",
             email="brett@example.com",
+            preference_tags=["fitness", "road"],
+            tags=["climber", "coffee"],
             home_town="Oakland",
             home_state="CA",
             home_country="USA",
@@ -108,6 +110,8 @@ def test_user_password_and_reset_token_round_trip(app: Flask, database: None) ->
         restored = User.verify_reset_password_token(token)
         assert restored is not None
         assert restored.id == user.id
+        assert restored.preference_tags == ["fitness", "road"]
+        assert restored.tags == ["climber", "coffee"]
         assert restored.home_town == "Oakland"
         assert restored.home_state == "CA"
         assert restored.home_country == "USA"
@@ -243,7 +247,7 @@ def test_group_can_own_calendars(app: Flask, database: None) -> None:
         db = app.extensions["sqlalchemy"]
 
         group = Group(name="Calendar Club", shortname="calendar-club")
-        calendar = Calendar(name="Club Calendar", group=group, type="club")
+        calendar = Calendar(name="Club Calendar", group=group, type="club", tags=["road", "club"])
 
         db.session.add_all([group, calendar])
         db.session.commit()
@@ -251,6 +255,7 @@ def test_group_can_own_calendars(app: Flask, database: None) -> None:
         assert calendar.group is not None
         assert calendar.group.name == "Calendar Club"
         assert group.calendars[0].name == "Club Calendar"
+        assert group.calendars[0].tags == ["road", "club"]
 
 
 def test_group_can_own_external_links(app: Flask, database: None) -> None:
@@ -263,6 +268,7 @@ def test_group_can_own_external_links(app: Flask, database: None) -> None:
             name="Main Site",
             type="website",
             url="https://example.com",
+            tags=["official", "member-info"],
         )
 
         db.session.add_all([group, link])
@@ -271,6 +277,7 @@ def test_group_can_own_external_links(app: Flask, database: None) -> None:
         assert link.group is not None
         assert link.group.name == "Link Club"
         assert group.links[0].url == "https://example.com"
+        assert group.links[0].tags == ["official", "member-info"]
 
 
 def test_group_can_own_dues_schedule(app: Flask, database: None) -> None:
@@ -284,6 +291,7 @@ def test_group_can_own_dues_schedule(app: Flask, database: None) -> None:
             description="Full year membership",
             fee=99.0,
             duration=365,
+            tags=["annual", "member"],
         )
 
         db.session.add_all([group, dues])
@@ -292,6 +300,7 @@ def test_group_can_own_dues_schedule(app: Flask, database: None) -> None:
         assert dues.group is not None
         assert dues.group.name == "Dues Club"
         assert group.dues_schedule[0].fee == 99.0
+        assert group.dues_schedule[0].tags == ["annual", "member"]
 
 
 def test_group_can_link_routes(app: Flask, database: None) -> None:
@@ -349,6 +358,7 @@ def test_event_can_own_fee_definitions(app: Flask, database: None) -> None:
             description="Standard entry",
             fee=45.0,
             duration=1,
+            tags=["entry", "general"],
         )
 
         db.session.add_all([event, fee])
@@ -357,6 +367,7 @@ def test_event_can_own_fee_definitions(app: Flask, database: None) -> None:
         assert fee.event is not None
         assert fee.event.name == "Paid Fondo"
         assert event.fees[0].fee == 45.0
+        assert event.fees[0].tags == ["entry", "general"]
 
 
 def test_event_can_link_participants(app: Flask, database: None) -> None:
@@ -573,6 +584,7 @@ def test_trimmed_image_model_persists_relationships(app: Flask, database: None) 
             url="https://example.com/images/full.jpg",
             latlng="37.8,-122.2",
             geoll='{"type":"Point","coordinates":[-122.2,37.8]}',
+            tags=["sunset", "featured"],
             photographer=photographer,
             group=group,
             segment=segment,
@@ -586,6 +598,7 @@ def test_trimmed_image_model_persists_relationships(app: Flask, database: None) 
         assert image.segment_id == segment.id
         assert image.activity_id == activity.id
         assert image.geoll == '{"type":"Point","coordinates":[-122.2,37.8]}'
+        assert image.tags == ["sunset", "featured"]
         assert segment.images[0].id == image.id
         assert activity.images[0].id == image.id
 
@@ -614,6 +627,7 @@ def test_image_services_create_and_filter(app: Flask, database: None) -> None:
             img_thumb="https://example.com/service-thumb.jpg",
             title="Service Image",
             geoll='{"type":"Point","coordinates":[-122.3,37.82]}',
+            tags=["service", "cover"],
         )
         create_image(
             photographer=other,
@@ -635,6 +649,7 @@ def test_image_services_create_and_filter(app: Flask, database: None) -> None:
         assert len(activity_images) == 1
         assert activity_images[0].id == image.id
         assert activity_images[0].geoll == '{"type":"Point","coordinates":[-122.3,37.82]}'
+        assert activity_images[0].tags == ["service", "cover"]
         assert segment.images[0].id == image.id
         assert activity.images[0].id == image.id
 
@@ -660,6 +675,7 @@ def test_poi_can_link_images(app: Flask, database: None) -> None:
             name="POI Image Stop",
             poi_type="viewpoint",
             geoll='{"type":"Point","coordinates":[-122.45,37.86]}',
+            tags=["scenic", "photo-stop"],
         )
         image = create_image(
             photographer=photographer,
@@ -670,6 +686,7 @@ def test_poi_can_link_images(app: Flask, database: None) -> None:
 
         assert point.images[0].id == image.id
         assert image.pois[0].id == point.id
+        assert point.tags == ["scenic", "photo-stop"]
 
 
 def test_group_services_create_and_extend_group(app: Flask, database: None) -> None:
@@ -689,21 +706,37 @@ def test_group_services_create_and_extend_group(app: Flask, database: None) -> N
             home_state="CA",
             home_country="USA",
             geoll='{"type":"Point","coordinates":[-122.2711,37.8044]}',
+            preference_tags=["community", "road"],
+            tags=["featured", "east-bay"],
+            rider_classes=["beginner", "intermediate"],
+            ride_classes=["road", "gravel"],
             hero_photo=hero_photo,
         )
         membership = ensure_group_membership(group, user)
-        link = add_group_link(group, name="Club Site", url="https://example.com/groups/service")
+        link = add_group_link(
+            group,
+            name="Club Site",
+            url="https://example.com/groups/service",
+            tags=["official", "club"],
+        )
         dues = add_group_dues(
             group,
             name="Annual Dues",
             fee=55.0,
             duration=365,
             description="Service layer dues",
+            tags=["annual", "recurring"],
         )
 
         assert membership.role.name == "pending"
         assert group.links[0].id == link.id
         assert group.dues_schedule[0].id == dues.id
+        assert link.tags == ["official", "club"]
+        assert dues.tags == ["annual", "recurring"]
+        assert group.preference_tags == ["community", "road"]
+        assert group.tags == ["featured", "east-bay"]
+        assert group.rider_classes == ["beginner", "intermediate"]
+        assert group.ride_classes == ["road", "gravel"]
         assert group.home_latlng == "37.8044,-122.2711"
         assert group.geoll == '{"type":"Point","coordinates":[-122.2711,37.8044]}'
         assert group.hero_photo_id == hero_photo.id
@@ -734,6 +767,7 @@ def test_event_services_create_and_extend_event(app: Flask, database: None) -> N
             logo="https://example.com/events/service-logo.png",
             profile_photo="https://example.com/events/service-profile.png",
             notes="Bring lights for the return ride.",
+            tags=["drop-ride", "night"],
             lat=37.8044,
             lon=-122.2711,
             town="Oakland",
@@ -748,6 +782,7 @@ def test_event_services_create_and_extend_event(app: Flask, database: None) -> N
             fee=25.0,
             duration=1,
             description="Single-day entry",
+            tags=["day-pass", "entry"],
         )
         image = create_image(
             photographer=owner,
@@ -761,6 +796,8 @@ def test_event_services_create_and_extend_event(app: Flask, database: None) -> N
         assert event.fees[0].id == fee.id
         assert event.route_id is None
         assert event.activity_id is None
+        assert event.tags == ["drop-ride", "night"]
+        assert fee.tags == ["day-pass", "entry"]
         assert event.latlng == "37.8044,-122.2711"
         assert event.geoll == '{"type":"Point","coordinates":[-122.2711,37.8044]}'
         assert event.images[0].id == image.id
@@ -838,6 +875,10 @@ def test_api_endpoints_exercise_group_and_event_flows(
             "home_add": "2000 Center St",
             "full_address": "2000 Center St, Berkeley, CA",
             "geoll": '{"type":"Point","coordinates":[-122.273,37.8715]}',
+            "preference_tags": ["women", "road"],
+            "tags": ["featured", "east-bay"],
+            "rider_classes": ["novice", "advanced"],
+            "ride_classes": ["road", "training"],
             "hero_photo_id": hero_photo_id,
         },
     )
@@ -856,6 +897,10 @@ def test_api_endpoints_exercise_group_and_event_flows(
         "home_add": "2000 Center St",
         "full_address": "2000 Center St, Berkeley, CA",
         "geoll": '{"type":"Point","coordinates":[-122.273,37.8715]}',
+        "preference_tags": ["women", "road"],
+        "tags": ["featured", "east-bay"],
+        "rider_classes": ["novice", "advanced"],
+        "ride_classes": ["road", "training"],
         "hero_photo_id": hero_photo_id,
     }
     group_id = group_payload["id"]
@@ -877,6 +922,7 @@ def test_api_endpoints_exercise_group_and_event_flows(
         json={
             "name": "API Site",
             "type": "website",
+            "tags": ["official", "join"],
             "url": "https://example.com/api-group",
         },
     )
@@ -886,6 +932,7 @@ def test_api_endpoints_exercise_group_and_event_flows(
         "link_id": link_response.get_json()["link_id"],
         "name": "API Site",
         "type": "website",
+        "tags": ["official", "join"],
         "url": "https://example.com/api-group",
     }
 
@@ -896,6 +943,7 @@ def test_api_endpoints_exercise_group_and_event_flows(
             "fee": 42.5,
             "duration": 365,
             "description": "API-created dues",
+            "tags": ["annual", "members"],
         },
     )
     assert dues_response.status_code == 201
@@ -905,6 +953,7 @@ def test_api_endpoints_exercise_group_and_event_flows(
         "name": "API Dues",
         "fee": 42.5,
         "duration": 365,
+        "tags": ["annual", "members"],
     }
 
     image_create_response = client.post(
@@ -913,6 +962,7 @@ def test_api_endpoints_exercise_group_and_event_flows(
             "photographer_id": owner_id,
             "img_medium": "https://example.com/events/api-image.jpg",
             "title": "API Event Image",
+            "tags": ["hero", "event"],
         },
     )
     assert image_create_response.status_code == 201
@@ -930,6 +980,7 @@ def test_api_endpoints_exercise_group_and_event_flows(
             "logo": "https://example.com/events/api-logo.png",
             "profile_photo": "https://example.com/events/api-profile.png",
             "notes": "Meet ten minutes early.",
+            "tags": ["drop-ride", "women"],
             "lat": 37.8715,
             "lon": -122.273,
             "town": "Berkeley",
@@ -946,12 +997,14 @@ def test_api_endpoints_exercise_group_and_event_flows(
         "route_id": None,
         "activity_id": None,
         "private": False,
+        "description": "Created through the thin API",
         "url": "https://example.com/events/api-event",
         "reg_url": "https://example.com/events/api-event/register",
         "photo_url": "https://example.com/events/api-event.jpg",
         "logo": "https://example.com/events/api-logo.png",
         "profile_photo": "https://example.com/events/api-profile.png",
         "notes": "Meet ten minutes early.",
+        "tags": ["drop-ride", "women"],
         "lat": 37.8715,
         "lon": -122.273,
         "town": "Berkeley",
@@ -1001,6 +1054,7 @@ def test_api_endpoints_exercise_group_and_event_flows(
                 "caption": None,
                 "latlng": None,
                 "geoll": None,
+                "tags": ["hero", "event"],
                 "url": None,
             }
         ]
@@ -1025,6 +1079,7 @@ def test_api_endpoints_exercise_group_and_event_flows(
             "fee": 18.0,
             "duration": 1,
             "description": "API-created fee",
+            "tags": ["entry", "single-day"],
         },
     )
     assert fee_response.status_code == 201
@@ -1034,6 +1089,7 @@ def test_api_endpoints_exercise_group_and_event_flows(
         "name": "API Event Fee",
         "fee": 18.0,
         "duration": 1,
+        "tags": ["entry", "single-day"],
     }
 
 
@@ -1079,12 +1135,14 @@ def test_api_event_can_link_route_and_activity(
         "route_id": route_id,
         "activity_id": activity_id,
         "private": False,
+        "description": None,
         "url": None,
         "reg_url": None,
         "photo_url": None,
         "logo": None,
         "profile_photo": None,
         "notes": None,
+        "tags": None,
         "lat": None,
         "lon": None,
         "town": None,
@@ -1168,6 +1226,7 @@ def test_api_route_can_attach_and_list_links(
         json={
             "name": "Route Site",
             "type": "website",
+            "tags": ["beta", "cue-sheet"],
             "url": "https://example.com/routes/api-linked",
         },
     )
@@ -1177,6 +1236,7 @@ def test_api_route_can_attach_and_list_links(
         "link_id": attach_response.get_json()["link_id"],
         "name": "Route Site",
         "type": "website",
+        "tags": ["beta", "cue-sheet"],
         "url": "https://example.com/routes/api-linked",
     }
 
@@ -1189,6 +1249,7 @@ def test_api_route_can_attach_and_list_links(
                 "link_id": attach_response.get_json()["link_id"],
                 "name": "Route Site",
                 "type": "website",
+                "tags": ["beta", "cue-sheet"],
                 "url": "https://example.com/routes/api-linked",
             }
         ]
@@ -1211,6 +1272,7 @@ def test_point_of_interest_services_create_and_filter(app: Flask, database: None
             lat=37.8,
             lon=-122.2,
             description="Forest start",
+            tags=["trailhead", "forest"],
             icon="tree",
         )
         create_point_of_interest(
@@ -1225,6 +1287,7 @@ def test_point_of_interest_services_create_and_filter(app: Flask, database: None
         assert len(owned_points) == 1
         assert owned_points[0].id == trailhead.id
         assert owned_points[0].type == "trailhead"
+        assert owned_points[0].tags == ["trailhead", "forest"]
         assert owned_points[0].geoll == '{"type":"Point","coordinates":[-122.2,37.8]}'
 
 
@@ -1250,6 +1313,7 @@ def test_api_point_of_interest_endpoints(app: Flask, client: FlaskClient, databa
             "geoll": geoll,
             "url": "https://example.com/viewpoint",
             "description": "Panoramic ridge stop",
+            "tags": ["viewpoint", "photo-stop"],
             "icon": "binoculars",
         },
     )
@@ -1265,6 +1329,7 @@ def test_api_point_of_interest_endpoints(app: Flask, client: FlaskClient, databa
         "geoll": geoll,
         "url": "https://example.com/viewpoint",
         "description": "Panoramic ridge stop",
+        "tags": ["viewpoint", "photo-stop"],
         "icon": "binoculars",
     }
 
@@ -1283,6 +1348,7 @@ def test_api_point_of_interest_endpoints(app: Flask, client: FlaskClient, databa
                 "geoll": geoll,
                 "url": "https://example.com/viewpoint",
                 "description": "Panoramic ridge stop",
+                "tags": ["viewpoint", "photo-stop"],
                 "icon": "binoculars",
             }
         ]
@@ -1330,6 +1396,7 @@ def test_api_point_of_interest_endpoints(app: Flask, client: FlaskClient, databa
                 "caption": None,
                 "latlng": None,
                 "geoll": None,
+                "tags": None,
                 "url": None,
             }
         ]
@@ -1677,6 +1744,7 @@ def test_activity_services_create_and_filter(app: Flask, database: None) -> None
             athlete=athlete,
             route=route,
             name="Morning Ride",
+            tags=["training", "endurance"],
             duration=5400.0,
             length=42.1,
             average_speed=27.2,
@@ -1700,6 +1768,7 @@ def test_activity_services_create_and_filter(app: Flask, database: None) -> None
         assert len(route_activities) == 1
         assert route_activities[0].id == activity.id
         assert route_activities[0].route_id == route.id
+        assert route_activities[0].tags == ["training", "endurance"]
         assert route_activities[0].summary_polyline is not None
         assert route_activities[0].full_track is not None
 
@@ -1730,6 +1799,7 @@ def test_api_activity_endpoints(app: Flask, client: FlaskClient, database: None)
             "desc": "Midday training block",
             "private": False,
             "photo_url": "https://example.com/activity.png",
+            "tags": ["tempo", "road"],
             "duration": 3600.0,
             "length": 28.3,
             "elevation_gain": 510.0,
@@ -1760,6 +1830,7 @@ def test_api_activity_endpoints(app: Flask, client: FlaskClient, database: None)
         "desc": "Midday training block",
         "private": False,
         "photo_url": "https://example.com/activity.png",
+        "tags": ["tempo", "road"],
         "duration": 3600.0,
         "length": 28.3,
         "elevation_gain": 510.0,
@@ -1793,6 +1864,7 @@ def test_api_activity_endpoints(app: Flask, client: FlaskClient, database: None)
                 "desc": "Midday training block",
                 "private": False,
                 "photo_url": "https://example.com/activity.png",
+                "tags": ["tempo", "road"],
                 "duration": 3600.0,
                 "length": 28.3,
                 "elevation_gain": 510.0,
@@ -1853,6 +1925,7 @@ def test_api_image_endpoints(app: Flask, client: FlaskClient, database: None) ->
             "caption": "Morning marine layer",
             "latlng": "37.78,-122.41",
             "geoll": geoll,
+            "tags": ["fog", "featured"],
             "url": "https://example.com/api-full.jpg",
         },
     )
@@ -1872,6 +1945,7 @@ def test_api_image_endpoints(app: Flask, client: FlaskClient, database: None) ->
         "caption": "Morning marine layer",
         "latlng": "37.78,-122.41",
         "geoll": geoll,
+        "tags": ["fog", "featured"],
         "url": "https://example.com/api-full.jpg",
     }
 
@@ -1896,6 +1970,7 @@ def test_api_image_endpoints(app: Flask, client: FlaskClient, database: None) ->
                 "caption": "Morning marine layer",
                 "latlng": "37.78,-122.41",
                 "geoll": geoll,
+                "tags": ["fog", "featured"],
                 "url": "https://example.com/api-full.jpg",
             }
         ]

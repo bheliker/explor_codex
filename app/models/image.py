@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import JSON, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
@@ -27,6 +27,7 @@ class Image(Base):
     photographer_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"))
     latlng: Mapped[str | None] = mapped_column(String(256))
     _geoll: Mapped[object | None] = mapped_column("geoll", point_type())
+    tags: Mapped[list[str] | None] = mapped_column(JSON)
     url: Mapped[str | None] = mapped_column(String(2048))
 
     group = relationship("Group", foreign_keys=[group_id])

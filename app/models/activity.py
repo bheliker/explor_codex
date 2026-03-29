@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
@@ -20,6 +20,7 @@ class Activity(Base):
     desc: Mapped[str | None] = mapped_column(String(2048))
     private: Mapped[bool | None] = mapped_column(Boolean)
     photo_url: Mapped[str | None] = mapped_column(String(2048))
+    tags: Mapped[list[str] | None] = mapped_column(JSON)
     duration: Mapped[float | None] = mapped_column(Float)
     length: Mapped[float | None] = mapped_column(Float)
     elevation_gain: Mapped[float | None] = mapped_column(Float)

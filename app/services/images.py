@@ -21,6 +21,7 @@ def create_image(
     caption: str | None = None,
     latlng: str | None = None,
     geoll: str | None = None,
+    tags: list[str] | None = None,
     url: str | None = None,
 ) -> Image:
     image = Image(
@@ -37,6 +38,7 @@ def create_image(
         caption=caption,
         latlng=latlng,
         geoll=geoll,
+        tags=tags,
         url=url,
     )
     db.session.add(image)

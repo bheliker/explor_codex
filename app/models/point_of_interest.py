@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Table
+from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
@@ -31,6 +31,7 @@ class PointOfInterest(Base):
     description: Mapped[str | None] = mapped_column(String(2048))
     date_created: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     date_updated: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    tags: Mapped[list[str] | None] = mapped_column(JSON)
     icon: Mapped[str | None] = mapped_column(String(256))
 
     owner = relationship("User")

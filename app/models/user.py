@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from flask import current_app
 from flask_login import UserMixin  # type: ignore[import-untyped]
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from sqlalchemy import JSON
 from sqlalchemy.orm import Mapped, mapped_column
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -22,6 +23,8 @@ class User(UserMixin, Base):
     firstname: Mapped[str | None] = mapped_column(db.String(64))
     lastname: Mapped[str | None] = mapped_column(db.String(64))
     account_type: Mapped[str | None] = mapped_column(db.String(64))
+    preference_tags: Mapped[list[str] | None] = mapped_column(JSON)
+    tags: Mapped[list[str] | None] = mapped_column(JSON)
     home_town: Mapped[str | None] = mapped_column(db.String(256))
     home_state: Mapped[str | None] = mapped_column(db.String(256))
     home_country: Mapped[str | None] = mapped_column(db.String(256))

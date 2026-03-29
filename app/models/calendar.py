@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String
+from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
@@ -18,6 +18,7 @@ class Calendar(Base):
     private: Mapped[bool] = mapped_column(Boolean, default=False)
     owner_id: Mapped[int | None] = mapped_column("owner", Integer)
     group_id: Mapped[int | None] = mapped_column(ForeignKey("group.id"))
+    tags: Mapped[list[str] | None] = mapped_column(JSON)
     date_created: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
     date_updated: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
     primary_activity: Mapped[str | None] = mapped_column(String(64))
