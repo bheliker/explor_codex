@@ -30,6 +30,17 @@ This file is the local instruction scratchpad for future Codex work in this repo
 - Run tests, lint, and mypy before finishing substantive changes.
 - Read `WORKLOG.md` at the start of a new session before planning work.
 - Append a concise dated entry to `WORKLOG.md` after each substantive session covering what was investigated, what changed, what was decided, and why.
+- work autonomously, on a new branch, commit as you go without approval, and only when a merge is needed to main ask me for approval. 
+	- Run to completion before asking for help unless blocked by a hard failure.
+	- Make commits as useful checkpoints after each major phase.
+- Use the configured disposable database for migrations.
+- Run the full test suite after each major batch of changes.
+- If a migration fails, diagnose and continue until the codebase and migrations are consistent.
+- Leave a final summary with:
+  - commits made
+  - migrations applied
+  - failing tests, if any
+  - manual follow-ups
 
 ## Commit Workflow
 - After each code change, propose a git commit title and body.
