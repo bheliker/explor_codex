@@ -2312,3 +2312,110 @@ def test_admin_group_edit_page_updates_group_and_search(
         assert updated_group.tags == ["gravel", "community"]
         search_hits = search_documents(query="north shore gravel", types=["group"])
         assert [result.entity_id for result in search_hits] == [group_id]
+
+
+def test_admin_route_edit_page_updates_route_and_search(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        route = Route(
+            name="Old Ridge Line",
+            desc="Steady rolling route",
+            tags=["road"],
+            city="Berkeley",
+            state="CA",
+            length=32.0,
+        )
+        db.session.add(route)
+        db.session.commit()
+        route_id = route.id
+
+    response = client.post(
+        f"/admin/routes/{route_id}/edit",
+        data={
+            "name": "New Ridge Line",
+            "desc": "Steady rolling gravel route",
+            "type": "gravel",
+            "subtype": "mixed-surface",
+            "length": "41.5",
+            "elevation_gain": "2100",
+            "city": "Oakland",
+            "state": "CA",
+            "tags": "gravel, ridge",
+            "elevation_array": "100, 220, 315",
+        },
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "New Ridge Line" in html
+    assert "Steady rolling gravel route" in html
+    assert "41.50" in html
+
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        updated_route = db.session.get(Route, route_id)
+        assert updated_route is not None
+        assert updated_route.type == "gravel"
+        assert updated_route.tags == ["gravel", "ridge"]
+        assert updated_route.elevation_array == [100.0, 220.0, 315.0]
+        search_hits = search_documents(query="new ridge line", types=["route"])
+        assert [result.entity_id for result in search_hits] == [route_id]
+
+
+def test_admin_event_edit_page_updates_event_and_search(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        route = Route(name="Connector Route")
+        activity = Activity(name="Warmup Activity")
+        event = Event(
+            name="Sunset Meetup",
+            description="Neighborhood spin",
+            tags=["social"],
+            town="El Cerrito",
+            state="CA",
+        )
+        db.session.add_all([route, activity, event])
+        db.session.commit()
+        event_id = event.id
+        route_id = route.id
+        activity_id = activity.id
+
+    response = client.post(
+        f"/admin/events/{event_id}/edit",
+        data={
+            "name": "Sunset Gravel Meetup",
+            "description": "Neighborhood mixed-surface spin",
+            "primary_activity": "Cycling",
+            "type": "ride",
+            "subtype": "social",
+            "route_id": str(route_id),
+            "activity_id": str(activity_id),
+            "town": "Albany",
+            "state": "CA",
+            "tags": "gravel, social",
+            "private": "true",
+        },
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "Sunset Gravel Meetup" in html
+    assert "Neighborhood mixed-surface spin" in html
+    assert "Albany, CA" in html
+
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        updated_event = db.session.get(Event, event_id)
+        assert updated_event is not None
+        assert updated_event.private is True
+        assert updated_event.route_id == route_id
+        assert updated_event.activity_id == activity_id
+        assert updated_event.tags == ["gravel", "social"]
+        search_hits = search_documents(query="sunset gravel meetup", types=["event"])
+        assert [result.entity_id for result in search_hits] == [event_id]

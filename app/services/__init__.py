@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.services.activities import create_activity, list_activities
-from app.services.events import add_event_fee, attach_calendar, create_event, set_rsvp
+from app.services.events import add_event_fee, attach_calendar, create_event, set_rsvp, update_event
 from app.services.groups import (
     add_group_dues,
     add_group_link,
@@ -18,7 +18,7 @@ from app.services.images import (
     list_images,
 )
 from app.services.points_of_interest import create_point_of_interest, list_points_of_interest
-from app.services.routes import create_route, list_routes
+from app.services.routes import create_route, list_routes, update_route
 from app.services.search import (
     SEARCHABLE_ENTITY_TYPES,
     index_instance,
@@ -51,6 +51,7 @@ __all__ = [
     "create_segment",
     "index_instance",
     "list_routes",
+    "update_route",
     "attach_segment_to_route",
     "list_segments",
     "parse_search_types",
@@ -58,4 +59,5 @@ __all__ = [
     "SEARCHABLE_ENTITY_TYPES",
     "search_documents",
     "set_rsvp",
+    "update_event",
 ]

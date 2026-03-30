@@ -144,3 +144,49 @@ This file records session history for `explor_codex` so future work can resume w
 - The next likely step is either:
   - entity edit forms for a few high-value records, or
   - an admin dashboard that summarizes counts, recent records, and system health.
+
+## 2026-03-30 (Admin Edit Flows)
+
+### Investigated
+- Built on the search and read-only detail pages to add the first practical write path in the browser.
+- Reused the current service layer and search freshness hooks rather than introducing separate form-only update logic.
+- Split the work into two checkpoints:
+  - `Group` first
+  - then `Route` and `Event` on the same reusable edit pattern
+
+### Changed
+- Added a reusable edit template at [templates/admin/edit.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/edit.html).
+- Added admin edit flows for:
+  - groups
+  - routes
+  - events
+- Added update services in:
+  - [app/services/groups.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/services/groups.py)
+  - [app/services/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/services/routes.py)
+  - [app/services/events.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/services/events.py)
+- Added edit routes plus form parsing helpers in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py).
+- Linked relevant detail pages to their edit routes.
+- Extended [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) to cover:
+  - group edit flow
+  - route edit flow
+  - event edit flow
+  - search freshness after admin edits
+- Updated [README.md](/Users/bheliker/Documents/_Projects/explor/explor_codex/README.md) with the new edit endpoints.
+
+### Decisions
+- Keep the edit UI intentionally thin and form-post based for now.
+- Use the existing ORM/session-driven search freshness hooks so edits automatically update search results.
+- Limit this first editing slice to `Group`, `Route`, and `Event`, which are the highest-value core entities.
+
+### Why
+- This completes the first full browser admin loop for important records:
+  - search
+  - inspect
+  - edit
+- It also proves that the service layer and search freshness work cleanly under real edit flows.
+
+### Notes for the next session
+- The admin UI now supports read-only detail pages and edit forms for groups, routes, and events.
+- The next likely step is either:
+  - creation forms in the admin UI, or
+  - an admin dashboard with recent records and quick links.

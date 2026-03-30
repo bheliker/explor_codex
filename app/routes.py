@@ -53,7 +53,9 @@ from app.services import (
     rebuild_search_documents,
     search_documents,
     set_rsvp,
+    update_event,
     update_group,
+    update_route,
 )
 
 bp = Blueprint("core", __name__)
@@ -218,10 +220,83 @@ def admin_route_detail_route(route_id: int) -> str:
         ),
         entity_id=route.id,
         entity_type_label="Route",
+        edit_url=url_for("core.admin_route_edit_route", route_id=route.id),
         location=_join_location(route.city, route.state, route.country),
         page_title=route.name or "Route",
         subtitle=route.subtype or route.type,
         tags=route.tags,
+    )
+
+
+@bp.route("/admin/routes/<int:route_id>/edit", methods=["GET", "POST"])
+def admin_route_edit_route(route_id: int) -> str | Any:
+    route = _get_or_404(Route, route_id)
+    if request.method == "POST":
+        update_route(
+            route,
+            name=_form_required_str("name"),
+            desc=_form_optional_str("desc"),
+            private=_form_optional_nullable_bool("private"),
+            duration=_form_optional_float("duration"),
+            length=_form_optional_float("length"),
+            elevation_gain=_form_optional_float("elevation_gain"),
+            tags=_form_csv_list("tags"),
+            elevation_array=_form_csv_float_list("elevation_array"),
+            route_type=_form_optional_str("type"),
+            subtype=_form_optional_str("subtype"),
+            src=_form_optional_str("src"),
+            src_id=_form_optional_str("src_id"),
+            start_latitude=_form_optional_float("start_latitude"),
+            start_longitude=_form_optional_float("start_longitude"),
+            end_latitude=_form_optional_float("end_latitude"),
+            end_longitude=_form_optional_float("end_longitude"),
+            summary_polyline=_form_optional_str("summary_polyline"),
+            full_track=_form_optional_str("full_track"),
+            city=_form_optional_str("city"),
+            state=_form_optional_str("state"),
+            country=_form_optional_str("country"),
+            address=_form_optional_str("address"),
+            map_thumbnail=_form_optional_str("map_thumbnail"),
+        )
+        return redirect(url_for("core.admin_route_detail_route", route_id=route.id))
+
+    return render_template(
+        "admin/edit.html",
+        detail_url=url_for("core.admin_route_detail_route", route_id=route.id),
+        entity_id=route.id,
+        entity_type_label="Route",
+        fields=[
+            _edit_text_field("name", "Name", route.name),
+            _edit_textarea_field("desc", "Description", route.desc),
+            _edit_text_field(
+                "private", "Private (true/false)", _nullable_bool_value(route.private)
+            ),
+            _edit_text_field("type", "Type", route.type),
+            _edit_text_field("subtype", "Subtype", route.subtype),
+            _edit_text_field("duration", "Duration", route.duration),
+            _edit_text_field("length", "Length", route.length),
+            _edit_text_field("elevation_gain", "Elevation gain", route.elevation_gain),
+            _edit_text_field(
+                "elevation_array",
+                "Elevation array (comma separated)",
+                _csv_number_value(route.elevation_array),
+            ),
+            _edit_text_field("src", "Source", route.src),
+            _edit_text_field("src_id", "Source ID", route.src_id),
+            _edit_text_field("city", "City", route.city),
+            _edit_text_field("state", "State", route.state),
+            _edit_text_field("country", "Country", route.country),
+            _edit_text_field("address", "Address", route.address),
+            _edit_text_field("map_thumbnail", "Map thumbnail", route.map_thumbnail),
+            _edit_text_field("start_latitude", "Start latitude", route.start_latitude),
+            _edit_text_field("start_longitude", "Start longitude", route.start_longitude),
+            _edit_text_field("end_latitude", "End latitude", route.end_latitude),
+            _edit_text_field("end_longitude", "End longitude", route.end_longitude),
+            _edit_text_field("tags", "Tags (comma separated)", _csv_value(route.tags)),
+            _edit_textarea_field("summary_polyline", "Summary polyline", route.summary_polyline),
+            _edit_textarea_field("full_track", "Full track", route.full_track),
+        ],
+        page_title=route.name or "Route",
     )
 
 
@@ -279,10 +354,77 @@ def admin_event_detail_route(event_id: int) -> str:
         ),
         entity_id=event.id,
         entity_type_label="Event",
+        edit_url=url_for("core.admin_event_edit_route", event_id=event.id),
         location=_join_location(event.town, event.state, event.country),
         page_title=event.name or "Event",
         subtitle=event.subtype or event.type or event.primary_activity,
         tags=event.tags,
+    )
+
+
+@bp.route("/admin/events/<int:event_id>/edit", methods=["GET", "POST"])
+def admin_event_edit_route(event_id: int) -> str | Any:
+    event = _get_or_404(Event, event_id)
+    if request.method == "POST":
+        route = _optional_related_record(Route, "route_id")
+        activity = _optional_related_record(Activity, "activity_id")
+        update_event(
+            event,
+            name=_form_required_str("name"),
+            route=route,
+            activity=activity,
+            private=_form_bool("private"),
+            description=_form_optional_str("description"),
+            url=_form_optional_str("url"),
+            reg_url=_form_optional_str("reg_url"),
+            photo_url=_form_optional_str("photo_url"),
+            logo=_form_optional_str("logo"),
+            profile_photo=_form_optional_str("profile_photo"),
+            notes=_form_optional_str("notes"),
+            tags=_form_csv_list("tags"),
+            lat=_form_optional_float("lat"),
+            lon=_form_optional_float("lon"),
+            town=_form_optional_str("town"),
+            state=_form_optional_str("state"),
+            country=_form_optional_str("country"),
+            latlng=_form_optional_str("latlng"),
+            geoll=_form_optional_str("geoll"),
+            primary_activity=_form_optional_str("primary_activity"),
+            event_type=_form_optional_str("type"),
+            subtype=_form_optional_str("subtype"),
+        )
+        return redirect(url_for("core.admin_event_detail_route", event_id=event.id))
+
+    return render_template(
+        "admin/edit.html",
+        detail_url=url_for("core.admin_event_detail_route", event_id=event.id),
+        entity_id=event.id,
+        entity_type_label="Event",
+        fields=[
+            _edit_text_field("name", "Name", event.name),
+            _edit_checkbox_field("private", "Private", event.private),
+            _edit_textarea_field("description", "Description", event.description),
+            _edit_text_field("primary_activity", "Primary activity", event.primary_activity),
+            _edit_text_field("type", "Type", event.type),
+            _edit_text_field("subtype", "Subtype", event.subtype),
+            _edit_text_field("route_id", "Route ID", event.route_id),
+            _edit_text_field("activity_id", "Activity ID", event.activity_id),
+            _edit_text_field("url", "URL", event.url),
+            _edit_text_field("reg_url", "Registration URL", event.reg_url),
+            _edit_text_field("photo_url", "Photo URL", event.photo_url),
+            _edit_text_field("logo", "Logo", event.logo),
+            _edit_text_field("profile_photo", "Profile photo", event.profile_photo),
+            _edit_textarea_field("notes", "Notes", event.notes),
+            _edit_text_field("town", "Town", event.town),
+            _edit_text_field("state", "State", event.state),
+            _edit_text_field("country", "Country", event.country),
+            _edit_text_field("lat", "Latitude", event.lat),
+            _edit_text_field("lon", "Longitude", event.lon),
+            _edit_text_field("latlng", "Latlng", event.latlng),
+            _edit_text_field("geoll", "Geometry", event.geoll),
+            _edit_text_field("tags", "Tags (comma separated)", _csv_value(event.tags)),
+        ],
+        page_title=event.name or "Event",
     )
 
 
@@ -1271,6 +1413,16 @@ def _csv_value(values: list[str] | None) -> str:
     return ", ".join(values or [])
 
 
+def _csv_number_value(values: list[float] | None) -> str:
+    return ", ".join(f"{value:g}" for value in (values or []))
+
+
+def _nullable_bool_value(value: bool | None) -> str:
+    if value is None:
+        return ""
+    return "true" if value else "false"
+
+
 def _join_location(*parts: str | None) -> str | None:
     normalized = [part.strip() for part in parts if part and part.strip()]
     return ", ".join(normalized) if normalized else None
@@ -1299,8 +1451,29 @@ def _form_optional_str(name: str) -> str | None:
     return value or None
 
 
+def _form_optional_float(name: str) -> float | None:
+    raw_value = request.form.get(name, "").strip()
+    if not raw_value:
+        return None
+    try:
+        return float(raw_value)
+    except ValueError:
+        abort(HTTPStatus.BAD_REQUEST)
+
+
 def _form_bool(name: str) -> bool:
     return request.form.get(name) == "true"
+
+
+def _form_optional_nullable_bool(name: str) -> bool | None:
+    raw_value = request.form.get(name, "").strip().lower()
+    if not raw_value:
+        return None
+    if raw_value == "true":
+        return True
+    if raw_value == "false":
+        return False
+    abort(HTTPStatus.BAD_REQUEST)
 
 
 def _form_csv_list(name: str) -> list[str] | None:
@@ -1310,3 +1483,30 @@ def _form_csv_list(name: str) -> list[str] | None:
     values = [item.strip() for item in raw_value.split(",")]
     filtered = [item for item in values if item]
     return filtered or None
+
+
+def _form_csv_float_list(name: str) -> list[float] | None:
+    raw_value = request.form.get(name, "").strip()
+    if not raw_value:
+        return None
+    converted: list[float] = []
+    for item in raw_value.split(","):
+        value = item.strip()
+        if not value:
+            continue
+        try:
+            converted.append(float(value))
+        except ValueError:
+            abort(HTTPStatus.BAD_REQUEST)
+    return converted or None
+
+
+def _optional_related_record(model: type[ModelT], form_key: str) -> ModelT | None:
+    raw_value = request.form.get(form_key, "").strip()
+    if not raw_value:
+        return None
+    try:
+        record_id = int(raw_value)
+    except ValueError:
+        abort(HTTPStatus.BAD_REQUEST)
+    return _get_or_404(model, record_id)

@@ -27,9 +27,12 @@ The app exposes:
 - `/health`
 - `/admin/search`
 - `/admin/groups/<id>`
+- `/admin/groups/<id>/edit`
 - `/admin/routes/<id>`
+- `/admin/routes/<id>/edit`
 - `/admin/segments/<id>`
 - `/admin/events/<id>`
+- `/admin/events/<id>/edit`
 - `/admin/points-of-interest/<id>`
 - `/admin/activities/<id>`
 - `/api/bootstrap/lookup-rows`
@@ -90,7 +93,8 @@ Postgres `TSVECTOR` columns or GIN indexes.
 There is also a thin server-rendered admin search console at `/admin/search`. It uses the same
 search service layer and gives the project a lightweight HTML foothold without introducing a full
 admin framework yet. Search results now link into thin read-only detail pages for the core entity
-types.
+types. Groups, routes, and events now also have thin edit forms in the admin UI so the basic
+browser workflow is search -> inspect -> update.
 
 Routes, segments, and activities now carry `summary_polyline` and `full_track` geometry payloads.
 POIs now also carry a `geoll` point geometry alongside their compatibility `lat` and `lon` fields.
