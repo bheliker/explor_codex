@@ -2263,3 +2263,52 @@ def test_admin_route_detail_page_renders(app: Flask, client: FlaskClient, databa
     assert "Skyline Traverse" in html
     assert "Long ridge route with mixed climbing" in html
     assert "54.20" in html
+
+
+def test_admin_group_edit_page_updates_group_and_search(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        group = Group(
+            name="North Shore Road",
+            shortname="north-shore-road",
+            about_blurb="Road rides by the water",
+            tags=["road"],
+            home_town="Richmond",
+            home_state="CA",
+        )
+        db.session.add(group)
+        db.session.commit()
+        group_id = group.id
+
+    response = client.post(
+        f"/admin/groups/{group_id}/edit",
+        data={
+            "name": "North Shore Gravel",
+            "shortname": "north-shore-gravel",
+            "about_blurb": "Mixed-surface rides by the water",
+            "contact": "hello@example.com",
+            "home_town": "Albany",
+            "home_state": "CA",
+            "tags": "gravel, community",
+            "preference_tags": "mixed-surface",
+            "invite_only": "true",
+        },
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "North Shore Gravel" in html
+    assert "Mixed-surface rides by the water" in html
+    assert "Albany, CA" in html
+
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        updated_group = db.session.get(Group, group_id)
+        assert updated_group is not None
+        assert updated_group.name == "North Shore Gravel"
+        assert updated_group.tags == ["gravel", "community"]
+        search_hits = search_documents(query="north shore gravel", types=["group"])
+        assert [result.entity_id for result in search_hits] == [group_id]

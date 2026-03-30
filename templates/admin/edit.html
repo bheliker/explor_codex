@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ page_title }} | explor_codex{% endblock %}
+
+{% block body %}
+  <section class="hero">
+    <p class="eyebrow">{{ entity_type_label }} Edit</p>
+    <h1>Edit {{ page_title }}</h1>
+    <p>Make a focused change, save it, and the portable search index will stay in sync automatically.</p>
+  </section>
+
+  <section class="grid">
+    <aside class="panel">
+      <h2>Actions</h2>
+      <div class="stack">
+        <div class="result-meta">
+          <div>ID {{ entity_id }}</div>
+          {% if detail_url %}
+            <div><a href="{{ detail_url }}">Back to detail page</a></div>
+          {% endif %}
+          <div><a href="{{ url_for('core.admin_search_route') }}">Back to search</a></div>
+        </div>
+      </div>
+    </aside>
+
+    <form class="panel stack" method="post">
+      <h2>Fields</h2>
+      {% for field in fields %}
+        {% if field.kind == "checkbox" %}
+          <label class="checkboxes" style="grid-template-columns: 1fr;">
+            <label>
+              <input type="checkbox" name="{{ field.name }}" value="true" {% if field.checked %}checked{% endif %}>
+              {{ field.label }}
+            </label>
+          </label>
+        {% elif field.kind == "textarea" %}
+          <label>
+            {{ field.label }}
+            <textarea
+              name="{{ field.name }}"
+              rows="{{ field.rows or 5 }}"
+              style="width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: #fffdf8; color: var(--ink); font: inherit;"
+            >{{ field.value }}</textarea>
+          </label>
+        {% else %}
+          <label>
+            {{ field.label }}
+            <input type="{{ field.kind or 'text' }}" name="{{ field.name }}" value="{{ field.value }}">
+          </label>
+        {% endif %}
+      {% endfor %}
+      <button type="submit">Save Changes</button>
+    </form>
+  </section>
+{% endblock %}

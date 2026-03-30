@@ -29,6 +29,11 @@
           </div>
         {% endif %}
         <div>
+          {% if edit_url %}
+            <a href="{{ edit_url }}">Edit this record</a>
+          {% endif %}
+        </div>
+        <div>
           <a href="{{ url_for('core.admin_search_route') }}">Back to search</a>
         </div>
       </div>

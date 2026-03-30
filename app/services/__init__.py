@@ -9,6 +9,7 @@ from app.services.groups import (
     attach_route_to_group,
     create_group,
     ensure_group_membership,
+    update_group,
 )
 from app.services.images import (
     attach_image_to_event,
@@ -42,6 +43,7 @@ __all__ = [
     "create_group",
     "create_image",
     "ensure_group_membership",
+    "update_group",
     "list_activities",
     "list_images",
     "list_points_of_interest",

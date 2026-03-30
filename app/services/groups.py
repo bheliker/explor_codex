@@ -53,6 +53,60 @@ def create_group(
     return group
 
 
+def update_group(
+    group: Group,
+    *,
+    name: str,
+    shortname: str | None = None,
+    invite_only: bool = False,
+    private: bool = False,
+    home_town: str | None = None,
+    home_state: str | None = None,
+    home_country: str | None = None,
+    home_latlng: str | None = None,
+    home_add: str | None = None,
+    full_address: str | None = None,
+    geoll: str | None = None,
+    about_blurb: str | None = None,
+    contact: str | None = None,
+    category: str | None = None,
+    primary_activity: str | None = None,
+    more_info_url: str | None = None,
+    preference_tags: list[str] | None = None,
+    tags: list[str] | None = None,
+    rider_classes: list[str] | None = None,
+    ride_classes: list[str] | None = None,
+) -> Group:
+    if geoll is not None and home_latlng is None:
+        coordinates = point_coordinates(geoll)
+        if coordinates is not None:
+            lon, lat = coordinates
+            home_latlng = f"{lat},{lon}"
+
+    group.name = name
+    group.shortname = shortname
+    group.invite_only = invite_only
+    group.private = private
+    group.home_town = home_town
+    group.home_state = home_state
+    group.home_country = home_country
+    group.home_latlng = home_latlng
+    group.home_add = home_add
+    group.full_address = full_address
+    group.geoll = geoll
+    group.about_blurb = about_blurb
+    group.contact = contact
+    group.category = category
+    group.primary_activity = primary_activity
+    group.more_info_url = more_info_url
+    group.preference_tags = preference_tags
+    group.tags = tags
+    group.rider_classes = rider_classes
+    group.ride_classes = ride_classes
+    db.session.commit()
+    return group
+
+
 def ensure_group_membership(
     group: Group,
     user: User,

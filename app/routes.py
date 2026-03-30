@@ -3,7 +3,7 @@ from __future__ import annotations
 from http import HTTPStatus
 from typing import Any, TypeVar, cast
 
-from flask import Blueprint, abort, render_template, request, url_for
+from flask import Blueprint, abort, redirect, render_template, request, url_for
 from sqlalchemy import func, select
 
 from app.bootstrap import ensure_canonical_lookup_rows
@@ -53,6 +53,7 @@ from app.services import (
     rebuild_search_documents,
     search_documents,
     set_rsvp,
+    update_group,
 )
 
 bp = Blueprint("core", __name__)
@@ -113,12 +114,85 @@ def admin_group_detail_route(group_id: int) -> str:
         ),
         entity_id=group.id,
         entity_type_label="Group",
+        edit_url=url_for("core.admin_group_edit_route", group_id=group.id),
         location=_join_location(group.home_town, group.home_state, group.home_country),
         page_title=group.name or "Group",
         subtitle=group.shortname or group.primary_activity or group.type,
         tags=_combine_tags(
             group.tags, group.preference_tags, group.rider_classes, group.ride_classes
         ),
+    )
+
+
+@bp.route("/admin/groups/<int:group_id>/edit", methods=["GET", "POST"])
+def admin_group_edit_route(group_id: int) -> str | Any:
+    group = _get_or_404(Group, group_id)
+    if request.method == "POST":
+        update_group(
+            group,
+            name=_form_required_str("name"),
+            shortname=_form_optional_str("shortname"),
+            invite_only=_form_bool("invite_only"),
+            private=_form_bool("private"),
+            home_town=_form_optional_str("home_town"),
+            home_state=_form_optional_str("home_state"),
+            home_country=_form_optional_str("home_country"),
+            home_latlng=_form_optional_str("home_latlng"),
+            home_add=_form_optional_str("home_add"),
+            full_address=_form_optional_str("full_address"),
+            geoll=_form_optional_str("geoll"),
+            about_blurb=_form_optional_str("about_blurb"),
+            contact=_form_optional_str("contact"),
+            category=_form_optional_str("category"),
+            primary_activity=_form_optional_str("primary_activity"),
+            more_info_url=_form_optional_str("more_info_url"),
+            preference_tags=_form_csv_list("preference_tags"),
+            tags=_form_csv_list("tags"),
+            rider_classes=_form_csv_list("rider_classes"),
+            ride_classes=_form_csv_list("ride_classes"),
+        )
+        return redirect(url_for("core.admin_group_detail_route", group_id=group.id))
+
+    return render_template(
+        "admin/edit.html",
+        detail_url=url_for("core.admin_group_detail_route", group_id=group.id),
+        entity_id=group.id,
+        entity_type_label="Group",
+        fields=[
+            _edit_text_field("name", "Name", group.name),
+            _edit_text_field("shortname", "Shortname", group.shortname),
+            _edit_checkbox_field("invite_only", "Invite only", group.invite_only),
+            _edit_checkbox_field("private", "Private", group.private),
+            _edit_textarea_field("about_blurb", "About", group.about_blurb, rows=6),
+            _edit_text_field("contact", "Contact", group.contact),
+            _edit_text_field("category", "Category", group.category),
+            _edit_text_field("primary_activity", "Primary activity", group.primary_activity),
+            _edit_text_field("more_info_url", "More info URL", group.more_info_url),
+            _edit_text_field("home_town", "Home town", group.home_town),
+            _edit_text_field("home_state", "Home state", group.home_state),
+            _edit_text_field("home_country", "Home country", group.home_country),
+            _edit_text_field("home_latlng", "Home latlng", group.home_latlng),
+            _edit_text_field("home_add", "Home address", group.home_add),
+            _edit_text_field("full_address", "Full address", group.full_address),
+            _edit_text_field("geoll", "Geometry", group.geoll),
+            _edit_text_field("tags", "Tags (comma separated)", _csv_value(group.tags)),
+            _edit_text_field(
+                "preference_tags",
+                "Preference tags (comma separated)",
+                _csv_value(group.preference_tags),
+            ),
+            _edit_text_field(
+                "rider_classes",
+                "Rider classes (comma separated)",
+                _csv_value(group.rider_classes),
+            ),
+            _edit_text_field(
+                "ride_classes",
+                "Ride classes (comma separated)",
+                _csv_value(group.ride_classes),
+            ),
+        ],
+        page_title=group.name or "Group",
     )
 
 
@@ -1162,6 +1236,26 @@ def _detail_rows(
     return rows
 
 
+def _edit_text_field(name: str, label: str, value: object | None) -> dict[str, object]:
+    return {"kind": "text", "label": label, "name": name, "value": _display_value(value) or ""}
+
+
+def _edit_textarea_field(
+    name: str, label: str, value: object | None, *, rows: int = 5
+) -> dict[str, object]:
+    return {
+        "kind": "textarea",
+        "label": label,
+        "name": name,
+        "rows": rows,
+        "value": _display_value(value) or "",
+    }
+
+
+def _edit_checkbox_field(name: str, label: str, checked: bool | None) -> dict[str, object]:
+    return {"checked": bool(checked), "kind": "checkbox", "label": label, "name": name}
+
+
 def _display_value(value: object | None) -> str | None:
     if value is None:
         return None
@@ -1171,6 +1265,10 @@ def _display_value(value: object | None) -> str | None:
         return ", ".join(str(item) for item in value) if value else None
     text = str(value).strip()
     return text or None
+
+
+def _csv_value(values: list[str] | None) -> str:
+    return ", ".join(values or [])
 
 
 def _join_location(*parts: str | None) -> str | None:
@@ -1187,3 +1285,28 @@ def _combine_tags(*groups: list[str] | None) -> list[str] | None:
             if tag not in combined:
                 combined.append(tag)
     return combined or None
+
+
+def _form_required_str(name: str) -> str:
+    value = request.form.get(name, "").strip()
+    if not value:
+        abort(HTTPStatus.BAD_REQUEST)
+    return value
+
+
+def _form_optional_str(name: str) -> str | None:
+    value = request.form.get(name, "").strip()
+    return value or None
+
+
+def _form_bool(name: str) -> bool:
+    return request.form.get(name) == "true"
+
+
+def _form_csv_list(name: str) -> list[str] | None:
+    raw_value = request.form.get(name, "").strip()
+    if not raw_value:
+        return None
+    values = [item.strip() for item in raw_value.split(",")]
+    filtered = [item for item in values if item]
+    return filtered or None
