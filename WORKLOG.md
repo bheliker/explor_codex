@@ -236,3 +236,51 @@ This file records session history for `explor_codex` so future work can resume w
 - The next likely step is either:
   - expanding create/edit coverage to more entity types, or
   - adding navigation polish and small quality-of-life improvements like success messaging and recent activity links.
+
+## 2026-03-30 (Admin Polish And Coverage Expansion)
+
+### Investigated
+- Focused on the remaining admin quality gaps after the first dashboard/create/edit pass:
+  - success and error feedback
+  - stronger navigation between pages
+  - recent-activity links on detail pages
+  - create/edit coverage for the remaining core entity types
+- Confirmed the remaining high-value admin-visible entities were:
+  - segments
+  - points of interest
+  - activities
+
+### Changed
+- Added flash messaging and stronger top-level navigation in [templates/base.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/base.html).
+- Added recent-activity links to [templates/admin/detail.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/detail.html) backed by recent search documents from [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py).
+- Replaced hard admin form aborts with friendlier validation messages for browser form flows in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py).
+- Expanded dashboard sections and quick-create links in [templates/admin/dashboard.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/dashboard.html).
+- Added create and edit coverage for:
+  - segments
+  - points of interest
+  - activities
+- Added the supporting update services in:
+  - [app/services/segments.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/services/segments.py)
+  - [app/services/points_of_interest.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/services/points_of_interest.py)
+  - [app/services/activities.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/services/activities.py)
+- Extended [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) with admin polish coverage plus create/edit flows for the new entity types.
+- Updated [README.md](/Users/bheliker/Documents/_Projects/explor/explor_codex/README.md) to reflect the broader admin surface.
+
+### Decisions
+- Keep using the shared admin form template and route-side formatting/validation helpers rather than introducing separate per-entity form systems.
+- Use recent search documents as the source for “recent activity” links so the navigation stays tied to the same cross-entity search layer.
+- Treat segments, points of interest, and activities as the remaining core admin entities for this phase; images and other support tables remain secondary.
+
+### Why
+- This turns the admin UI from a promising scaffold into a coherent daily-use surface:
+  - clearer navigation
+  - feedback after actions
+  - friendlier validation
+  - fuller entity coverage
+- It also closes the loop on the user-reported confusion around event creation with invalid related IDs by surfacing those issues as admin messages instead of opaque 404s.
+
+### Notes for the next session
+- The admin HTML surface now supports create/edit coverage for groups, routes, segments, events, points of interest, and activities.
+- The next likely step is either:
+  - secondary admin entities like images, links, dues, and fees, or
+  - deeper UX polish such as breadcrumbs, richer success states, and inline related-record pickers.

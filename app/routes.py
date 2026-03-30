@@ -53,9 +53,12 @@ from app.services import (
     rebuild_search_documents,
     search_documents,
     set_rsvp,
+    update_activity,
     update_event,
     update_group,
+    update_point_of_interest,
     update_route,
+    update_segment,
 )
 
 bp = Blueprint("core", __name__)
@@ -115,15 +118,35 @@ def admin_dashboard_route() -> str:
                 "title": "Recent Routes",
             },
             {
+                "items": [_dashboard_segment_item(segment) for segment in _recent_records(Segment)],
+                "new_url": url_for("core.admin_segment_new_route"),
+                "title": "Recent Segments",
+            },
+            {
                 "items": [_dashboard_event_item(event) for event in _recent_records(Event)],
                 "new_url": url_for("core.admin_event_new_route"),
                 "title": "Recent Events",
+            },
+            {
+                "items": [_dashboard_poi_item(point) for point in _recent_records(PointOfInterest)],
+                "new_url": url_for("core.admin_point_of_interest_new_route"),
+                "title": "Recent Points Of Interest",
+            },
+            {
+                "items": [
+                    _dashboard_activity_item(activity) for activity in _recent_records(Activity)
+                ],
+                "new_url": url_for("core.admin_activity_new_route"),
+                "title": "Recent Activities",
             },
         ],
         stats=[
             {"count": _count_records(Group), "label": "groups"},
             {"count": _count_records(Route), "label": "routes"},
+            {"count": _count_records(Segment), "label": "segments"},
             {"count": _count_records(Event), "label": "events"},
+            {"count": _count_records(PointOfInterest), "label": "pois"},
+            {"count": _count_records(Activity), "label": "activities"},
             {"count": _count_records(SearchDocument), "label": "search docs"},
         ],
     )
@@ -512,10 +535,172 @@ def admin_segment_detail_route(segment_id: int) -> str:
         ),
         entity_id=segment.id,
         entity_type_label="Segment",
+        edit_url=url_for("core.admin_segment_edit_route", segment_id=segment.id),
         location=None,
         page_title=segment.name or "Segment",
+        recent_links=_recent_activity_links(exclude=("segment", segment.id)),
         subtitle=segment.subtype or segment.type,
         tags=segment.tags,
+    )
+
+
+@bp.route("/admin/segments/<int:segment_id>/edit", methods=["GET", "POST"])
+def admin_segment_edit_route(segment_id: int) -> str | Any:
+    segment = _get_or_404(Segment, segment_id)
+    if request.method == "POST":
+        try:
+            update_segment(
+                segment,
+                name=_form_required_str("name"),
+                desc=_form_optional_str("desc"),
+                duration=_form_optional_float("duration"),
+                length=_form_optional_float("length"),
+                elevation_gain=_form_optional_float("elevation_gain"),
+                elevation_array=_form_csv_float_list("elevation_array"),
+                elevation_loss=_form_optional_float("elevation_loss"),
+                elev_high=_form_optional_float("elev_high"),
+                elev_low=_form_optional_float("elev_low"),
+                rating=_form_optional_float("rating"),
+                grade=_form_optional_float("grade"),
+                segment_type=_form_optional_str("type"),
+                subtype=_form_optional_str("subtype"),
+                tags=_form_csv_list("tags"),
+                src=_form_optional_str("src"),
+                src_id=_form_optional_str("src_id"),
+                src_url=_form_optional_str("src_url"),
+                start_latitude=_form_optional_float("start_latitude"),
+                start_longitude=_form_optional_float("start_longitude"),
+                end_latitude=_form_optional_float("end_latitude"),
+                end_longitude=_form_optional_float("end_longitude"),
+                summary_polyline=_form_optional_str("summary_polyline"),
+                full_track=_form_optional_str("full_track"),
+                track_hash=_form_optional_str("track_hash"),
+                track_maxspeed=_form_optional_float("track_maxspeed"),
+            )
+        except AdminFormError as exc:
+            flash(str(exc), "error")
+        else:
+            flash("Segment saved.", "success")
+            return redirect(url_for("core.admin_segment_detail_route", segment_id=segment.id))
+
+    return render_template(
+        "admin/edit.html",
+        dashboard_url=url_for("core.admin_dashboard_route"),
+        detail_url=url_for("core.admin_segment_detail_route", segment_id=segment.id),
+        entity_id=segment.id,
+        entity_type_label="Segment",
+        fields=[
+            _edit_text_field("name", "Name", segment.name),
+            _edit_textarea_field("desc", "Description", segment.desc),
+            _edit_text_field("type", "Type", segment.type),
+            _edit_text_field("subtype", "Subtype", segment.subtype),
+            _edit_text_field("duration", "Duration", segment.duration),
+            _edit_text_field("length", "Length", segment.length),
+            _edit_text_field("elevation_gain", "Elevation gain", segment.elevation_gain),
+            _edit_text_field(
+                "elevation_array",
+                "Elevation array (comma separated)",
+                _csv_number_value(segment.elevation_array),
+            ),
+            _edit_text_field("elevation_loss", "Elevation loss", segment.elevation_loss),
+            _edit_text_field("elev_high", "Elevation high", segment.elev_high),
+            _edit_text_field("elev_low", "Elevation low", segment.elev_low),
+            _edit_text_field("rating", "Rating", segment.rating),
+            _edit_text_field("grade", "Grade", segment.grade),
+            _edit_text_field("src", "Source", segment.src),
+            _edit_text_field("src_id", "Source ID", segment.src_id),
+            _edit_text_field("src_url", "Source URL", segment.src_url),
+            _edit_text_field("start_latitude", "Start latitude", segment.start_latitude),
+            _edit_text_field("start_longitude", "Start longitude", segment.start_longitude),
+            _edit_text_field("end_latitude", "End latitude", segment.end_latitude),
+            _edit_text_field("end_longitude", "End longitude", segment.end_longitude),
+            _edit_text_field("tags", "Tags (comma separated)", _csv_value(segment.tags)),
+            _edit_textarea_field("summary_polyline", "Summary polyline", segment.summary_polyline),
+            _edit_textarea_field("full_track", "Full track", segment.full_track),
+            _edit_text_field("track_hash", "Track hash", segment.track_hash),
+            _edit_text_field("track_maxspeed", "Track maxspeed", segment.track_maxspeed),
+        ],
+        intro_text="Adjust segment metadata and keep related search results current.",
+        mode_title="Edit",
+        page_title=segment.name or "Segment",
+        submit_label="Save Changes",
+    )
+
+
+@bp.route("/admin/segments/new", methods=["GET", "POST"])
+def admin_segment_new_route() -> str | Any:
+    if request.method == "POST":
+        try:
+            segment = create_segment(
+                name=_form_required_str("name"),
+                desc=_form_optional_str("desc"),
+                duration=_form_optional_float("duration"),
+                length=_form_optional_float("length"),
+                elevation_gain=_form_optional_float("elevation_gain"),
+                elevation_array=_form_csv_float_list("elevation_array"),
+                elevation_loss=_form_optional_float("elevation_loss"),
+                elev_high=_form_optional_float("elev_high"),
+                elev_low=_form_optional_float("elev_low"),
+                rating=_form_optional_float("rating"),
+                grade=_form_optional_float("grade"),
+                segment_type=_form_optional_str("type"),
+                subtype=_form_optional_str("subtype"),
+                tags=_form_csv_list("tags"),
+                src=_form_optional_str("src"),
+                src_id=_form_optional_str("src_id"),
+                src_url=_form_optional_str("src_url"),
+                start_latitude=_form_optional_float("start_latitude"),
+                start_longitude=_form_optional_float("start_longitude"),
+                end_latitude=_form_optional_float("end_latitude"),
+                end_longitude=_form_optional_float("end_longitude"),
+                summary_polyline=_form_optional_str("summary_polyline"),
+                full_track=_form_optional_str("full_track"),
+                track_hash=_form_optional_str("track_hash"),
+                track_maxspeed=_form_optional_float("track_maxspeed"),
+            )
+        except AdminFormError as exc:
+            flash(str(exc), "error")
+        else:
+            flash("Segment created.", "success")
+            return redirect(url_for("core.admin_segment_detail_route", segment_id=segment.id))
+
+    return render_template(
+        "admin/edit.html",
+        dashboard_url=url_for("core.admin_dashboard_route"),
+        detail_url=None,
+        entity_id=None,
+        entity_type_label="Segment",
+        fields=[
+            _edit_text_field("name", "Name", None),
+            _edit_textarea_field("desc", "Description", None),
+            _edit_text_field("type", "Type", None),
+            _edit_text_field("subtype", "Subtype", None),
+            _edit_text_field("duration", "Duration", None),
+            _edit_text_field("length", "Length", None),
+            _edit_text_field("elevation_gain", "Elevation gain", None),
+            _edit_text_field("elevation_array", "Elevation array (comma separated)", None),
+            _edit_text_field("elevation_loss", "Elevation loss", None),
+            _edit_text_field("elev_high", "Elevation high", None),
+            _edit_text_field("elev_low", "Elevation low", None),
+            _edit_text_field("rating", "Rating", None),
+            _edit_text_field("grade", "Grade", None),
+            _edit_text_field("src", "Source", None),
+            _edit_text_field("src_id", "Source ID", None),
+            _edit_text_field("src_url", "Source URL", None),
+            _edit_text_field("start_latitude", "Start latitude", None),
+            _edit_text_field("start_longitude", "Start longitude", None),
+            _edit_text_field("end_latitude", "End latitude", None),
+            _edit_text_field("end_longitude", "End longitude", None),
+            _edit_text_field("tags", "Tags (comma separated)", None),
+            _edit_textarea_field("summary_polyline", "Summary polyline", None),
+            _edit_textarea_field("full_track", "Full track", None),
+            _edit_text_field("track_hash", "Track hash", None),
+            _edit_text_field("track_maxspeed", "Track maxspeed", None),
+        ],
+        intro_text="Create a new segment from the browser-based admin UI.",
+        mode_title="Create",
+        page_title="Segment",
+        submit_label="Create Segment",
     )
 
 
@@ -724,11 +909,108 @@ def admin_point_of_interest_detail_route(point_id: int) -> str:
         ),
         entity_id=point.id,
         entity_type_label="Point of Interest",
+        edit_url=url_for("core.admin_point_of_interest_edit_route", point_id=point.id),
         location=None,
         page_title=point.name or "Point of Interest",
         recent_links=_recent_activity_links(exclude=("point_of_interest", point.id)),
         subtitle=point.subtype or point.type,
         tags=point.tags,
+    )
+
+
+@bp.route("/admin/points-of-interest/<int:point_id>/edit", methods=["GET", "POST"])
+def admin_point_of_interest_edit_route(point_id: int) -> str | Any:
+    point = _get_or_404(PointOfInterest, point_id)
+    if request.method == "POST":
+        try:
+            update_point_of_interest(
+                point,
+                name=_form_required_str("name"),
+                poi_type=_form_optional_str("type"),
+                subtype=_form_optional_str("subtype"),
+                lat=_form_optional_float("lat"),
+                lon=_form_optional_float("lon"),
+                geoll=_form_optional_str("geoll"),
+                url=_form_optional_str("url"),
+                description=_form_optional_str("description"),
+                tags=_form_csv_list("tags"),
+                icon=_form_optional_str("icon"),
+            )
+        except AdminFormError as exc:
+            flash(str(exc), "error")
+        else:
+            flash("Point of interest saved.", "success")
+            return redirect(url_for("core.admin_point_of_interest_detail_route", point_id=point.id))
+
+    return render_template(
+        "admin/edit.html",
+        dashboard_url=url_for("core.admin_dashboard_route"),
+        detail_url=url_for("core.admin_point_of_interest_detail_route", point_id=point.id),
+        entity_id=point.id,
+        entity_type_label="Point of Interest",
+        fields=[
+            _edit_text_field("name", "Name", point.name),
+            _edit_text_field("type", "Type", point.type),
+            _edit_text_field("subtype", "Subtype", point.subtype),
+            _edit_text_field("lat", "Latitude", point.lat),
+            _edit_text_field("lon", "Longitude", point.lon),
+            _edit_text_field("geoll", "Geometry", point.geoll),
+            _edit_text_field("url", "URL", point.url),
+            _edit_textarea_field("description", "Description", point.description),
+            _edit_text_field("tags", "Tags (comma separated)", _csv_value(point.tags)),
+            _edit_text_field("icon", "Icon", point.icon),
+        ],
+        intro_text="Adjust a point of interest and keep search/admin views aligned.",
+        mode_title="Edit",
+        page_title=point.name or "Point of Interest",
+        submit_label="Save Changes",
+    )
+
+
+@bp.route("/admin/points-of-interest/new", methods=["GET", "POST"])
+def admin_point_of_interest_new_route() -> str | Any:
+    if request.method == "POST":
+        try:
+            point = create_point_of_interest(
+                name=_form_required_str("name"),
+                poi_type=_form_optional_str("type"),
+                subtype=_form_optional_str("subtype"),
+                lat=_form_optional_float("lat"),
+                lon=_form_optional_float("lon"),
+                geoll=_form_optional_str("geoll"),
+                url=_form_optional_str("url"),
+                description=_form_optional_str("description"),
+                tags=_form_csv_list("tags"),
+                icon=_form_optional_str("icon"),
+            )
+        except AdminFormError as exc:
+            flash(str(exc), "error")
+        else:
+            flash("Point of interest created.", "success")
+            return redirect(url_for("core.admin_point_of_interest_detail_route", point_id=point.id))
+
+    return render_template(
+        "admin/edit.html",
+        dashboard_url=url_for("core.admin_dashboard_route"),
+        detail_url=None,
+        entity_id=None,
+        entity_type_label="Point of Interest",
+        fields=[
+            _edit_text_field("name", "Name", None),
+            _edit_text_field("type", "Type", None),
+            _edit_text_field("subtype", "Subtype", None),
+            _edit_text_field("lat", "Latitude", None),
+            _edit_text_field("lon", "Longitude", None),
+            _edit_text_field("geoll", "Geometry", None),
+            _edit_text_field("url", "URL", None),
+            _edit_textarea_field("description", "Description", None),
+            _edit_text_field("tags", "Tags (comma separated)", None),
+            _edit_text_field("icon", "Icon", None),
+        ],
+        intro_text="Create a new point of interest from the browser-based admin UI.",
+        mode_title="Create",
+        page_title="Point of Interest",
+        submit_label="Create Point of Interest",
     )
 
 
@@ -754,11 +1036,174 @@ def admin_activity_detail_route(activity_id: int) -> str:
         ),
         entity_id=activity.id,
         entity_type_label="Activity",
+        edit_url=url_for("core.admin_activity_edit_route", activity_id=activity.id),
         location=None,
         page_title=activity.name or "Activity",
         recent_links=_recent_activity_links(exclude=("activity", activity.id)),
         subtitle=activity.subtype or activity.type,
         tags=activity.tags,
+    )
+
+
+@bp.route("/admin/activities/<int:activity_id>/edit", methods=["GET", "POST"])
+def admin_activity_edit_route(activity_id: int) -> str | Any:
+    activity = _get_or_404(Activity, activity_id)
+    if request.method == "POST":
+        try:
+            route = _optional_related_record(Route, "route_id")
+            update_activity(
+                activity,
+                route=route,
+                name=_form_required_str("name"),
+                desc=_form_optional_str("desc"),
+                private=_form_optional_nullable_bool("private"),
+                photo_url=_form_optional_str("photo_url"),
+                tags=_form_csv_list("tags"),
+                duration=_form_optional_float("duration"),
+                length=_form_optional_float("length"),
+                elevation_gain=_form_optional_float("elevation_gain"),
+                average_speed=_form_optional_float("average_speed"),
+                max_speed=_form_optional_float("max_speed"),
+                moving_time=_form_optional_float("moving_time"),
+                total_elevation_gain=_form_optional_float("total_elevation_gain"),
+                elev_high=_form_optional_float("elev_high"),
+                elev_low=_form_optional_float("elev_low"),
+                activity_type=_form_optional_str("type"),
+                subtype=_form_optional_str("subtype"),
+                src=_form_optional_str("src"),
+                src_id=_form_optional_str("src_id"),
+                start_latitude=_form_optional_float("start_latitude"),
+                start_longitude=_form_optional_float("start_longitude"),
+                end_latitude=_form_optional_float("end_latitude"),
+                end_longitude=_form_optional_float("end_longitude"),
+                summary_polyline=_form_optional_str("summary_polyline"),
+                full_track=_form_optional_str("full_track"),
+            )
+        except AdminFormError as exc:
+            flash(str(exc), "error")
+        else:
+            flash("Activity saved.", "success")
+            return redirect(url_for("core.admin_activity_detail_route", activity_id=activity.id))
+
+    return render_template(
+        "admin/edit.html",
+        dashboard_url=url_for("core.admin_dashboard_route"),
+        detail_url=url_for("core.admin_activity_detail_route", activity_id=activity.id),
+        entity_id=activity.id,
+        entity_type_label="Activity",
+        fields=[
+            _edit_text_field("name", "Name", activity.name),
+            _edit_textarea_field("desc", "Description", activity.desc),
+            _edit_text_field(
+                "private", "Private (true/false)", _nullable_bool_value(activity.private)
+            ),
+            _edit_text_field("route_id", "Route ID", activity.route_id),
+            _edit_text_field("photo_url", "Photo URL", activity.photo_url),
+            _edit_text_field("tags", "Tags (comma separated)", _csv_value(activity.tags)),
+            _edit_text_field("duration", "Duration", activity.duration),
+            _edit_text_field("length", "Length", activity.length),
+            _edit_text_field("elevation_gain", "Elevation gain", activity.elevation_gain),
+            _edit_text_field("average_speed", "Average speed", activity.average_speed),
+            _edit_text_field("max_speed", "Max speed", activity.max_speed),
+            _edit_text_field("moving_time", "Moving time", activity.moving_time),
+            _edit_text_field(
+                "total_elevation_gain", "Total elevation gain", activity.total_elevation_gain
+            ),
+            _edit_text_field("elev_high", "Elevation high", activity.elev_high),
+            _edit_text_field("elev_low", "Elevation low", activity.elev_low),
+            _edit_text_field("type", "Type", activity.type),
+            _edit_text_field("subtype", "Subtype", activity.subtype),
+            _edit_text_field("src", "Source", activity.src),
+            _edit_text_field("src_id", "Source ID", activity.src_id),
+            _edit_text_field("start_latitude", "Start latitude", activity.start_latitude),
+            _edit_text_field("start_longitude", "Start longitude", activity.start_longitude),
+            _edit_text_field("end_latitude", "End latitude", activity.end_latitude),
+            _edit_text_field("end_longitude", "End longitude", activity.end_longitude),
+            _edit_textarea_field("summary_polyline", "Summary polyline", activity.summary_polyline),
+            _edit_textarea_field("full_track", "Full track", activity.full_track),
+        ],
+        intro_text="Adjust activity metadata from the admin UI and keep search in sync.",
+        mode_title="Edit",
+        page_title=activity.name or "Activity",
+        submit_label="Save Changes",
+    )
+
+
+@bp.route("/admin/activities/new", methods=["GET", "POST"])
+def admin_activity_new_route() -> str | Any:
+    if request.method == "POST":
+        try:
+            route = _optional_related_record(Route, "route_id")
+            activity = create_activity(
+                route=route,
+                name=_form_required_str("name"),
+                desc=_form_optional_str("desc"),
+                private=_form_optional_nullable_bool("private"),
+                photo_url=_form_optional_str("photo_url"),
+                tags=_form_csv_list("tags"),
+                duration=_form_optional_float("duration"),
+                length=_form_optional_float("length"),
+                elevation_gain=_form_optional_float("elevation_gain"),
+                average_speed=_form_optional_float("average_speed"),
+                max_speed=_form_optional_float("max_speed"),
+                moving_time=_form_optional_float("moving_time"),
+                total_elevation_gain=_form_optional_float("total_elevation_gain"),
+                elev_high=_form_optional_float("elev_high"),
+                elev_low=_form_optional_float("elev_low"),
+                activity_type=_form_optional_str("type"),
+                subtype=_form_optional_str("subtype"),
+                src=_form_optional_str("src"),
+                src_id=_form_optional_str("src_id"),
+                start_latitude=_form_optional_float("start_latitude"),
+                start_longitude=_form_optional_float("start_longitude"),
+                end_latitude=_form_optional_float("end_latitude"),
+                end_longitude=_form_optional_float("end_longitude"),
+                summary_polyline=_form_optional_str("summary_polyline"),
+                full_track=_form_optional_str("full_track"),
+            )
+        except AdminFormError as exc:
+            flash(str(exc), "error")
+        else:
+            flash("Activity created.", "success")
+            return redirect(url_for("core.admin_activity_detail_route", activity_id=activity.id))
+
+    return render_template(
+        "admin/edit.html",
+        dashboard_url=url_for("core.admin_dashboard_route"),
+        detail_url=None,
+        entity_id=None,
+        entity_type_label="Activity",
+        fields=[
+            _edit_text_field("name", "Name", None),
+            _edit_textarea_field("desc", "Description", None),
+            _edit_text_field("private", "Private (true/false)", None),
+            _edit_text_field("route_id", "Route ID", None),
+            _edit_text_field("photo_url", "Photo URL", None),
+            _edit_text_field("tags", "Tags (comma separated)", None),
+            _edit_text_field("duration", "Duration", None),
+            _edit_text_field("length", "Length", None),
+            _edit_text_field("elevation_gain", "Elevation gain", None),
+            _edit_text_field("average_speed", "Average speed", None),
+            _edit_text_field("max_speed", "Max speed", None),
+            _edit_text_field("moving_time", "Moving time", None),
+            _edit_text_field("total_elevation_gain", "Total elevation gain", None),
+            _edit_text_field("elev_high", "Elevation high", None),
+            _edit_text_field("elev_low", "Elevation low", None),
+            _edit_text_field("type", "Type", None),
+            _edit_text_field("subtype", "Subtype", None),
+            _edit_text_field("src", "Source", None),
+            _edit_text_field("src_id", "Source ID", None),
+            _edit_text_field("start_latitude", "Start latitude", None),
+            _edit_text_field("start_longitude", "Start longitude", None),
+            _edit_text_field("end_latitude", "End latitude", None),
+            _edit_text_field("end_longitude", "End longitude", None),
+            _edit_textarea_field("summary_polyline", "Summary polyline", None),
+            _edit_textarea_field("full_track", "Full track", None),
+        ],
+        intro_text="Create a new activity from the browser-based admin UI.",
+        mode_title="Create",
+        page_title="Activity",
+        submit_label="Create Activity",
     )
 
 
@@ -1630,6 +2075,16 @@ def _dashboard_route_item(route: Route) -> dict[str, object]:
     }
 
 
+def _dashboard_segment_item(segment: Segment) -> dict[str, object]:
+    return {
+        "detail_url": url_for("core.admin_segment_detail_route", segment_id=segment.id),
+        "id": segment.id,
+        "location": None,
+        "subtitle": segment.subtype or segment.type,
+        "title": segment.name or "Segment",
+    }
+
+
 def _dashboard_event_item(event: Event) -> dict[str, object]:
     return {
         "detail_url": url_for("core.admin_event_detail_route", event_id=event.id),
@@ -1637,6 +2092,26 @@ def _dashboard_event_item(event: Event) -> dict[str, object]:
         "location": _join_location(event.town, event.state, event.country),
         "subtitle": event.subtype or event.type or event.primary_activity,
         "title": event.name or "Event",
+    }
+
+
+def _dashboard_poi_item(point: PointOfInterest) -> dict[str, object]:
+    return {
+        "detail_url": url_for("core.admin_point_of_interest_detail_route", point_id=point.id),
+        "id": point.id,
+        "location": None,
+        "subtitle": point.subtype or point.type,
+        "title": point.name or "Point of Interest",
+    }
+
+
+def _dashboard_activity_item(activity: Activity) -> dict[str, object]:
+    return {
+        "detail_url": url_for("core.admin_activity_detail_route", activity_id=activity.id),
+        "id": activity.id,
+        "location": None,
+        "subtitle": activity.subtype or activity.type,
+        "title": activity.name or "Activity",
     }
 
 

@@ -74,6 +74,64 @@ def create_activity(
     return activity
 
 
+def update_activity(
+    activity: Activity,
+    *,
+    route: Route | None = None,
+    name: str,
+    desc: str | None = None,
+    private: bool | None = None,
+    photo_url: str | None = None,
+    tags: list[str] | None = None,
+    duration: float | None = None,
+    length: float | None = None,
+    elevation_gain: float | None = None,
+    average_speed: float | None = None,
+    max_speed: float | None = None,
+    moving_time: float | None = None,
+    total_elevation_gain: float | None = None,
+    elev_high: float | None = None,
+    elev_low: float | None = None,
+    activity_type: str | None = None,
+    subtype: str | None = None,
+    src: str | None = None,
+    src_id: str | None = None,
+    start_latitude: float | None = None,
+    start_longitude: float | None = None,
+    end_latitude: float | None = None,
+    end_longitude: float | None = None,
+    summary_polyline: str | None = None,
+    full_track: str | None = None,
+) -> Activity:
+    activity.route = route
+    activity.name = name
+    activity.desc = desc
+    activity.private = private
+    activity.photo_url = photo_url
+    activity.tags = tags
+    activity.duration = duration
+    activity.length = length
+    activity.elevation_gain = elevation_gain
+    activity.average_speed = average_speed
+    activity.max_speed = max_speed
+    activity.moving_time = moving_time
+    activity.total_elevation_gain = total_elevation_gain
+    activity.elev_high = elev_high
+    activity.elev_low = elev_low
+    activity.type = activity_type
+    activity.subtype = subtype
+    activity.src = src
+    activity.src_id = src_id
+    activity.start_latitude = start_latitude
+    activity.start_longitude = start_longitude
+    activity.end_latitude = end_latitude
+    activity.end_longitude = end_longitude
+    activity.summary_polyline = summary_polyline
+    activity.full_track = full_track
+    db.session.commit()
+    return activity
+
+
 def list_activities(*, athlete: User | None = None, route: Route | None = None) -> list[Activity]:
     statement: Select[tuple[Activity]] = select(Activity).order_by(Activity.id)
     if athlete is not None:

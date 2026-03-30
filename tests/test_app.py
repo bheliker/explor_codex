@@ -2566,3 +2566,153 @@ def test_admin_detail_pages_show_recent_activity_links(
     assert "Recent Activity" in html
     assert "Recent Group" in html
     assert "Recent Route" in html
+
+
+def test_admin_dashboard_includes_remaining_create_links(
+    client: FlaskClient, database: None
+) -> None:
+    response = client.get("/admin")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "/admin/segments/new" in html
+    assert "/admin/points-of-interest/new" in html
+    assert "/admin/activities/new" in html
+
+
+def test_admin_segment_create_and_edit_flow_updates_search(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    create_response = client.post(
+        "/admin/segments/new",
+        data={
+            "name": "Summit Spur",
+            "desc": "Steep gravel connector",
+            "type": "gravel",
+            "tags": "gravel, climb",
+        },
+        follow_redirects=True,
+    )
+    assert create_response.status_code == 200
+    create_html = create_response.get_data(as_text=True)
+    assert "Segment created." in create_html
+    assert "Summit Spur" in create_html
+
+    with app.app_context():
+        segment_hit = search_documents(query="summit spur", types=["segment"])
+        assert len(segment_hit) == 1
+        segment_id = segment_hit[0].entity_id
+
+    edit_response = client.post(
+        f"/admin/segments/{segment_id}/edit",
+        data={
+            "name": "Summit Spur Revised",
+            "desc": "Steep gravel connector with views",
+            "type": "gravel",
+            "tags": "gravel, views",
+        },
+        follow_redirects=True,
+    )
+    assert edit_response.status_code == 200
+    edit_html = edit_response.get_data(as_text=True)
+    assert "Segment saved." in edit_html
+    assert "Summit Spur Revised" in edit_html
+
+    with app.app_context():
+        search_hits = search_documents(query="summit spur revised", types=["segment"])
+        assert [result.entity_id for result in search_hits] == [segment_id]
+
+
+def test_admin_point_of_interest_create_and_edit_flow_updates_search(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    create_response = client.post(
+        "/admin/points-of-interest/new",
+        data={
+            "name": "Vista Point",
+            "description": "Bay overlook",
+            "type": "viewpoint",
+            "tags": "view, sunset",
+        },
+        follow_redirects=True,
+    )
+    assert create_response.status_code == 200
+    create_html = create_response.get_data(as_text=True)
+    assert "Point of interest created." in create_html
+    assert "Vista Point" in create_html
+
+    with app.app_context():
+        point_hit = search_documents(query="vista point", types=["point_of_interest"])
+        assert len(point_hit) == 1
+        point_id = point_hit[0].entity_id
+
+    edit_response = client.post(
+        f"/admin/points-of-interest/{point_id}/edit",
+        data={
+            "name": "Vista Point North",
+            "description": "Bay overlook with wind shelter",
+            "type": "viewpoint",
+            "tags": "view, shelter",
+        },
+        follow_redirects=True,
+    )
+    assert edit_response.status_code == 200
+    edit_html = edit_response.get_data(as_text=True)
+    assert "Point of interest saved." in edit_html
+    assert "Vista Point North" in edit_html
+
+    with app.app_context():
+        search_hits = search_documents(query="vista point north", types=["point_of_interest"])
+        assert [result.entity_id for result in search_hits] == [point_id]
+
+
+def test_admin_activity_create_and_edit_flow_updates_search(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        route = Route(name="Activity Anchor Route")
+        db.session.add(route)
+        db.session.commit()
+        route_id = route.id
+
+    create_response = client.post(
+        "/admin/activities/new",
+        data={
+            "name": "Morning Tempo",
+            "desc": "Fast effort before work",
+            "route_id": str(route_id),
+            "type": "ride",
+            "tags": "tempo, morning",
+        },
+        follow_redirects=True,
+    )
+    assert create_response.status_code == 200
+    create_html = create_response.get_data(as_text=True)
+    assert "Activity created." in create_html
+    assert "Morning Tempo" in create_html
+
+    with app.app_context():
+        activity_hit = search_documents(query="morning tempo", types=["activity"])
+        assert len(activity_hit) == 1
+        activity_id = activity_hit[0].entity_id
+
+    edit_response = client.post(
+        f"/admin/activities/{activity_id}/edit",
+        data={
+            "name": "Morning Tempo Plus",
+            "desc": "Fast effort before work with extra climbing",
+            "route_id": str(route_id),
+            "type": "ride",
+            "tags": "tempo, climbing",
+        },
+        follow_redirects=True,
+    )
+    assert edit_response.status_code == 200
+    edit_html = edit_response.get_data(as_text=True)
+    assert "Activity saved." in edit_html
+    assert "Morning Tempo Plus" in edit_html
+
+    with app.app_context():
+        search_hits = search_documents(query="morning tempo plus", types=["activity"])
+        assert [result.entity_id for result in search_hits] == [activity_id]

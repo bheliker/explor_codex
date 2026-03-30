@@ -33,12 +33,18 @@ The app exposes:
 - `/admin/routes/new`
 - `/admin/routes/<id>`
 - `/admin/routes/<id>/edit`
+- `/admin/segments/new`
 - `/admin/segments/<id>`
+- `/admin/segments/<id>/edit`
 - `/admin/events/new`
 - `/admin/events/<id>`
 - `/admin/events/<id>/edit`
+- `/admin/points-of-interest/new`
 - `/admin/points-of-interest/<id>`
+- `/admin/points-of-interest/<id>/edit`
+- `/admin/activities/new`
 - `/admin/activities/<id>`
+- `/admin/activities/<id>/edit`
 - `/api/bootstrap/lookup-rows`
 - `/api/search`
 - `/api/search/reindex`
@@ -97,9 +103,15 @@ Postgres `TSVECTOR` columns or GIN indexes.
 There is also a thin server-rendered admin search console at `/admin/search`. It uses the same
 search service layer and gives the project a lightweight HTML foothold without introducing a full
 admin framework yet. Search results now link into thin read-only detail pages for the core entity
-types. Groups, routes, and events now also have thin edit forms in the admin UI so the basic
-browser workflow is search -> inspect -> update. There is now an `/admin` dashboard with recent
-records and quick-create links, plus browser-based creation forms for groups, routes, and events.
+types, and those detail pages include recent-activity links back into the rest of the admin
+surface. The admin UI now supports:
+
+- a dashboard at `/admin`
+- browser-based create flows for groups, routes, segments, events, points of interest, and
+  activities
+- browser-based edit flows for those same core entities
+- flash-based success and validation feedback for admin form submissions
+- shared navigation between dashboard, search, detail, create, and edit pages
 
 Routes, segments, and activities now carry `summary_polyline` and `full_track` geometry payloads.
 POIs now also carry a `geoll` point geometry alongside their compatibility `lat` and `lon` fields.

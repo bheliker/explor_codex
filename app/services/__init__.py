@@ -1,7 +1,13 @@
 from __future__ import annotations
 
-from app.services.activities import create_activity, list_activities
-from app.services.events import add_event_fee, attach_calendar, create_event, set_rsvp, update_event
+from app.services.activities import create_activity, list_activities, update_activity
+from app.services.events import (
+    add_event_fee,
+    attach_calendar,
+    create_event,
+    set_rsvp,
+    update_event,
+)
 from app.services.groups import (
     add_group_dues,
     add_group_link,
@@ -17,7 +23,11 @@ from app.services.images import (
     create_image,
     list_images,
 )
-from app.services.points_of_interest import create_point_of_interest, list_points_of_interest
+from app.services.points_of_interest import (
+    create_point_of_interest,
+    list_points_of_interest,
+    update_point_of_interest,
+)
 from app.services.routes import create_route, list_routes, update_route
 from app.services.search import (
     SEARCHABLE_ENTITY_TYPES,
@@ -26,7 +36,12 @@ from app.services.search import (
     rebuild_search_documents,
     search_documents,
 )
-from app.services.segments import attach_segment_to_route, create_segment, list_segments
+from app.services.segments import (
+    attach_segment_to_route,
+    create_segment,
+    list_segments,
+    update_segment,
+)
 
 __all__ = [
     "add_event_fee",
@@ -44,6 +59,7 @@ __all__ = [
     "create_image",
     "ensure_group_membership",
     "update_group",
+    "update_activity",
     "list_activities",
     "list_images",
     "list_points_of_interest",
@@ -54,10 +70,12 @@ __all__ = [
     "update_route",
     "attach_segment_to_route",
     "list_segments",
+    "update_segment",
     "parse_search_types",
     "rebuild_search_documents",
     "SEARCHABLE_ENTITY_TYPES",
     "search_documents",
     "set_rsvp",
     "update_event",
+    "update_point_of_interest",
 ]
