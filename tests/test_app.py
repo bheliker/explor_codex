@@ -2419,3 +2419,106 @@ def test_admin_event_edit_page_updates_event_and_search(
         assert updated_event.tags == ["gravel", "social"]
         search_hits = search_documents(query="sunset gravel meetup", types=["event"])
         assert [result.entity_id for result in search_hits] == [event_id]
+
+
+def test_admin_dashboard_renders_counts_and_recent_records(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        group = Group(name="Marin Dawn Patrol", shortname="marin-dawn-patrol")
+        route = Route(name="Pine Mountain Figure Eight")
+        event = Event(name="Breakfast Rollout")
+        db.session.add_all([group, route, event])
+        db.session.commit()
+
+    response = client.get("/admin")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "Control room for the rebuilt domain." in html
+    assert "Marin Dawn Patrol" in html
+    assert "Pine Mountain Figure Eight" in html
+    assert "Breakfast Rollout" in html
+    assert "/admin/groups/new" in html
+    assert "/admin/routes/new" in html
+    assert "/admin/events/new" in html
+
+
+def test_admin_group_create_page_creates_group_and_search_document(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    response = client.post(
+        "/admin/groups/new",
+        data={
+            "name": "Golden Gate Rollers",
+            "shortname": "golden-gate-rollers",
+            "home_town": "San Francisco",
+            "home_state": "CA",
+            "tags": "road, community",
+        },
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "Golden Gate Rollers" in html
+    assert "San Francisco, CA" in html
+
+    with app.app_context():
+        hits = search_documents(query="golden gate rollers", types=["group"])
+        assert len(hits) == 1
+
+
+def test_admin_route_create_page_creates_route_and_search_document(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    response = client.post(
+        "/admin/routes/new",
+        data={
+            "name": "Wildcat Figure Eight",
+            "desc": "Climbing-heavy loop across the hills",
+            "type": "road",
+            "city": "Berkeley",
+            "state": "CA",
+            "tags": "climb, hills",
+        },
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "Wildcat Figure Eight" in html
+    assert "Climbing-heavy loop across the hills" in html
+
+    with app.app_context():
+        hits = search_documents(query="wildcat figure eight", types=["route"])
+        assert len(hits) == 1
+
+
+def test_admin_event_create_page_creates_event_and_search_document(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    response = client.post(
+        "/admin/events/new",
+        data={
+            "name": "Sunday Harbor Meetup",
+            "description": "Coffee spin along the water",
+            "primary_activity": "Cycling",
+            "type": "ride",
+            "town": "San Francisco",
+            "state": "CA",
+            "tags": "coffee, social",
+        },
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "Sunday Harbor Meetup" in html
+    assert "Coffee spin along the water" in html
+    assert "San Francisco, CA" in html
+
+    with app.app_context():
+        hits = search_documents(query="sunday harbor meetup", types=["event"])
+        assert len(hits) == 1

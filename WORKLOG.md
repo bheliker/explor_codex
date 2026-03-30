@@ -190,3 +190,49 @@ This file records session history for `explor_codex` so future work can resume w
 - The next likely step is either:
   - creation forms in the admin UI, or
   - an admin dashboard with recent records and quick links.
+
+## 2026-03-30 (Admin Dashboard And Create Forms)
+
+### Investigated
+- Built on the new read-only and edit flows to add a stronger browser landing point.
+- Reused the same thin admin template/style system instead of introducing a separate dashboard stack.
+- Kept the creation scope focused on the same highest-value entities already supported for editing:
+  - groups
+  - routes
+  - events
+
+### Changed
+- Added an admin dashboard at `/admin` via [templates/admin/dashboard.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/dashboard.html) and [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py).
+- Added browser-based creation forms for:
+  - `/admin/groups/new`
+  - `/admin/routes/new`
+  - `/admin/events/new`
+- Extended [templates/admin/edit.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/edit.html) so it supports both create and edit modes.
+- Added dashboard helper functions in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) for counts and recent records.
+- Extended [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) for:
+  - dashboard rendering
+  - group creation through the admin UI
+  - route creation through the admin UI
+  - event creation through the admin UI
+  - search freshness after those creates
+- Updated [README.md](/Users/bheliker/Documents/_Projects/explor/explor_codex/README.md) with the new admin endpoints.
+
+### Decisions
+- Use `/admin` as the browser entry point for the admin surface.
+- Keep create forms limited to groups, routes, and events for now to match the current edit coverage.
+- Continue relying on the existing service layer and ORM search freshness hooks so new records immediately show up in search/admin views.
+
+### Why
+- This rounds out the first practical browser admin workflow:
+  - dashboard
+  - create
+  - search
+  - inspect
+  - edit
+- It also gives future work a stable place for quick links, summary stats, and additional admin tools.
+
+### Notes for the next session
+- The admin HTML surface now supports dashboard, create, search, inspect, and edit for the core entities.
+- The next likely step is either:
+  - expanding create/edit coverage to more entity types, or
+  - adding navigation polish and small quality-of-life improvements like success messaging and recent activity links.

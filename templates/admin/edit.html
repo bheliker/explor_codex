@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Edit {{ page_title }} | explor_codex{% endblock %}
+{% block title %}{{ mode_title }} {{ page_title }} | explor_codex{% endblock %}
 
 {% block body %}
   <section class="hero">
-    <p class="eyebrow">{{ entity_type_label }} Edit</p>
-    <h1>Edit {{ page_title }}</h1>
-    <p>Make a focused change, save it, and the portable search index will stay in sync automatically.</p>
+    <p class="eyebrow">{{ entity_type_label }} {{ mode_title }}</p>
+    <h1>{{ mode_title }} {{ page_title }}</h1>
+    <p>{{ intro_text }}</p>
   </section>
 
   <section class="grid">
@@ -14,9 +14,14 @@
       <h2>Actions</h2>
       <div class="stack">
         <div class="result-meta">
-          <div>ID {{ entity_id }}</div>
+          {% if entity_id %}
+            <div>ID {{ entity_id }}</div>
+          {% endif %}
           {% if detail_url %}
             <div><a href="{{ detail_url }}">Back to detail page</a></div>
+          {% endif %}
+          {% if dashboard_url %}
+            <div><a href="{{ dashboard_url }}">Back to dashboard</a></div>
           {% endif %}
           <div><a href="{{ url_for('core.admin_search_route') }}">Back to search</a></div>
         </div>
@@ -49,7 +54,7 @@
           </label>
         {% endif %}
       {% endfor %}
-      <button type="submit">Save Changes</button>
+      <button type="submit">{{ submit_label }}</button>
     </form>
   </section>
 {% endblock %}

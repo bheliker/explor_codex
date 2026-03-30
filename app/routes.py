@@ -95,6 +95,36 @@ def admin_search_route() -> str:
     )
 
 
+@bp.get("/admin")
+def admin_dashboard_route() -> str:
+    return render_template(
+        "admin/dashboard.html",
+        sections=[
+            {
+                "items": [_dashboard_group_item(group) for group in _recent_records(Group)],
+                "new_url": url_for("core.admin_group_new_route"),
+                "title": "Recent Groups",
+            },
+            {
+                "items": [_dashboard_route_item(route) for route in _recent_records(Route)],
+                "new_url": url_for("core.admin_route_new_route"),
+                "title": "Recent Routes",
+            },
+            {
+                "items": [_dashboard_event_item(event) for event in _recent_records(Event)],
+                "new_url": url_for("core.admin_event_new_route"),
+                "title": "Recent Events",
+            },
+        ],
+        stats=[
+            {"count": _count_records(Group), "label": "groups"},
+            {"count": _count_records(Route), "label": "routes"},
+            {"count": _count_records(Event), "label": "events"},
+            {"count": _count_records(SearchDocument), "label": "search docs"},
+        ],
+    )
+
+
 @bp.get("/admin/groups/<int:group_id>")
 def admin_group_detail_route(group_id: int) -> str:
     group = _get_or_404(Group, group_id)
@@ -157,6 +187,7 @@ def admin_group_edit_route(group_id: int) -> str | Any:
 
     return render_template(
         "admin/edit.html",
+        dashboard_url=url_for("core.admin_dashboard_route"),
         detail_url=url_for("core.admin_group_detail_route", group_id=group.id),
         entity_id=group.id,
         entity_type_label="Group",
@@ -194,7 +225,65 @@ def admin_group_edit_route(group_id: int) -> str | Any:
                 _csv_value(group.ride_classes),
             ),
         ],
+        intro_text=(
+            "Make a focused change to this group and the admin/search surface "
+            "will update automatically."
+        ),
+        mode_title="Edit",
         page_title=group.name or "Group",
+        submit_label="Save Changes",
+    )
+
+
+@bp.route("/admin/groups/new", methods=["GET", "POST"])
+def admin_group_new_route() -> str | Any:
+    if request.method == "POST":
+        group = create_group(
+            name=_form_required_str("name"),
+            shortname=_form_required_str("shortname"),
+            invite_only=_form_bool("invite_only"),
+            private=_form_bool("private"),
+            home_town=_form_optional_str("home_town"),
+            home_state=_form_optional_str("home_state"),
+            home_country=_form_optional_str("home_country"),
+            home_latlng=_form_optional_str("home_latlng"),
+            home_add=_form_optional_str("home_add"),
+            full_address=_form_optional_str("full_address"),
+            geoll=_form_optional_str("geoll"),
+            preference_tags=_form_csv_list("preference_tags"),
+            tags=_form_csv_list("tags"),
+            rider_classes=_form_csv_list("rider_classes"),
+            ride_classes=_form_csv_list("ride_classes"),
+        )
+        return redirect(url_for("core.admin_group_detail_route", group_id=group.id))
+
+    return render_template(
+        "admin/edit.html",
+        dashboard_url=url_for("core.admin_dashboard_route"),
+        detail_url=None,
+        entity_id=None,
+        entity_type_label="Group",
+        fields=[
+            _edit_text_field("name", "Name", None),
+            _edit_text_field("shortname", "Shortname", None),
+            _edit_checkbox_field("invite_only", "Invite only", False),
+            _edit_checkbox_field("private", "Private", False),
+            _edit_text_field("home_town", "Home town", None),
+            _edit_text_field("home_state", "Home state", None),
+            _edit_text_field("home_country", "Home country", None),
+            _edit_text_field("home_latlng", "Home latlng", None),
+            _edit_text_field("home_add", "Home address", None),
+            _edit_text_field("full_address", "Full address", None),
+            _edit_text_field("geoll", "Geometry", None),
+            _edit_text_field("tags", "Tags (comma separated)", None),
+            _edit_text_field("preference_tags", "Preference tags (comma separated)", None),
+            _edit_text_field("rider_classes", "Rider classes (comma separated)", None),
+            _edit_text_field("ride_classes", "Ride classes (comma separated)", None),
+        ],
+        intro_text="Create a new group record from the browser-based admin UI.",
+        mode_title="Create",
+        page_title="Group",
+        submit_label="Create Group",
     )
 
 
@@ -262,6 +351,7 @@ def admin_route_edit_route(route_id: int) -> str | Any:
 
     return render_template(
         "admin/edit.html",
+        dashboard_url=url_for("core.admin_dashboard_route"),
         detail_url=url_for("core.admin_route_detail_route", route_id=route.id),
         entity_id=route.id,
         entity_type_label="Route",
@@ -296,7 +386,81 @@ def admin_route_edit_route(route_id: int) -> str | Any:
             _edit_textarea_field("summary_polyline", "Summary polyline", route.summary_polyline),
             _edit_textarea_field("full_track", "Full track", route.full_track),
         ],
+        intro_text="Tune route metadata from the admin UI without leaving the browser.",
+        mode_title="Edit",
         page_title=route.name or "Route",
+        submit_label="Save Changes",
+    )
+
+
+@bp.route("/admin/routes/new", methods=["GET", "POST"])
+def admin_route_new_route() -> str | Any:
+    if request.method == "POST":
+        route = create_route(
+            name=_form_required_str("name"),
+            desc=_form_optional_str("desc"),
+            private=_form_optional_nullable_bool("private"),
+            duration=_form_optional_float("duration"),
+            length=_form_optional_float("length"),
+            elevation_gain=_form_optional_float("elevation_gain"),
+            tags=_form_csv_list("tags"),
+            elevation_array=_form_csv_float_list("elevation_array"),
+            route_type=_form_optional_str("type"),
+            subtype=_form_optional_str("subtype"),
+            src=_form_optional_str("src"),
+            src_id=_form_optional_str("src_id"),
+            start_latitude=_form_optional_float("start_latitude"),
+            start_longitude=_form_optional_float("start_longitude"),
+            end_latitude=_form_optional_float("end_latitude"),
+            end_longitude=_form_optional_float("end_longitude"),
+            summary_polyline=_form_optional_str("summary_polyline"),
+            full_track=_form_optional_str("full_track"),
+            city=_form_optional_str("city"),
+            state=_form_optional_str("state"),
+            country=_form_optional_str("country"),
+            address=_form_optional_str("address"),
+            map_thumbnail=_form_optional_str("map_thumbnail"),
+        )
+        return redirect(url_for("core.admin_route_detail_route", route_id=route.id))
+
+    return render_template(
+        "admin/edit.html",
+        dashboard_url=url_for("core.admin_dashboard_route"),
+        detail_url=None,
+        entity_id=None,
+        entity_type_label="Route",
+        fields=[
+            _edit_text_field("name", "Name", None),
+            _edit_textarea_field("desc", "Description", None),
+            _edit_text_field("private", "Private (true/false)", None),
+            _edit_text_field("type", "Type", None),
+            _edit_text_field("subtype", "Subtype", None),
+            _edit_text_field("duration", "Duration", None),
+            _edit_text_field("length", "Length", None),
+            _edit_text_field("elevation_gain", "Elevation gain", None),
+            _edit_text_field("elevation_array", "Elevation array (comma separated)", None),
+            _edit_text_field("src", "Source", None),
+            _edit_text_field("src_id", "Source ID", None),
+            _edit_text_field("city", "City", None),
+            _edit_text_field("state", "State", None),
+            _edit_text_field("country", "Country", None),
+            _edit_text_field("address", "Address", None),
+            _edit_text_field("map_thumbnail", "Map thumbnail", None),
+            _edit_text_field("start_latitude", "Start latitude", None),
+            _edit_text_field("start_longitude", "Start longitude", None),
+            _edit_text_field("end_latitude", "End latitude", None),
+            _edit_text_field("end_longitude", "End longitude", None),
+            _edit_text_field("tags", "Tags (comma separated)", None),
+            _edit_textarea_field("summary_polyline", "Summary polyline", None),
+            _edit_textarea_field("full_track", "Full track", None),
+        ],
+        intro_text=(
+            "Create a new route record and immediately make it available in "
+            "search and admin drill-down views."
+        ),
+        mode_title="Create",
+        page_title="Route",
+        submit_label="Create Route",
     )
 
 
@@ -397,6 +561,7 @@ def admin_event_edit_route(event_id: int) -> str | Any:
 
     return render_template(
         "admin/edit.html",
+        dashboard_url=url_for("core.admin_dashboard_route"),
         detail_url=url_for("core.admin_event_detail_route", event_id=event.id),
         entity_id=event.id,
         entity_type_label="Event",
@@ -424,7 +589,82 @@ def admin_event_edit_route(event_id: int) -> str | Any:
             _edit_text_field("geoll", "Geometry", event.geoll),
             _edit_text_field("tags", "Tags (comma separated)", _csv_value(event.tags)),
         ],
+        intro_text="Adjust event details and keep the admin/search layer aligned automatically.",
+        mode_title="Edit",
         page_title=event.name or "Event",
+        submit_label="Save Changes",
+    )
+
+
+@bp.route("/admin/events/new", methods=["GET", "POST"])
+def admin_event_new_route() -> str | Any:
+    if request.method == "POST":
+        route = _optional_related_record(Route, "route_id")
+        activity = _optional_related_record(Activity, "activity_id")
+        event = create_event(
+            name=_form_required_str("name"),
+            route=route,
+            activity=activity,
+            private=_form_bool("private"),
+            description=_form_optional_str("description"),
+            url=_form_optional_str("url"),
+            reg_url=_form_optional_str("reg_url"),
+            photo_url=_form_optional_str("photo_url"),
+            logo=_form_optional_str("logo"),
+            profile_photo=_form_optional_str("profile_photo"),
+            notes=_form_optional_str("notes"),
+            tags=_form_csv_list("tags"),
+            lat=_form_optional_float("lat"),
+            lon=_form_optional_float("lon"),
+            town=_form_optional_str("town"),
+            state=_form_optional_str("state"),
+            country=_form_optional_str("country"),
+            latlng=_form_optional_str("latlng"),
+            geoll=_form_optional_str("geoll"),
+        )
+        event.primary_activity = _form_optional_str("primary_activity")
+        event.type = _form_optional_str("type")
+        event.subtype = _form_optional_str("subtype")
+        db.session.commit()
+        return redirect(url_for("core.admin_event_detail_route", event_id=event.id))
+
+    return render_template(
+        "admin/edit.html",
+        dashboard_url=url_for("core.admin_dashboard_route"),
+        detail_url=None,
+        entity_id=None,
+        entity_type_label="Event",
+        fields=[
+            _edit_text_field("name", "Name", None),
+            _edit_checkbox_field("private", "Private", False),
+            _edit_textarea_field("description", "Description", None),
+            _edit_text_field("primary_activity", "Primary activity", None),
+            _edit_text_field("type", "Type", None),
+            _edit_text_field("subtype", "Subtype", None),
+            _edit_text_field("route_id", "Route ID", None),
+            _edit_text_field("activity_id", "Activity ID", None),
+            _edit_text_field("url", "URL", None),
+            _edit_text_field("reg_url", "Registration URL", None),
+            _edit_text_field("photo_url", "Photo URL", None),
+            _edit_text_field("logo", "Logo", None),
+            _edit_text_field("profile_photo", "Profile photo", None),
+            _edit_textarea_field("notes", "Notes", None),
+            _edit_text_field("town", "Town", None),
+            _edit_text_field("state", "State", None),
+            _edit_text_field("country", "Country", None),
+            _edit_text_field("lat", "Latitude", None),
+            _edit_text_field("lon", "Longitude", None),
+            _edit_text_field("latlng", "Latlng", None),
+            _edit_text_field("geoll", "Geometry", None),
+            _edit_text_field("tags", "Tags (comma separated)", None),
+        ],
+        intro_text=(
+            "Create a new event from the browser-based admin UI and jump "
+            "straight into its detail page."
+        ),
+        mode_title="Create",
+        page_title="Event",
+        submit_label="Create Event",
     )
 
 
@@ -1329,6 +1569,45 @@ def _admin_search_result_item(document: SearchDocument) -> dict[str, object]:
         **_search_document_payload(document),
         "detail_url": _admin_detail_url(document.entity_type, document.entity_id),
     }
+
+
+def _dashboard_group_item(group: Group) -> dict[str, object]:
+    return {
+        "detail_url": url_for("core.admin_group_detail_route", group_id=group.id),
+        "id": group.id,
+        "location": _join_location(group.home_town, group.home_state, group.home_country),
+        "subtitle": group.shortname or group.primary_activity or group.type,
+        "title": group.name or "Group",
+    }
+
+
+def _dashboard_route_item(route: Route) -> dict[str, object]:
+    return {
+        "detail_url": url_for("core.admin_route_detail_route", route_id=route.id),
+        "id": route.id,
+        "location": _join_location(route.city, route.state, route.country),
+        "subtitle": route.subtype or route.type,
+        "title": route.name or "Route",
+    }
+
+
+def _dashboard_event_item(event: Event) -> dict[str, object]:
+    return {
+        "detail_url": url_for("core.admin_event_detail_route", event_id=event.id),
+        "id": event.id,
+        "location": _join_location(event.town, event.state, event.country),
+        "subtitle": event.subtype or event.type or event.primary_activity,
+        "title": event.name or "Event",
+    }
+
+
+def _recent_records(model: type[ModelT], *, limit: int = 5) -> list[ModelT]:
+    order_column = cast(Any, model).id.desc()
+    return list(db.session.scalars(select(model).order_by(order_column).limit(limit)))
+
+
+def _count_records(model: type[ModelT]) -> int:
+    return db.session.scalar(select(func.count()).select_from(model)) or 0
 
 
 def _admin_detail_url(entity_type: str, entity_id: int | None) -> str | None:
