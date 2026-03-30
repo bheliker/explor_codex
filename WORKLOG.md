@@ -109,3 +109,38 @@ This file records session history for `explor_codex` so future work can resume w
 ### Notes for the next session
 - There is now a usable HTML admin foothold at `/admin/search`.
 - The next likely UI step is either a domain dashboard or detail pages for core entities reached from search results.
+
+## 2026-03-29 (Read-Only Detail Pages)
+
+### Investigated
+- Built on the new admin search console to decide the next most useful read-only HTML slice.
+- Confirmed the search results needed navigable detail pages to become a real inspection flow.
+- Found and fixed an app-factory gap earlier in the same UI effort: repo-root templates needed to be explicitly wired into Flask.
+
+### Changed
+- Added thin read-only detail pages for:
+  - groups
+  - routes
+  - segments
+  - events
+  - points of interest
+  - activities
+- Added [templates/admin/detail.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/detail.html).
+- Updated [templates/admin/search.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/search.html) so search results link to the new detail pages.
+- Added the corresponding admin routes and lightweight detail helpers in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py).
+- Extended [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) for result-link rendering and representative detail pages.
+- Updated [README.md](/Users/bheliker/Documents/_Projects/explor/explor_codex/README.md) to document the new HTML endpoints.
+
+### Decisions
+- Keep these pages read-only for now and continue using the existing route/model/service layer as the source of truth.
+- Use one generic detail template plus route-side formatting helpers instead of building separate heavy templates for each entity.
+
+### Why
+- This keeps the UI surface intentionally thin while still making the admin search page genuinely useful for inspection.
+- It also gives future editing/admin work a stable destination structure to build on.
+
+### Notes for the next session
+- The HTML admin surface now supports both search and drill-down inspection.
+- The next likely step is either:
+  - entity edit forms for a few high-value records, or
+  - an admin dashboard that summarizes counts, recent records, and system health.

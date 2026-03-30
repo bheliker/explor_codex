@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} | explor_codex{% endblock %}
+
+{% block body %}
+  <section class="hero">
+    <p class="eyebrow">{{ entity_type_label }}</p>
+    <h1>{{ page_title }}</h1>
+    {% if subtitle %}
+      <p>{{ subtitle }}</p>
+    {% endif %}
+  </section>
+
+  <section class="grid">
+    <aside class="panel">
+      <h2>Summary</h2>
+      <div class="stack">
+        <div class="result-meta">
+          <div>ID {{ entity_id }}</div>
+          {% if location %}
+            <div>{{ location }}</div>
+          {% endif %}
+        </div>
+        {% if tags %}
+          <div class="tag-list">
+            {% for tag in tags %}
+              <span class="tag">{{ tag }}</span>
+            {% endfor %}
+          </div>
+        {% endif %}
+        <div>
+          <a href="{{ url_for('core.admin_search_route') }}">Back to search</a>
+        </div>
+      </div>
+    </aside>
+
+    <section class="panel">
+      <h2>Details</h2>
+      {% if detail_rows %}
+        <div class="result-list">
+          {% for row in detail_rows %}
+            <article class="result-card">
+              <div class="result-type">{{ row.label }}</div>
+              {% if row.url %}
+                <p class="result-title"><a href="{{ row.url }}">{{ row.value }}</a></p>
+              {% else %}
+                <p class="result-title">{{ row.value }}</p>
+              {% endif %}
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty">No additional detail fields are available yet.</div>
+      {% endif %}
+    </section>
+  </section>
+{% endblock %}

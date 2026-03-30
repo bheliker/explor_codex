@@ -2192,3 +2192,74 @@ def test_admin_search_page_handles_empty_state(client: FlaskClient, database: No
     html = response.get_data(as_text=True)
 
     assert "Start with a name, place, description fragment, or tag." in html
+
+
+def test_admin_search_page_links_to_detail_views(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        event = Event(
+            name="Summit Rollout",
+            description="Morning start into the hills",
+            tags=["climb"],
+            town="Berkeley",
+            state="CA",
+        )
+        db.session.add(event)
+        db.session.commit()
+        event_id = event.id
+
+    response = client.get("/admin/search?q=summit")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert f"/admin/events/{event_id}" in html
+
+
+def test_admin_group_detail_page_renders(app: Flask, client: FlaskClient, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        group = Group(
+            name="East Bay Dirt",
+            shortname="east-bay-dirt",
+            about_blurb="Community gravel rides and route swaps",
+            tags=["gravel", "community"],
+            home_town="Oakland",
+            home_state="CA",
+        )
+        db.session.add(group)
+        db.session.commit()
+        group_id = group.id
+
+    response = client.get(f"/admin/groups/{group_id}")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "East Bay Dirt" in html
+    assert "Community gravel rides and route swaps" in html
+    assert "Oakland, CA" in html
+
+
+def test_admin_route_detail_page_renders(app: Flask, client: FlaskClient, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        route = Route(
+            name="Skyline Traverse",
+            desc="Long ridge route with mixed climbing",
+            tags=["ridge", "climb"],
+            city="Oakland",
+            state="CA",
+            length=54.2,
+        )
+        db.session.add(route)
+        db.session.commit()
+        route_id = route.id
+
+    response = client.get(f"/admin/routes/{route_id}")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "Skyline Traverse" in html
+    assert "Long ridge route with mixed climbing" in html
+    assert "54.20" in html

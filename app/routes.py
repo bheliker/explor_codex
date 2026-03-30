@@ -3,7 +3,7 @@ from __future__ import annotations
 from http import HTTPStatus
 from typing import Any, TypeVar, cast
 
-from flask import Blueprint, abort, render_template, request
+from flask import Blueprint, abort, render_template, request, url_for
 from sqlalchemy import func, select
 
 from app.bootstrap import ensure_canonical_lookup_rows
@@ -86,9 +86,184 @@ def admin_search_route() -> str:
         entity_types=SEARCHABLE_ENTITY_TYPES,
         limit=limit,
         query=query,
-        results=results,
+        results=[_admin_search_result_item(result) for result in results],
         selected_types=parsed_types,
         total_documents=total_documents,
+    )
+
+
+@bp.get("/admin/groups/<int:group_id>")
+def admin_group_detail_route(group_id: int) -> str:
+    group = _get_or_404(Group, group_id)
+    return render_template(
+        "admin/detail.html",
+        detail_rows=_detail_rows(
+            [
+                ("Shortname", group.shortname),
+                ("Contact", group.contact),
+                ("About", group.about_blurb),
+                ("Category", group.category),
+                ("Primary activity", group.primary_activity),
+                ("More info URL", group.more_info_url),
+                ("Member records", len(group.members)),
+                ("Linked routes", len(group.routes)),
+                ("Links", len(group.links)),
+                ("Dues entries", len(group.dues_schedule)),
+            ]
+        ),
+        entity_id=group.id,
+        entity_type_label="Group",
+        location=_join_location(group.home_town, group.home_state, group.home_country),
+        page_title=group.name or "Group",
+        subtitle=group.shortname or group.primary_activity or group.type,
+        tags=_combine_tags(
+            group.tags, group.preference_tags, group.rider_classes, group.ride_classes
+        ),
+    )
+
+
+@bp.get("/admin/routes/<int:route_id>")
+def admin_route_detail_route(route_id: int) -> str:
+    route = _get_or_404(Route, route_id)
+    return render_template(
+        "admin/detail.html",
+        detail_rows=_detail_rows(
+            [
+                ("Description", route.desc),
+                ("Type", route.type),
+                ("Subtype", route.subtype),
+                ("Duration", route.duration),
+                ("Length", route.length),
+                ("Elevation gain", route.elevation_gain),
+                ("Source", route.src),
+                ("Source ID", route.src_id),
+                ("Address", route.address),
+                ("Linked groups", len(route.groups)),
+                ("Linked segments", len(route.segments)),
+            ]
+        ),
+        entity_id=route.id,
+        entity_type_label="Route",
+        location=_join_location(route.city, route.state, route.country),
+        page_title=route.name or "Route",
+        subtitle=route.subtype or route.type,
+        tags=route.tags,
+    )
+
+
+@bp.get("/admin/segments/<int:segment_id>")
+def admin_segment_detail_route(segment_id: int) -> str:
+    segment = _get_or_404(Segment, segment_id)
+    return render_template(
+        "admin/detail.html",
+        detail_rows=_detail_rows(
+            [
+                ("Description", segment.desc),
+                ("Type", segment.type),
+                ("Subtype", segment.subtype),
+                ("Duration", segment.duration),
+                ("Length", segment.length),
+                ("Elevation gain", segment.elevation_gain),
+                ("Grade", segment.grade),
+                ("Rating", segment.rating),
+                ("Source", segment.src),
+                ("Source ID", segment.src_id),
+                ("Linked routes", len(segment.routes)),
+            ]
+        ),
+        entity_id=segment.id,
+        entity_type_label="Segment",
+        location=None,
+        page_title=segment.name or "Segment",
+        subtitle=segment.subtype or segment.type,
+        tags=segment.tags,
+    )
+
+
+@bp.get("/admin/events/<int:event_id>")
+def admin_event_detail_route(event_id: int) -> str:
+    event = _get_or_404(Event, event_id)
+    return render_template(
+        "admin/detail.html",
+        detail_rows=_detail_rows(
+            [
+                ("Description", event.description),
+                ("Primary activity", event.primary_activity),
+                ("Type", event.type),
+                ("Subtype", event.subtype),
+                ("Notes", event.notes),
+                ("Route ID", event.route_id, _admin_detail_url("route", event.route_id)),
+                (
+                    "Activity ID",
+                    event.activity_id,
+                    _admin_detail_url("activity", event.activity_id),
+                ),
+                ("Calendars", len(event.calendars)),
+                ("Images", len(event.images)),
+                ("Participants", len(event.participants)),
+            ]
+        ),
+        entity_id=event.id,
+        entity_type_label="Event",
+        location=_join_location(event.town, event.state, event.country),
+        page_title=event.name or "Event",
+        subtitle=event.subtype or event.type or event.primary_activity,
+        tags=event.tags,
+    )
+
+
+@bp.get("/admin/points-of-interest/<int:point_id>")
+def admin_point_of_interest_detail_route(point_id: int) -> str:
+    point = _get_or_404(PointOfInterest, point_id)
+    return render_template(
+        "admin/detail.html",
+        detail_rows=_detail_rows(
+            [
+                ("Description", point.description),
+                ("Type", point.type),
+                ("Subtype", point.subtype),
+                ("URL", point.url),
+                ("Latitude", point.lat),
+                ("Longitude", point.lon),
+                ("Icon", point.icon),
+                ("Images", len(point.images)),
+            ]
+        ),
+        entity_id=point.id,
+        entity_type_label="Point of Interest",
+        location=None,
+        page_title=point.name or "Point of Interest",
+        subtitle=point.subtype or point.type,
+        tags=point.tags,
+    )
+
+
+@bp.get("/admin/activities/<int:activity_id>")
+def admin_activity_detail_route(activity_id: int) -> str:
+    activity = _get_or_404(Activity, activity_id)
+    return render_template(
+        "admin/detail.html",
+        detail_rows=_detail_rows(
+            [
+                ("Description", activity.desc),
+                ("Type", activity.type),
+                ("Subtype", activity.subtype),
+                ("Duration", activity.duration),
+                ("Length", activity.length),
+                ("Elevation gain", activity.elevation_gain),
+                ("Average speed", activity.average_speed),
+                ("Max speed", activity.max_speed),
+                ("Route ID", activity.route_id, _admin_detail_url("route", activity.route_id)),
+                ("Photo URL", activity.photo_url),
+                ("Images", len(activity.images)),
+            ]
+        ),
+        entity_id=activity.id,
+        entity_type_label="Activity",
+        location=None,
+        page_title=activity.name or "Activity",
+        subtitle=activity.subtype or activity.type,
+        tags=activity.tags,
     )
 
 
@@ -931,3 +1106,84 @@ def _search_document_payload(document: SearchDocument) -> dict[str, object]:
         "location": document.location,
         "tags": document.tags,
     }
+
+
+def _admin_search_result_item(document: SearchDocument) -> dict[str, object]:
+    return {
+        **_search_document_payload(document),
+        "detail_url": _admin_detail_url(document.entity_type, document.entity_id),
+    }
+
+
+def _admin_detail_url(entity_type: str, entity_id: int | None) -> str | None:
+    if entity_id is None:
+        return None
+
+    endpoint_map = {
+        "group": "core.admin_group_detail_route",
+        "route": "core.admin_route_detail_route",
+        "segment": "core.admin_segment_detail_route",
+        "event": "core.admin_event_detail_route",
+        "point_of_interest": "core.admin_point_of_interest_detail_route",
+        "activity": "core.admin_activity_detail_route",
+    }
+    endpoint = endpoint_map.get(entity_type)
+    if endpoint is None:
+        return None
+
+    if entity_type == "group":
+        return url_for(endpoint, group_id=entity_id)
+    if entity_type == "route":
+        return url_for(endpoint, route_id=entity_id)
+    if entity_type == "segment":
+        return url_for(endpoint, segment_id=entity_id)
+    if entity_type == "event":
+        return url_for(endpoint, event_id=entity_id)
+    if entity_type == "point_of_interest":
+        return url_for(endpoint, point_id=entity_id)
+    return url_for(endpoint, activity_id=entity_id)
+
+
+def _detail_rows(
+    raw_rows: list[tuple[str, object | None] | tuple[str, object | None, str | None]],
+) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    for raw_row in raw_rows:
+        if len(raw_row) == 2:
+            label, value = raw_row
+            url = None
+        else:
+            label, value, url = raw_row
+
+        display_value = _display_value(value)
+        if display_value is None:
+            continue
+        rows.append({"label": label, "value": display_value, "url": url})
+    return rows
+
+
+def _display_value(value: object | None) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, float):
+        return f"{value:.2f}"
+    if isinstance(value, list):
+        return ", ".join(str(item) for item in value) if value else None
+    text = str(value).strip()
+    return text or None
+
+
+def _join_location(*parts: str | None) -> str | None:
+    normalized = [part.strip() for part in parts if part and part.strip()]
+    return ", ".join(normalized) if normalized else None
+
+
+def _combine_tags(*groups: list[str] | None) -> list[str] | None:
+    combined: list[str] = []
+    for group in groups:
+        if group is None:
+            continue
+        for tag in group:
+            if tag not in combined:
+                combined.append(tag)
+    return combined or None
