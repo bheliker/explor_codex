@@ -2443,6 +2443,8 @@ def test_admin_dashboard_renders_counts_and_recent_records(
     assert "/admin/groups/new" in html
     assert "/admin/routes/new" in html
     assert "/admin/events/new" in html
+    assert "Dashboard" in html
+    assert "Search" in html
 
 
 def test_admin_group_create_page_creates_group_and_search_document(
@@ -2464,6 +2466,7 @@ def test_admin_group_create_page_creates_group_and_search_document(
 
     assert "Golden Gate Rollers" in html
     assert "San Francisco, CA" in html
+    assert "Group created." in html
 
     with app.app_context():
         hits = search_documents(query="golden gate rollers", types=["group"])
@@ -2490,6 +2493,7 @@ def test_admin_route_create_page_creates_route_and_search_document(
 
     assert "Wildcat Figure Eight" in html
     assert "Climbing-heavy loop across the hills" in html
+    assert "Route created." in html
 
     with app.app_context():
         hits = search_documents(query="wildcat figure eight", types=["route"])
@@ -2518,7 +2522,47 @@ def test_admin_event_create_page_creates_event_and_search_document(
     assert "Sunday Harbor Meetup" in html
     assert "Coffee spin along the water" in html
     assert "San Francisco, CA" in html
+    assert "Event created." in html
 
     with app.app_context():
         hits = search_documents(query="sunday harbor meetup", types=["event"])
         assert len(hits) == 1
+
+
+def test_admin_event_create_invalid_related_id_shows_flash_error(
+    client: FlaskClient, database: None
+) -> None:
+    response = client.post(
+        "/admin/events/new",
+        data={
+            "name": "Broken Link Event",
+            "route_id": "9999",
+        },
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "Route id was not found." in html
+    assert "Broken Link Event" not in html
+
+
+def test_admin_detail_pages_show_recent_activity_links(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        current_group = Group(name="Current Group", shortname="current-group")
+        recent_group = Group(name="Recent Group", shortname="recent-group")
+        recent_route = Route(name="Recent Route")
+        db.session.add_all([current_group, recent_group, recent_route])
+        db.session.commit()
+        current_group_id = current_group.id
+
+    response = client.get(f"/admin/groups/{current_group_id}")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "Recent Activity" in html
+    assert "Recent Group" in html
+    assert "Recent Route" in html

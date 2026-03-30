@@ -59,6 +59,69 @@
       color: var(--muted);
     }
 
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 20px;
+      padding: 14px 18px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.72);
+      box-shadow: var(--shadow);
+    }
+
+    .topbar-title {
+      font-size: 0.95rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .topbar-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .nav-link {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.85);
+      text-decoration: none;
+    }
+
+    .flash-stack {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .flash {
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      background: rgba(255, 255, 255, 0.88);
+    }
+
+    .flash-success {
+      border-color: rgba(15, 118, 110, 0.25);
+      background: rgba(15, 118, 110, 0.09);
+      color: #0f5e58;
+    }
+
+    .flash-error {
+      border-color: rgba(153, 27, 27, 0.2);
+      background: rgba(153, 27, 27, 0.08);
+      color: #7f1d1d;
+    }
+
     h1 {
       margin: 0;
       font-size: clamp(2rem, 4vw, 3.4rem);
@@ -243,6 +306,25 @@
 </head>
 <body>
   <main class="shell">
+    <header class="topbar">
+      <div class="topbar-title">explor_codex admin</div>
+      <nav class="topbar-nav">
+        <a class="nav-link" href="{{ url_for('core.admin_dashboard_route') }}">Dashboard</a>
+        <a class="nav-link" href="{{ url_for('core.admin_search_route') }}">Search</a>
+        <a class="nav-link" href="{{ url_for('core.admin_group_new_route') }}">New Group</a>
+        <a class="nav-link" href="{{ url_for('core.admin_route_new_route') }}">New Route</a>
+        <a class="nav-link" href="{{ url_for('core.admin_event_new_route') }}">New Event</a>
+      </nav>
+    </header>
+    {% with flashes = get_flashed_messages(with_categories=true) %}
+      {% if flashes %}
+        <section class="flash-stack">
+          {% for category, message in flashes %}
+            <div class="flash flash-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </section>
+      {% endif %}
+    {% endwith %}
     {% block body %}{% endblock %}
   </main>
 </body>

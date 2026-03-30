@@ -3,7 +3,7 @@ from __future__ import annotations
 from http import HTTPStatus
 from typing import Any, TypeVar, cast
 
-from flask import Blueprint, abort, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from sqlalchemy import func, select
 
 from app.bootstrap import ensure_canonical_lookup_rows
@@ -60,6 +60,10 @@ from app.services import (
 
 bp = Blueprint("core", __name__)
 ModelT = TypeVar("ModelT")
+
+
+class AdminFormError(ValueError):
+    pass
 
 
 @bp.get("/")
@@ -149,6 +153,7 @@ def admin_group_detail_route(group_id: int) -> str:
         edit_url=url_for("core.admin_group_edit_route", group_id=group.id),
         location=_join_location(group.home_town, group.home_state, group.home_country),
         page_title=group.name or "Group",
+        recent_links=_recent_activity_links(exclude=("group", group.id)),
         subtitle=group.shortname or group.primary_activity or group.type,
         tags=_combine_tags(
             group.tags, group.preference_tags, group.rider_classes, group.ride_classes
@@ -160,30 +165,35 @@ def admin_group_detail_route(group_id: int) -> str:
 def admin_group_edit_route(group_id: int) -> str | Any:
     group = _get_or_404(Group, group_id)
     if request.method == "POST":
-        update_group(
-            group,
-            name=_form_required_str("name"),
-            shortname=_form_optional_str("shortname"),
-            invite_only=_form_bool("invite_only"),
-            private=_form_bool("private"),
-            home_town=_form_optional_str("home_town"),
-            home_state=_form_optional_str("home_state"),
-            home_country=_form_optional_str("home_country"),
-            home_latlng=_form_optional_str("home_latlng"),
-            home_add=_form_optional_str("home_add"),
-            full_address=_form_optional_str("full_address"),
-            geoll=_form_optional_str("geoll"),
-            about_blurb=_form_optional_str("about_blurb"),
-            contact=_form_optional_str("contact"),
-            category=_form_optional_str("category"),
-            primary_activity=_form_optional_str("primary_activity"),
-            more_info_url=_form_optional_str("more_info_url"),
-            preference_tags=_form_csv_list("preference_tags"),
-            tags=_form_csv_list("tags"),
-            rider_classes=_form_csv_list("rider_classes"),
-            ride_classes=_form_csv_list("ride_classes"),
-        )
-        return redirect(url_for("core.admin_group_detail_route", group_id=group.id))
+        try:
+            update_group(
+                group,
+                name=_form_required_str("name"),
+                shortname=_form_optional_str("shortname"),
+                invite_only=_form_bool("invite_only"),
+                private=_form_bool("private"),
+                home_town=_form_optional_str("home_town"),
+                home_state=_form_optional_str("home_state"),
+                home_country=_form_optional_str("home_country"),
+                home_latlng=_form_optional_str("home_latlng"),
+                home_add=_form_optional_str("home_add"),
+                full_address=_form_optional_str("full_address"),
+                geoll=_form_optional_str("geoll"),
+                about_blurb=_form_optional_str("about_blurb"),
+                contact=_form_optional_str("contact"),
+                category=_form_optional_str("category"),
+                primary_activity=_form_optional_str("primary_activity"),
+                more_info_url=_form_optional_str("more_info_url"),
+                preference_tags=_form_csv_list("preference_tags"),
+                tags=_form_csv_list("tags"),
+                rider_classes=_form_csv_list("rider_classes"),
+                ride_classes=_form_csv_list("ride_classes"),
+            )
+        except AdminFormError as exc:
+            flash(str(exc), "error")
+        else:
+            flash("Group saved.", "success")
+            return redirect(url_for("core.admin_group_detail_route", group_id=group.id))
 
     return render_template(
         "admin/edit.html",
@@ -238,24 +248,29 @@ def admin_group_edit_route(group_id: int) -> str | Any:
 @bp.route("/admin/groups/new", methods=["GET", "POST"])
 def admin_group_new_route() -> str | Any:
     if request.method == "POST":
-        group = create_group(
-            name=_form_required_str("name"),
-            shortname=_form_required_str("shortname"),
-            invite_only=_form_bool("invite_only"),
-            private=_form_bool("private"),
-            home_town=_form_optional_str("home_town"),
-            home_state=_form_optional_str("home_state"),
-            home_country=_form_optional_str("home_country"),
-            home_latlng=_form_optional_str("home_latlng"),
-            home_add=_form_optional_str("home_add"),
-            full_address=_form_optional_str("full_address"),
-            geoll=_form_optional_str("geoll"),
-            preference_tags=_form_csv_list("preference_tags"),
-            tags=_form_csv_list("tags"),
-            rider_classes=_form_csv_list("rider_classes"),
-            ride_classes=_form_csv_list("ride_classes"),
-        )
-        return redirect(url_for("core.admin_group_detail_route", group_id=group.id))
+        try:
+            group = create_group(
+                name=_form_required_str("name"),
+                shortname=_form_required_str("shortname"),
+                invite_only=_form_bool("invite_only"),
+                private=_form_bool("private"),
+                home_town=_form_optional_str("home_town"),
+                home_state=_form_optional_str("home_state"),
+                home_country=_form_optional_str("home_country"),
+                home_latlng=_form_optional_str("home_latlng"),
+                home_add=_form_optional_str("home_add"),
+                full_address=_form_optional_str("full_address"),
+                geoll=_form_optional_str("geoll"),
+                preference_tags=_form_csv_list("preference_tags"),
+                tags=_form_csv_list("tags"),
+                rider_classes=_form_csv_list("rider_classes"),
+                ride_classes=_form_csv_list("ride_classes"),
+            )
+        except AdminFormError as exc:
+            flash(str(exc), "error")
+        else:
+            flash("Group created.", "success")
+            return redirect(url_for("core.admin_group_detail_route", group_id=group.id))
 
     return render_template(
         "admin/edit.html",
@@ -312,6 +327,7 @@ def admin_route_detail_route(route_id: int) -> str:
         edit_url=url_for("core.admin_route_edit_route", route_id=route.id),
         location=_join_location(route.city, route.state, route.country),
         page_title=route.name or "Route",
+        recent_links=_recent_activity_links(exclude=("route", route.id)),
         subtitle=route.subtype or route.type,
         tags=route.tags,
     )
@@ -321,33 +337,38 @@ def admin_route_detail_route(route_id: int) -> str:
 def admin_route_edit_route(route_id: int) -> str | Any:
     route = _get_or_404(Route, route_id)
     if request.method == "POST":
-        update_route(
-            route,
-            name=_form_required_str("name"),
-            desc=_form_optional_str("desc"),
-            private=_form_optional_nullable_bool("private"),
-            duration=_form_optional_float("duration"),
-            length=_form_optional_float("length"),
-            elevation_gain=_form_optional_float("elevation_gain"),
-            tags=_form_csv_list("tags"),
-            elevation_array=_form_csv_float_list("elevation_array"),
-            route_type=_form_optional_str("type"),
-            subtype=_form_optional_str("subtype"),
-            src=_form_optional_str("src"),
-            src_id=_form_optional_str("src_id"),
-            start_latitude=_form_optional_float("start_latitude"),
-            start_longitude=_form_optional_float("start_longitude"),
-            end_latitude=_form_optional_float("end_latitude"),
-            end_longitude=_form_optional_float("end_longitude"),
-            summary_polyline=_form_optional_str("summary_polyline"),
-            full_track=_form_optional_str("full_track"),
-            city=_form_optional_str("city"),
-            state=_form_optional_str("state"),
-            country=_form_optional_str("country"),
-            address=_form_optional_str("address"),
-            map_thumbnail=_form_optional_str("map_thumbnail"),
-        )
-        return redirect(url_for("core.admin_route_detail_route", route_id=route.id))
+        try:
+            update_route(
+                route,
+                name=_form_required_str("name"),
+                desc=_form_optional_str("desc"),
+                private=_form_optional_nullable_bool("private"),
+                duration=_form_optional_float("duration"),
+                length=_form_optional_float("length"),
+                elevation_gain=_form_optional_float("elevation_gain"),
+                tags=_form_csv_list("tags"),
+                elevation_array=_form_csv_float_list("elevation_array"),
+                route_type=_form_optional_str("type"),
+                subtype=_form_optional_str("subtype"),
+                src=_form_optional_str("src"),
+                src_id=_form_optional_str("src_id"),
+                start_latitude=_form_optional_float("start_latitude"),
+                start_longitude=_form_optional_float("start_longitude"),
+                end_latitude=_form_optional_float("end_latitude"),
+                end_longitude=_form_optional_float("end_longitude"),
+                summary_polyline=_form_optional_str("summary_polyline"),
+                full_track=_form_optional_str("full_track"),
+                city=_form_optional_str("city"),
+                state=_form_optional_str("state"),
+                country=_form_optional_str("country"),
+                address=_form_optional_str("address"),
+                map_thumbnail=_form_optional_str("map_thumbnail"),
+            )
+        except AdminFormError as exc:
+            flash(str(exc), "error")
+        else:
+            flash("Route saved.", "success")
+            return redirect(url_for("core.admin_route_detail_route", route_id=route.id))
 
     return render_template(
         "admin/edit.html",
@@ -396,32 +417,37 @@ def admin_route_edit_route(route_id: int) -> str | Any:
 @bp.route("/admin/routes/new", methods=["GET", "POST"])
 def admin_route_new_route() -> str | Any:
     if request.method == "POST":
-        route = create_route(
-            name=_form_required_str("name"),
-            desc=_form_optional_str("desc"),
-            private=_form_optional_nullable_bool("private"),
-            duration=_form_optional_float("duration"),
-            length=_form_optional_float("length"),
-            elevation_gain=_form_optional_float("elevation_gain"),
-            tags=_form_csv_list("tags"),
-            elevation_array=_form_csv_float_list("elevation_array"),
-            route_type=_form_optional_str("type"),
-            subtype=_form_optional_str("subtype"),
-            src=_form_optional_str("src"),
-            src_id=_form_optional_str("src_id"),
-            start_latitude=_form_optional_float("start_latitude"),
-            start_longitude=_form_optional_float("start_longitude"),
-            end_latitude=_form_optional_float("end_latitude"),
-            end_longitude=_form_optional_float("end_longitude"),
-            summary_polyline=_form_optional_str("summary_polyline"),
-            full_track=_form_optional_str("full_track"),
-            city=_form_optional_str("city"),
-            state=_form_optional_str("state"),
-            country=_form_optional_str("country"),
-            address=_form_optional_str("address"),
-            map_thumbnail=_form_optional_str("map_thumbnail"),
-        )
-        return redirect(url_for("core.admin_route_detail_route", route_id=route.id))
+        try:
+            route = create_route(
+                name=_form_required_str("name"),
+                desc=_form_optional_str("desc"),
+                private=_form_optional_nullable_bool("private"),
+                duration=_form_optional_float("duration"),
+                length=_form_optional_float("length"),
+                elevation_gain=_form_optional_float("elevation_gain"),
+                tags=_form_csv_list("tags"),
+                elevation_array=_form_csv_float_list("elevation_array"),
+                route_type=_form_optional_str("type"),
+                subtype=_form_optional_str("subtype"),
+                src=_form_optional_str("src"),
+                src_id=_form_optional_str("src_id"),
+                start_latitude=_form_optional_float("start_latitude"),
+                start_longitude=_form_optional_float("start_longitude"),
+                end_latitude=_form_optional_float("end_latitude"),
+                end_longitude=_form_optional_float("end_longitude"),
+                summary_polyline=_form_optional_str("summary_polyline"),
+                full_track=_form_optional_str("full_track"),
+                city=_form_optional_str("city"),
+                state=_form_optional_str("state"),
+                country=_form_optional_str("country"),
+                address=_form_optional_str("address"),
+                map_thumbnail=_form_optional_str("map_thumbnail"),
+            )
+        except AdminFormError as exc:
+            flash(str(exc), "error")
+        else:
+            flash("Route created.", "success")
+            return redirect(url_for("core.admin_route_detail_route", route_id=route.id))
 
     return render_template(
         "admin/edit.html",
@@ -521,6 +547,7 @@ def admin_event_detail_route(event_id: int) -> str:
         edit_url=url_for("core.admin_event_edit_route", event_id=event.id),
         location=_join_location(event.town, event.state, event.country),
         page_title=event.name or "Event",
+        recent_links=_recent_activity_links(exclude=("event", event.id)),
         subtitle=event.subtype or event.type or event.primary_activity,
         tags=event.tags,
     )
@@ -530,34 +557,39 @@ def admin_event_detail_route(event_id: int) -> str:
 def admin_event_edit_route(event_id: int) -> str | Any:
     event = _get_or_404(Event, event_id)
     if request.method == "POST":
-        route = _optional_related_record(Route, "route_id")
-        activity = _optional_related_record(Activity, "activity_id")
-        update_event(
-            event,
-            name=_form_required_str("name"),
-            route=route,
-            activity=activity,
-            private=_form_bool("private"),
-            description=_form_optional_str("description"),
-            url=_form_optional_str("url"),
-            reg_url=_form_optional_str("reg_url"),
-            photo_url=_form_optional_str("photo_url"),
-            logo=_form_optional_str("logo"),
-            profile_photo=_form_optional_str("profile_photo"),
-            notes=_form_optional_str("notes"),
-            tags=_form_csv_list("tags"),
-            lat=_form_optional_float("lat"),
-            lon=_form_optional_float("lon"),
-            town=_form_optional_str("town"),
-            state=_form_optional_str("state"),
-            country=_form_optional_str("country"),
-            latlng=_form_optional_str("latlng"),
-            geoll=_form_optional_str("geoll"),
-            primary_activity=_form_optional_str("primary_activity"),
-            event_type=_form_optional_str("type"),
-            subtype=_form_optional_str("subtype"),
-        )
-        return redirect(url_for("core.admin_event_detail_route", event_id=event.id))
+        try:
+            route = _optional_related_record(Route, "route_id")
+            activity = _optional_related_record(Activity, "activity_id")
+            update_event(
+                event,
+                name=_form_required_str("name"),
+                route=route,
+                activity=activity,
+                private=_form_bool("private"),
+                description=_form_optional_str("description"),
+                url=_form_optional_str("url"),
+                reg_url=_form_optional_str("reg_url"),
+                photo_url=_form_optional_str("photo_url"),
+                logo=_form_optional_str("logo"),
+                profile_photo=_form_optional_str("profile_photo"),
+                notes=_form_optional_str("notes"),
+                tags=_form_csv_list("tags"),
+                lat=_form_optional_float("lat"),
+                lon=_form_optional_float("lon"),
+                town=_form_optional_str("town"),
+                state=_form_optional_str("state"),
+                country=_form_optional_str("country"),
+                latlng=_form_optional_str("latlng"),
+                geoll=_form_optional_str("geoll"),
+                primary_activity=_form_optional_str("primary_activity"),
+                event_type=_form_optional_str("type"),
+                subtype=_form_optional_str("subtype"),
+            )
+        except AdminFormError as exc:
+            flash(str(exc), "error")
+        else:
+            flash("Event saved.", "success")
+            return redirect(url_for("core.admin_event_detail_route", event_id=event.id))
 
     return render_template(
         "admin/edit.html",
@@ -599,34 +631,39 @@ def admin_event_edit_route(event_id: int) -> str | Any:
 @bp.route("/admin/events/new", methods=["GET", "POST"])
 def admin_event_new_route() -> str | Any:
     if request.method == "POST":
-        route = _optional_related_record(Route, "route_id")
-        activity = _optional_related_record(Activity, "activity_id")
-        event = create_event(
-            name=_form_required_str("name"),
-            route=route,
-            activity=activity,
-            private=_form_bool("private"),
-            description=_form_optional_str("description"),
-            url=_form_optional_str("url"),
-            reg_url=_form_optional_str("reg_url"),
-            photo_url=_form_optional_str("photo_url"),
-            logo=_form_optional_str("logo"),
-            profile_photo=_form_optional_str("profile_photo"),
-            notes=_form_optional_str("notes"),
-            tags=_form_csv_list("tags"),
-            lat=_form_optional_float("lat"),
-            lon=_form_optional_float("lon"),
-            town=_form_optional_str("town"),
-            state=_form_optional_str("state"),
-            country=_form_optional_str("country"),
-            latlng=_form_optional_str("latlng"),
-            geoll=_form_optional_str("geoll"),
-        )
-        event.primary_activity = _form_optional_str("primary_activity")
-        event.type = _form_optional_str("type")
-        event.subtype = _form_optional_str("subtype")
-        db.session.commit()
-        return redirect(url_for("core.admin_event_detail_route", event_id=event.id))
+        try:
+            route = _optional_related_record(Route, "route_id")
+            activity = _optional_related_record(Activity, "activity_id")
+            event = create_event(
+                name=_form_required_str("name"),
+                route=route,
+                activity=activity,
+                private=_form_bool("private"),
+                description=_form_optional_str("description"),
+                url=_form_optional_str("url"),
+                reg_url=_form_optional_str("reg_url"),
+                photo_url=_form_optional_str("photo_url"),
+                logo=_form_optional_str("logo"),
+                profile_photo=_form_optional_str("profile_photo"),
+                notes=_form_optional_str("notes"),
+                tags=_form_csv_list("tags"),
+                lat=_form_optional_float("lat"),
+                lon=_form_optional_float("lon"),
+                town=_form_optional_str("town"),
+                state=_form_optional_str("state"),
+                country=_form_optional_str("country"),
+                latlng=_form_optional_str("latlng"),
+                geoll=_form_optional_str("geoll"),
+            )
+            event.primary_activity = _form_optional_str("primary_activity")
+            event.type = _form_optional_str("type")
+            event.subtype = _form_optional_str("subtype")
+            db.session.commit()
+        except AdminFormError as exc:
+            flash(str(exc), "error")
+        else:
+            flash("Event created.", "success")
+            return redirect(url_for("core.admin_event_detail_route", event_id=event.id))
 
     return render_template(
         "admin/edit.html",
@@ -689,6 +726,7 @@ def admin_point_of_interest_detail_route(point_id: int) -> str:
         entity_type_label="Point of Interest",
         location=None,
         page_title=point.name or "Point of Interest",
+        recent_links=_recent_activity_links(exclude=("point_of_interest", point.id)),
         subtitle=point.subtype or point.type,
         tags=point.tags,
     )
@@ -718,6 +756,7 @@ def admin_activity_detail_route(activity_id: int) -> str:
         entity_type_label="Activity",
         location=None,
         page_title=activity.name or "Activity",
+        recent_links=_recent_activity_links(exclude=("activity", activity.id)),
         subtitle=activity.subtype or activity.type,
         tags=activity.tags,
     )
@@ -1610,6 +1649,31 @@ def _count_records(model: type[ModelT]) -> int:
     return db.session.scalar(select(func.count()).select_from(model)) or 0
 
 
+def _recent_activity_links(
+    *, exclude: tuple[str, int] | None = None, limit: int = 6
+) -> list[dict[str, object]]:
+    statement = select(SearchDocument).order_by(SearchDocument.updated_at.desc()).limit(limit + 1)
+    documents = list(db.session.scalars(statement))
+    links: list[dict[str, object]] = []
+    for document in documents:
+        identity = (document.entity_type, document.entity_id)
+        if exclude is not None and identity == exclude:
+            continue
+        detail_url = _admin_detail_url(document.entity_type, document.entity_id)
+        if detail_url is None:
+            continue
+        links.append(
+            {
+                "detail_url": detail_url,
+                "entity_type_label": document.entity_type.replace("_", " ").title(),
+                "title": document.title or "(untitled)",
+            }
+        )
+        if len(links) >= limit:
+            break
+    return links
+
+
 def _admin_detail_url(entity_type: str, entity_id: int | None) -> str | None:
     if entity_id is None:
         return None
@@ -1721,7 +1785,7 @@ def _combine_tags(*groups: list[str] | None) -> list[str] | None:
 def _form_required_str(name: str) -> str:
     value = request.form.get(name, "").strip()
     if not value:
-        abort(HTTPStatus.BAD_REQUEST)
+        raise AdminFormError(f"{_field_label(name)} is required.")
     return value
 
 
@@ -1737,7 +1801,7 @@ def _form_optional_float(name: str) -> float | None:
     try:
         return float(raw_value)
     except ValueError:
-        abort(HTTPStatus.BAD_REQUEST)
+        raise AdminFormError(f"{_field_label(name)} must be a number.")
 
 
 def _form_bool(name: str) -> bool:
@@ -1752,7 +1816,7 @@ def _form_optional_nullable_bool(name: str) -> bool | None:
         return True
     if raw_value == "false":
         return False
-    abort(HTTPStatus.BAD_REQUEST)
+    raise AdminFormError(f"{_field_label(name)} must be true or false.")
 
 
 def _form_csv_list(name: str) -> list[str] | None:
@@ -1776,7 +1840,7 @@ def _form_csv_float_list(name: str) -> list[float] | None:
         try:
             converted.append(float(value))
         except ValueError:
-            abort(HTTPStatus.BAD_REQUEST)
+            raise AdminFormError(f"{_field_label(name)} must contain only numbers.")
     return converted or None
 
 
@@ -1787,5 +1851,12 @@ def _optional_related_record(model: type[ModelT], form_key: str) -> ModelT | Non
     try:
         record_id = int(raw_value)
     except ValueError:
-        abort(HTTPStatus.BAD_REQUEST)
-    return _get_or_404(model, record_id)
+        raise AdminFormError(f"{_field_label(form_key)} must be a valid integer.")
+    record = db.session.get(model, record_id)
+    if record is None:
+        raise AdminFormError(f"{_field_label(form_key)} was not found.")
+    return record
+
+
+def _field_label(name: str) -> str:
+    return name.replace("_", " ").strip().capitalize()
