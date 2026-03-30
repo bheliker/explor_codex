@@ -54,3 +54,30 @@ This file records session history for `explor_codex` so future work can resume w
 - The next likely feature area is thin admin/UI work on top of the new search API.
 - Another good option is improving search freshness for future update/edit flows so reindexing is less manual.
 - Search is currently indexed on create flows and via explicit rebuilds; update-path indexing has not been added yet.
+
+## 2026-03-29 (Search Freshness)
+
+### Investigated
+- Reviewed the new search architecture to see how freshness was currently maintained.
+- Confirmed search documents were only being created during service-layer create flows plus explicit rebuilds.
+- Checked whether real update routes already existed; they do not yet, so freshness needed to work for direct ORM edits too.
+
+### Changed
+- Added session-level search listeners in [app/services/search.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/services/search.py) using SQLAlchemy session hooks.
+- Registered those listeners from [app/extensions.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/extensions.py).
+- Removed the manual per-service `index_instance(...)` calls from create services so search indexing now happens in one shared place.
+- Added tests in [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) proving that:
+  - direct model edits refresh search results
+  - model deletes remove search documents
+
+### Decisions
+- Keep explicit `POST /api/search/reindex` as a deterministic recovery/rebuild path.
+- Move freshness behavior into ORM session hooks instead of scattering indexing logic through every service or future route.
+
+### Why
+- This covers direct ORM edits now and future update/edit flows later without needing to remember search bookkeeping at every call site.
+- One central indexing path is easier to reason about and less error-prone than repeated per-service indexing calls.
+
+### Notes for the next session
+- Search freshness now covers create, update, and delete events that go through the ORM session.
+- The next likely step is building thin admin/UI surfaces on top of the search API and current model/service layer.

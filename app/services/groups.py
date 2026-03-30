@@ -3,7 +3,6 @@ from __future__ import annotations
 from app.extensions import db
 from app.geometry import point_coordinates
 from app.models import Group, GroupDues, GroupExternalUrl, Image, Membership, Route, User
-from app.services.search import index_instance
 
 
 def create_group(
@@ -50,8 +49,6 @@ def create_group(
         ride_classes=ride_classes,
     )
     db.session.add(group)
-    db.session.flush()
-    index_instance(group)
     db.session.commit()
     return group
 

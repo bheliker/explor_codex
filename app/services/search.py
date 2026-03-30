@@ -4,7 +4,8 @@ from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import Select, and_, case, delete, func, or_, select
+from sqlalchemy import Select, and_, case, delete, event, func, or_, select
+from sqlalchemy.orm import Session
 
 from app.extensions import db
 from app.models import Activity, Event, Group, PointOfInterest, Route, SearchDocument, Segment
@@ -18,6 +19,7 @@ SEARCHABLE_ENTITY_TYPES: tuple[str, ...] = (
     "point_of_interest",
     "activity",
 )
+_SEARCH_LISTENERS_REGISTERED = False
 
 
 def index_instance(instance: Any) -> SearchDocument | None:
@@ -25,24 +27,7 @@ def index_instance(instance: Any) -> SearchDocument | None:
     if payload is None:
         return None
 
-    existing = db.session.scalar(
-        select(SearchDocument).where(
-            SearchDocument.entity_type == payload["entity_type"],
-            SearchDocument.entity_id == payload["entity_id"],
-        )
-    )
-    if existing is None:
-        document = SearchDocument(**payload)
-        db.session.add(document)
-        return document
-
-    existing.title = payload["title"]
-    existing.subtitle = payload["subtitle"]
-    existing.location = payload["location"]
-    existing.tags = payload["tags"]
-    existing.search_text = payload["search_text"]
-    existing.updated_at = datetime.now(UTC)
-    return existing
+    return _index_instance_for_session(session=db.session, payload=payload)
 
 
 def rebuild_search_documents() -> int:
@@ -98,6 +83,16 @@ def parse_search_types(raw_types: Iterable[str] | None) -> list[str]:
     return parsed
 
 
+def register_search_listeners() -> None:
+    global _SEARCH_LISTENERS_REGISTERED
+    if _SEARCH_LISTENERS_REGISTERED:
+        return
+
+    event.listen(Session, "before_flush", _collect_search_changes)
+    event.listen(Session, "after_flush_postexec", _apply_search_changes)
+    _SEARCH_LISTENERS_REGISTERED = True
+
+
 def _normalize_query_tokens(query: str) -> list[str]:
     parts = [part.strip().lower() for part in query.split()]
     return [part for part in parts if part]
@@ -117,6 +112,80 @@ def _build_search_payload(instance: Any) -> dict[str, Any] | None:
     if isinstance(instance, Activity):
         return _activity_payload(instance)
     return None
+
+
+def _collect_search_changes(
+    session: Session,
+    flush_context: Any,  # noqa: ARG001
+    instances: Any,  # noqa: ARG001
+) -> None:
+    upserts = [
+        instance for instance in session.new.union(session.dirty) if _is_searchable(instance)
+    ]
+    deletes = [
+        identity
+        for instance in session.deleted
+        if _is_searchable(instance)
+        for identity in [_search_identity(instance)]
+        if identity is not None
+    ]
+
+    if upserts:
+        session.info["search_upserts"] = upserts
+    if deletes:
+        session.info["search_deletes"] = deletes
+
+
+def _apply_search_changes(session: Session, flush_context: Any) -> None:  # noqa: ARG001
+    upserts = session.info.pop("search_upserts", [])
+    deletes = session.info.pop("search_deletes", [])
+
+    for entity_type, entity_id in deletes:
+        session.execute(
+            delete(SearchDocument).where(
+                SearchDocument.entity_type == entity_type,
+                SearchDocument.entity_id == entity_id,
+            )
+        )
+
+    for instance in upserts:
+        if instance in session.deleted:
+            continue
+        payload = _build_search_payload(instance)
+        if payload is not None:
+            _index_instance_for_session(session=session, payload=payload)
+
+
+def _index_instance_for_session(*, session: Any, payload: dict[str, Any]) -> SearchDocument:
+    existing = session.scalar(
+        select(SearchDocument).where(
+            SearchDocument.entity_type == payload["entity_type"],
+            SearchDocument.entity_id == payload["entity_id"],
+        )
+    )
+    if existing is None:
+        document = SearchDocument(**payload)
+        session.add(document)
+        return document
+
+    existing.title = payload["title"]
+    existing.subtitle = payload["subtitle"]
+    existing.location = payload["location"]
+    existing.tags = payload["tags"]
+    existing.search_text = payload["search_text"]
+    existing.updated_at = datetime.now(UTC)
+    return existing
+
+
+def _is_searchable(instance: Any) -> bool:
+    return isinstance(instance, SEARCHABLE_MODELS)
+
+
+def _search_identity(instance: Any) -> tuple[str, int] | None:
+    payload = _build_search_payload(instance)
+    if payload is None:
+        return None
+    return payload["entity_type"], payload["entity_id"]
 
 
 def _group_payload(group: Group) -> dict[str, Any]:

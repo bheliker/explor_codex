@@ -4,7 +4,6 @@ from sqlalchemy import Select, select
 
 from app.extensions import db
 from app.models import Route, Segment
-from app.services.search import index_instance
 
 
 def create_segment(
@@ -63,8 +62,6 @@ def create_segment(
         track_maxspeed=track_maxspeed,
     )
     db.session.add(segment)
-    db.session.flush()
-    index_instance(segment)
     db.session.commit()
     return segment
 

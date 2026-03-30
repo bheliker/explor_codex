@@ -2110,3 +2110,46 @@ def test_api_search_and_reindex_endpoints(app: Flask, client: FlaskClient, datab
 
     missing_query_response = client.get("/api/search")
     assert missing_query_response.status_code == 400
+
+
+def test_search_updates_after_direct_model_edit(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        group = Group(
+            name="Peninsula Paceline",
+            shortname="peninsula-paceline",
+            home_town="Redwood City",
+            tags=["road"],
+        )
+        db.session.add(group)
+        db.session.commit()
+
+        group.name = "Peninsula Gravel Collective"
+        group.tags = ["gravel", "community"]
+        db.session.commit()
+
+        results = search_documents(query="gravel collective", types=["group"])
+
+        assert [result.entity_id for result in results] == [group.id]
+        assert results[0].tags == ["gravel", "community"]
+
+
+def test_search_removes_documents_after_delete(app: Flask, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        point = PointOfInterest(
+            name="Hidden Overlook",
+            description="Quiet viewpoint above the bay",
+            tags=["viewpoint"],
+            type="viewpoint",
+        )
+        db.session.add(point)
+        db.session.commit()
+
+        result_ids = [result.entity_id for result in search_documents(query="hidden overlook")]
+        assert result_ids == [point.id]
+
+        db.session.delete(point)
+        db.session.commit()
+
+        assert search_documents(query="hidden overlook") == []
