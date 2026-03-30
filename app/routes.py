@@ -3,7 +3,8 @@ from __future__ import annotations
 from http import HTTPStatus
 from typing import Any, TypeVar, cast
 
-from flask import Blueprint, abort, request
+from flask import Blueprint, abort, render_template, request
+from sqlalchemy import func, select
 
 from app.bootstrap import ensure_canonical_lookup_rows
 from app.extensions import db
@@ -25,6 +26,7 @@ from app.models import (
     User,
 )
 from app.services import (
+    SEARCHABLE_ENTITY_TYPES,
     add_event_fee,
     add_group_dues,
     add_group_link,
@@ -65,6 +67,29 @@ def index() -> tuple[dict[str, str], int]:
 @bp.get("/health")
 def health() -> tuple[dict[str, str], int]:
     return {"status": "ok"}, 200
+
+
+@bp.get("/admin/search")
+def admin_search_route() -> str:
+    query = request.args.get("q", default="", type=str).strip()
+    parsed_types = parse_search_types(request.args.getlist("type"))
+    requested_limit = request.args.get("limit", default=25, type=int)
+    limit = min(max(requested_limit, 1), 100)
+
+    results = (
+        search_documents(query=query, types=parsed_types or None, limit=limit) if query else []
+    )
+    total_documents = db.session.scalar(select(func.count()).select_from(SearchDocument)) or 0
+
+    return render_template(
+        "admin/search.html",
+        entity_types=SEARCHABLE_ENTITY_TYPES,
+        limit=limit,
+        query=query,
+        results=results,
+        selected_types=parsed_types,
+        total_documents=total_documents,
+    )
 
 
 @bp.post("/api/bootstrap/lookup-rows")

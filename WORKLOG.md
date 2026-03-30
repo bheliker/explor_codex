@@ -81,3 +81,31 @@ This file records session history for `explor_codex` so future work can resume w
 ### Notes for the next session
 - Search freshness now covers create, update, and delete events that go through the ORM session.
 - The next likely step is building thin admin/UI surfaces on top of the search API and current model/service layer.
+
+## 2026-03-29 (Thin Admin UI)
+
+### Investigated
+- Checked whether the project already had any templates or static assets; it did not.
+- Confirmed the search API was the best first UI anchor because it already spans the rebuilt domain.
+- Found that the Flask app factory was not yet wired to the repo-root `templates/` directory.
+
+### Changed
+- Added a thin server-rendered admin search console:
+  - [templates/base.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/base.html)
+  - [templates/admin/search.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/search.html)
+- Added `GET /admin/search` in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py).
+- Updated [app/__init__.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/__init__.py) so the Flask app correctly uses repo-root `templates/` and `static/`.
+- Added HTML route coverage in [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py).
+- Updated [README.md](/Users/bheliker/Documents/_Projects/explor/explor_codex/README.md) to document the new admin search surface.
+
+### Decisions
+- Start UI work with a thin server-rendered tool rather than introducing a heavier admin framework.
+- Keep the UI directly backed by the existing search service layer instead of duplicating query logic in templates or routes.
+
+### Why
+- This gives the project a practical browser entry point quickly while preserving the API-first architecture underneath.
+- It also creates a lightweight place to inspect search behavior while future admin pages are still being designed.
+
+### Notes for the next session
+- There is now a usable HTML admin foothold at `/admin/search`.
+- The next likely UI step is either a domain dashboard or detail pages for core entities reached from search results.

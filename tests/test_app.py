@@ -2153,3 +2153,42 @@ def test_search_removes_documents_after_delete(app: Flask, database: None) -> No
         db.session.commit()
 
         assert search_documents(query="hidden overlook") == []
+
+
+def test_admin_search_page_renders_results(app: Flask, client: FlaskClient, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        group = Group(
+            name="North Bay Climbers",
+            shortname="north-bay-climbers",
+            about_blurb="Steep road rides around Fairfax",
+            tags=["climbing", "road"],
+            home_town="Fairfax",
+            home_state="CA",
+        )
+        route = Route(
+            name="Bolinas Ridge Loop",
+            desc="Mixed surface route over the ridge",
+            tags=["gravel", "ridge"],
+            city="Fairfax",
+            state="CA",
+        )
+        db.session.add_all([group, route])
+        db.session.commit()
+
+    response = client.get("/admin/search?q=fairfax&type=group&type=route&limit=5")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "Admin Search" in html
+    assert "North Bay Climbers" in html
+    assert "Bolinas Ridge Loop" in html
+    assert "Fairfax, CA" in html
+
+
+def test_admin_search_page_handles_empty_state(client: FlaskClient, database: None) -> None:
+    response = client.get("/admin/search")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "Start with a name, place, description fragment, or tag." in html

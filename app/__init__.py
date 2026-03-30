@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from flask import Flask
 
 from app.auth import init_auth
@@ -8,7 +10,12 @@ from app.extensions import init_extensions
 
 
 def create_app(*, testing: bool = False) -> Flask:
-    app = Flask(__name__)
+    project_root = Path(__file__).resolve().parent.parent
+    app = Flask(
+        __name__,
+        template_folder=str(project_root / "templates"),
+        static_folder=str(project_root / "static"),
+    )
     app.config.from_object(TestConfig if testing else Config)
 
     from app.routes import bp
