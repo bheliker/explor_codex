@@ -105,42 +105,104 @@
       {% endif %}
     </aside>
 
-    <section class="panel">
-      {% set highlight_rows = detail_rows[:4] if detail_rows else [] %}
-      {% set remaining_rows = detail_rows[4:] if detail_rows and detail_rows|length > 4 else [] %}
-      <h2>Details</h2>
-      {% if highlight_rows %}
-        <div class="metric-strip" style="margin-bottom: 18px;">
-          {% for row in highlight_rows %}
-            <article class="stat-card">
-              <div class="stat-card-label">{{ row.label }}</div>
-              <div class="stat-card-value" style="font-size: 1.25rem; line-height: 1.25;">{{ row.value }}</div>
-            </article>
-          {% endfor %}
-        </div>
+    <section class="content-rail">
+      {% if story_sections %}
+            <section class="panel">
+              <h2>Story</h2>
+              <div class="story-grid detail-story-grid">
+                {% for section in story_sections %}
+                  <article class="collection-card detail-story-card">
+                    <p class="landing-eyebrow">{{ section["eyebrow"] }}</p>
+                    <h3 class="detail-story-title">{{ section["title"] }}</h3>
+                    {% if section["body"] %}
+                      <p class="landing-copy">{{ section["body"] }}</p>
+                    {% endif %}
+                    {% if section["items"] %}
+                      <div class="detail-story-list">
+                        {% for item in section["items"] %}
+                          <div class="detail-story-item">
+                            <span class="detail-story-label">{{ item["label"] }}</span>
+                            <span class="detail-story-value">{{ item["value"] }}</span>
+                          </div>
+                        {% endfor %}
+                      </div>
+                    {% endif %}
+              </article>
+            {% endfor %}
+          </div>
+        </section>
       {% endif %}
-      {% if remaining_rows or detail_rows %}
-        <div class="detail-rows" x-show="showMoreDetails || {{ 'true' if not remaining_rows else 'false' }}">
-          {% for row in remaining_rows or detail_rows %}
-            <article class="detail-row">
-              <div class="detail-row-label">{{ row.label }}</div>
-              {% if row.url %}
-                <div class="detail-row-value"><a href="{{ row.url }}">{{ row.value }}</a></div>
-              {% else %}
-                <div class="detail-row-value">{{ row.value }}</div>
-              {% endif %}
-            </article>
-          {% endfor %}
-        </div>
-        {% if remaining_rows %}
-          <div class="hero-actions">
-            <button class="nav-link" type="button" @click="showMoreDetails = !showMoreDetails">
-              <span x-text="showMoreDetails ? 'Hide extended details' : 'Show extended details'"></span>
-            </button>
+
+      <section class="panel">
+        {% set highlight_rows = detail_rows[:4] if detail_rows else [] %}
+        {% set remaining_rows = detail_rows[4:] if detail_rows and detail_rows|length > 4 else [] %}
+        <h2>Details</h2>
+        {% if highlight_rows %}
+          <div class="metric-strip" style="margin-bottom: 18px;">
+            {% for row in highlight_rows %}
+              <article class="stat-card">
+                <div class="stat-card-label">{{ row.label }}</div>
+                <div class="stat-card-value" style="font-size: 1.25rem; line-height: 1.25;">{{ row.value }}</div>
+              </article>
+            {% endfor %}
           </div>
         {% endif %}
-      {% else %}
-        <div class="empty">No additional detail fields are available yet.</div>
+        {% if remaining_rows or detail_rows %}
+          <div class="detail-rows" x-show="showMoreDetails || {{ 'true' if not remaining_rows else 'false' }}">
+            {% for row in remaining_rows or detail_rows %}
+              <article class="detail-row">
+                <div class="detail-row-label">{{ row.label }}</div>
+                {% if row.url %}
+                  <div class="detail-row-value"><a href="{{ row.url }}">{{ row.value }}</a></div>
+                {% else %}
+                  <div class="detail-row-value">{{ row.value }}</div>
+                {% endif %}
+              </article>
+            {% endfor %}
+          </div>
+          {% if remaining_rows %}
+            <div class="hero-actions">
+              <button class="nav-link" type="button" @click="showMoreDetails = !showMoreDetails">
+                <span x-text="showMoreDetails ? 'Hide extended details' : 'Show extended details'"></span>
+              </button>
+            </div>
+          {% endif %}
+        {% else %}
+          <div class="empty">No additional detail fields are available yet.</div>
+        {% endif %}
+      </section>
+
+      {% if related_sections %}
+        <section class="panel">
+          <h2>Connected Records</h2>
+          <div class="content-rail">
+            {% for section in related_sections %}
+              <div>
+                <p class="landing-eyebrow">{{ section["eyebrow"] }}</p>
+                <h3 class="detail-story-title">{{ section["title"] }}</h3>
+                {% if section["items"] %}
+                  <div class="collection-grid detail-related-grid">
+                    {% for item in section["items"] %}
+                      <article class="collection-card">
+                        <p class="landing-eyebrow">{{ item["eyebrow"] }}</p>
+                        {% if item["href"] %}
+                          <a class="result-title-link" href="{{ item["href"] }}"{% if item["external"] %} target="_blank" rel="noreferrer"{% endif %}>{{ item["title"] }}</a>
+                        {% else %}
+                          <p class="result-title">{{ item["title"] }}</p>
+                        {% endif %}
+                        {% if item["meta"] %}
+                          <p class="landing-copy">{{ item["meta"] }}</p>
+                        {% endif %}
+                      </article>
+                    {% endfor %}
+                  </div>
+                {% else %}
+                  <div class="empty">{{ section["empty_copy"] }}</div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        </section>
       {% endif %}
     </section>
   </section>

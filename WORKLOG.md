@@ -777,3 +777,55 @@ This file records session history for `explor_codex` so future work can resume w
   - image use
   - browse rhythm
 - The next likely step is entity-specific storytelling with related-record strips, image-led highlights, and per-entity supporting context blocks.
+
+## 2026-03-31 (Route And Segment Detail Depth)
+
+### Investigated
+- Compared the current generic admin detail surface with the older route detail patterns from `explor_alpha`.
+- Reviewed the current `Route` and `Segment` models to see which fields and relations were still missing from the browser detail pages.
+- Confirmed the shared detail template could carry a richer story-plus-inventory layout without splitting into a separate legacy template family.
+
+### Changed
+- Expanded the route detail handler in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) to surface substantially more route metadata:
+  - privacy, source identifiers, creator and athlete context
+  - start and end coordinates
+  - elevation profile and geometry fields
+  - created and updated timestamps
+  - counts for linked groups, segments, and external links
+- Expanded the segment detail handler in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) to show fuller segment data:
+  - elevation loss, high and low points
+  - source URL
+  - track hash and max speed
+  - geometry fields
+  - record, create, and update timestamps
+  - linked route and image counts
+- Added route and segment-specific story sections, media previews, and connected-record collections in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py).
+- Updated the shared detail template in [templates/admin/detail.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/detail.html) so entity pages can render:
+  - narrative story cards
+  - richer metric-first detail inventories
+  - connected record sections for related groups, routes, segments, links, and images
+- Added supporting styles in [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css) for the new story and related-record layouts.
+- Extended [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) with richer route detail coverage and a new full-record segment detail test.
+
+### Decisions
+- Keep the richer detail experience inside the shared `admin/detail.html` surface rather than rebuilding old entity-specific templates one by one.
+- Port the old product rhythm as structure and emphasis:
+  - story first
+  - stats next
+  - full factual inventory after that
+  - connected records nearby
+- Prefer Alpine-backed progressive disclosure and repo-local CSS primitives over reviving the old Bootstrap and jQuery implementation.
+
+### Why
+- Routes and segments are the records most likely to feel incomplete if they only show a handful of fields.
+- The old product was strongest when a detail page combined meaning, effort, and context instead of acting like a flat dump of attributes.
+- Reusing the shared detail surface keeps the codebase lighter while still moving much closer to the original complete-record feel.
+
+### Verification
+- `uv run pytest`
+- `uv run ruff check .`
+- `uv run mypy app tests`
+
+### Notes for the next session
+- Route and segment pages now expose a much fuller data inventory and feel materially closer to the older product’s depth.
+- The next strongest continuation would be the same treatment for other entity detail pages that still feel thin, especially events, points of interest, and activity records.

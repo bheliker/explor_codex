@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from datetime import datetime
 from http import HTTPStatus
-from typing import Any, Callable, TypeVar, cast
+from typing import Any, Callable, Sequence, TypeVar, cast
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, logout_user  # type: ignore[import-untyped]
@@ -1112,26 +1113,43 @@ def admin_route_detail_route(route_id: int) -> str:
         "admin/detail.html",
         detail_rows=_detail_rows(
             [
-                ("Description", route.desc),
+                ("Length", route.length),
+                ("Duration", route.duration),
+                ("Elevation gain", route.elevation_gain),
+                ("Grade", route.grade),
+                ("Rating", route.rating),
                 ("Type", route.type),
                 ("Subtype", route.subtype),
-                ("Duration", route.duration),
-                ("Length", route.length),
-                ("Elevation gain", route.elevation_gain),
+                ("Private", route.private),
                 ("Source", route.src),
                 ("Source ID", route.src_id),
+                ("Athlete ID", route.athlete_id),
+                ("Creator ID", route.creator_id),
                 ("Address", route.address),
+                (
+                    "Start coordinates",
+                    _coordinate_pair(route.start_latitude, route.start_longitude),
+                ),
+                ("End coordinates", _coordinate_pair(route.end_latitude, route.end_longitude)),
+                ("Elevation profile", route.elevation_array),
+                ("Summary polyline", route.summary_polyline),
+                ("Full track", route.full_track),
+                ("Created", route.init_date),
+                ("Updated", route.update_date),
                 ("Linked groups", len(route.groups)),
                 ("Linked segments", len(route.segments)),
+                ("External links", len(route.links)),
             ]
         ),
         entity_id=route.id,
         entity_type_label="Route",
         edit_url=url_for("core.admin_route_edit_route", route_id=route.id),
         location=_join_location(route.city, route.state, route.country),
-        media_previews=_media_previews([("Map thumbnail", route.map_thumbnail)]),
+        media_previews=_route_media_previews(route),
         page_title=route.name or "Route",
         recent_links=_recent_activity_links(exclude=("route", route.id)),
+        related_sections=_route_related_sections(route),
+        story_sections=_route_story_sections(route),
         subtitle=route.subtype or route.type,
         tags=route.tags,
     )
@@ -1301,26 +1319,48 @@ def admin_segment_detail_route(segment_id: int) -> str:
         "admin/detail.html",
         detail_rows=_detail_rows(
             [
-                ("Description", segment.desc),
-                ("Type", segment.type),
-                ("Subtype", segment.subtype),
-                ("Duration", segment.duration),
                 ("Length", segment.length),
+                ("Duration", segment.duration),
                 ("Elevation gain", segment.elevation_gain),
                 ("Grade", segment.grade),
                 ("Rating", segment.rating),
+                ("Type", segment.type),
+                ("Subtype", segment.subtype),
+                ("Elevation loss", segment.elevation_loss),
+                ("Elevation high", segment.elev_high),
+                ("Elevation low", segment.elev_low),
                 ("Source", segment.src),
                 ("Source ID", segment.src_id),
+                ("Source URL", segment.src_url, segment.src_url),
+                (
+                    "Start coordinates",
+                    _coordinate_pair(segment.start_latitude, segment.start_longitude),
+                ),
+                (
+                    "End coordinates",
+                    _coordinate_pair(segment.end_latitude, segment.end_longitude),
+                ),
+                ("Elevation profile", segment.elevation_array),
+                ("Summary polyline", segment.summary_polyline),
+                ("Full track", segment.full_track),
+                ("Track hash", segment.track_hash),
+                ("Track max speed", segment.track_maxspeed),
+                ("Recorded", segment.record_date),
+                ("Created", segment.init_date),
+                ("Updated", segment.update_date),
                 ("Linked routes", len(segment.routes)),
+                ("Linked images", len(segment.images)),
             ]
         ),
         entity_id=segment.id,
         entity_type_label="Segment",
         edit_url=url_for("core.admin_segment_edit_route", segment_id=segment.id),
         location=None,
-        media_previews=None,
+        media_previews=_segment_media_previews(segment),
         page_title=segment.name or "Segment",
         recent_links=_recent_activity_links(exclude=("segment", segment.id)),
+        related_sections=_segment_related_sections(segment),
+        story_sections=_segment_story_sections(segment),
         subtitle=segment.subtype or segment.type,
         tags=segment.tags,
     )
@@ -3160,6 +3200,53 @@ def _recent_record_links(
     return links
 
 
+def _coordinate_pair(latitude: float | None, longitude: float | None) -> str | None:
+    if latitude is None or longitude is None:
+        return None
+    return f"{latitude:.5f}, {longitude:.5f}"
+
+
+def _format_route_meta(route: Route) -> str | None:
+    return _join_location(
+        route.subtype or route.type,
+        _display_value(route.length),
+        _display_value(route.elevation_gain),
+    )
+
+
+def _format_segment_meta(segment: Segment) -> str | None:
+    return _join_location(
+        segment.subtype or segment.type,
+        _display_value(segment.length),
+        _display_value(segment.elevation_gain),
+    )
+
+
+def _image_preview_url(image: Image) -> str | None:
+    return image.img_large or image.img_medium or image.img_small or image.img_thumb or image.url
+
+
+def _route_media_previews(route: Route) -> list[dict[str, str]] | None:
+    preview_items: list[tuple[str, str | None]] = [("Map thumbnail", route.map_thumbnail)]
+    for segment in route.segments[:3]:
+        for image in segment.images[:1]:
+            preview_items.append(
+                (
+                    f"Segment image: {segment.name or 'Segment'}",
+                    _image_preview_url(image),
+                )
+            )
+    return _media_previews(preview_items)
+
+
+def _segment_media_previews(segment: Segment) -> list[dict[str, str]] | None:
+    preview_items = [
+        (image.title or image.caption or f"Image {image.id}", _image_preview_url(image))
+        for image in segment.images[:4]
+    ]
+    return _media_previews(preview_items)
+
+
 def _media_previews(items: list[tuple[str, str | None]]) -> list[dict[str, str]] | None:
     previews = [
         {"alt": label, "label": label, "url": url}
@@ -3202,7 +3289,7 @@ def _admin_detail_url(entity_type: str, entity_id: int | None) -> str | None:
 
 
 def _detail_rows(
-    raw_rows: list[tuple[str, object | None] | tuple[str, object | None, str | None]],
+    raw_rows: Sequence[tuple[str, object | None] | tuple[str, object | None, str | None]],
 ) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for raw_row in raw_rows:
@@ -3217,6 +3304,185 @@ def _detail_rows(
             continue
         rows.append({"label": label, "value": display_value, "url": url})
     return rows
+
+
+def _story_section(
+    title: str,
+    *,
+    eyebrow: str,
+    body: str | None = None,
+    items: list[tuple[str, object | None]] | None = None,
+) -> dict[str, object] | None:
+    section_items = _detail_rows(items or [])
+    if body is None and not section_items:
+        return None
+    return {
+        "body": _display_value(body),
+        "eyebrow": eyebrow,
+        "items": section_items,
+        "title": title,
+    }
+
+
+def _related_section(
+    title: str,
+    *,
+    eyebrow: str,
+    empty_copy: str,
+    items: list[dict[str, object]],
+) -> dict[str, object] | None:
+    if not items:
+        return None
+    return {
+        "eyebrow": eyebrow,
+        "empty_copy": empty_copy,
+        "items": items,
+        "title": title,
+    }
+
+
+def _route_story_sections(route: Route) -> list[dict[str, object]] | None:
+    sections = [
+        _story_section(
+            "Why riders save this one",
+            eyebrow="Route notes",
+            body=route.desc
+            or (
+                "No route description is stored yet, but the core shape and geography "
+                "are already on the record."
+            ),
+        ),
+        _story_section(
+            "Route shape",
+            eyebrow="Start to finish",
+            items=[
+                ("Starts", _coordinate_pair(route.start_latitude, route.start_longitude)),
+                ("Finishes", _coordinate_pair(route.end_latitude, route.end_longitude)),
+                ("Address", route.address),
+                ("Place", _join_location(route.city, route.state, route.country)),
+            ],
+        ),
+    ]
+    return [section for section in sections if section is not None] or None
+
+
+def _segment_story_sections(segment: Segment) -> list[dict[str, object]] | None:
+    sections = [
+        _story_section(
+            "What this segment asks of a rider",
+            eyebrow="Segment notes",
+            body=segment.desc
+            or (
+                "No segment description is stored yet, but the elevation and geometry "
+                "fields give us the shape of the effort."
+            ),
+        ),
+        _story_section(
+            "Profile and shape",
+            eyebrow="Effort",
+            items=[
+                ("Starts", _coordinate_pair(segment.start_latitude, segment.start_longitude)),
+                ("Finishes", _coordinate_pair(segment.end_latitude, segment.end_longitude)),
+                ("Elevation loss", segment.elevation_loss),
+                ("High point", segment.elev_high),
+                ("Low point", segment.elev_low),
+                ("Max speed", segment.track_maxspeed),
+            ],
+        ),
+    ]
+    return [section for section in sections if section is not None] or None
+
+
+def _route_related_sections(route: Route) -> list[dict[str, object]] | None:
+    sections = [
+        _related_section(
+            "Linked groups",
+            eyebrow="Where this route lives",
+            empty_copy="This route is not linked to any groups yet.",
+            items=[
+                {
+                    "eyebrow": "Group",
+                    "external": False,
+                    "href": url_for("core.admin_group_detail_route", group_id=group.id),
+                    "meta": _join_location(
+                        group.about_blurb,
+                        _join_location(group.home_town, group.home_state, group.home_country),
+                    ),
+                    "title": group.name or f"Group {group.id}",
+                }
+                for group in route.groups
+            ],
+        ),
+        _related_section(
+            "Linked segments",
+            eyebrow="Building blocks",
+            empty_copy="This route is not linked to any segments yet.",
+            items=[
+                {
+                    "eyebrow": "Segment",
+                    "external": False,
+                    "href": url_for("core.admin_segment_detail_route", segment_id=segment.id),
+                    "meta": _format_segment_meta(segment),
+                    "title": segment.name or f"Segment {segment.id}",
+                }
+                for segment in route.segments
+            ],
+        ),
+        _related_section(
+            "External links",
+            eyebrow="Source material",
+            empty_copy="This route does not have external links yet.",
+            items=[
+                {
+                    "eyebrow": link.type or "Link",
+                    "external": True,
+                    "href": link.url,
+                    "meta": _join_location(link.subtype, link.description),
+                    "title": link.name or link.url or f"Link {link.id}",
+                }
+                for link in route.links
+                if link.url
+            ],
+        ),
+    ]
+    return [section for section in sections if section is not None] or None
+
+
+def _segment_related_sections(segment: Segment) -> list[dict[str, object]] | None:
+    sections = [
+        _related_section(
+            "Linked routes",
+            eyebrow="Appears in",
+            empty_copy="This segment is not linked to any routes yet.",
+            items=[
+                {
+                    "eyebrow": "Route",
+                    "external": False,
+                    "href": url_for("core.admin_route_detail_route", route_id=route.id),
+                    "meta": _format_route_meta(route),
+                    "title": route.name or f"Route {route.id}",
+                }
+                for route in segment.routes
+            ],
+        ),
+        _related_section(
+            "Image set",
+            eyebrow="Visual context",
+            empty_copy="This segment does not have images yet.",
+            items=[
+                {
+                    "eyebrow": "Image",
+                    "external": True,
+                    "href": _image_preview_url(image),
+                    "meta": _join_location(image.caption, image.alt_txt),
+                    "title": image.title or f"Image {image.id}",
+                }
+                for image in segment.images
+                if _image_preview_url(image)
+            ],
+        ),
+    ]
+    return [section for section in sections if section is not None] or None
 
 
 def _edit_text_field(
@@ -3393,6 +3659,12 @@ def _fee_fields(fee: EventFee | None) -> list[dict[str, object]]:
 def _display_value(value: object | None) -> str | None:
     if value is None:
         return None
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
+    if isinstance(value, datetime):
+        if value.tzinfo is not None:
+            return value.strftime("%Y-%m-%d %H:%M UTC")
+        return value.strftime("%Y-%m-%d %H:%M")
     if isinstance(value, float):
         return f"{value:.2f}"
     if isinstance(value, list):

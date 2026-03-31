@@ -2736,6 +2736,21 @@ def test_admin_route_detail_page_renders(
 ) -> None:
     with app.app_context():
         db = app.extensions["sqlalchemy"]
+        creator = User(username="route-curator", email="route-curator@example.com")
+        creator.set_password("secret123")
+        segment = Segment(
+            name="Skyline Spur",
+            type="connector",
+            length=8.4,
+            elevation_gain=420.0,
+        )
+        group = Group(
+            name="Oakland Distance Club",
+            shortname="oakland-distance-club",
+            about_blurb="Long mixed-terrain routes from the hills",
+            home_town="Oakland",
+            home_state="CA",
+        )
         route = Route(
             name="Skyline Traverse",
             desc="Long ridge route with mixed climbing",
@@ -2743,8 +2758,34 @@ def test_admin_route_detail_page_renders(
             city="Oakland",
             state="CA",
             length=54.2,
+            duration=182.0,
+            elevation_gain=1430.0,
+            grade=4.8,
+            rating=4.6,
+            private=False,
+            athlete_id=77,
+            src="strava",
+            src_id="route-77",
+            address="Joaquin Miller Park, Oakland, CA",
+            start_latitude=37.81234,
+            start_longitude=-122.18345,
+            end_latitude=37.88123,
+            end_longitude=-122.24456,
+            elevation_array=[110.0, 340.0, 280.0],
         )
-        db.session.add(route)
+        route.creator = creator
+        route.groups.append(group)
+        route.segments.append(segment)
+        db.session.add_all([creator, group, segment, route])
+        db.session.commit()
+        link = GroupExternalUrl(
+            route_id=route.id,
+            url="https://example.com/skyline-traverse",
+            type="source",
+            name="Original route page",
+            description="Full source record",
+        )
+        db.session.add(link)
         db.session.commit()
         route_id = route.id
 
@@ -2755,6 +2796,77 @@ def test_admin_route_detail_page_renders(
     assert "Skyline Traverse" in html
     assert "Long ridge route with mixed climbing" in html
     assert "54.20" in html
+    assert "1430.00" in html
+    assert "Joaquin Miller Park, Oakland, CA" in html
+    assert "37.81234, -122.18345" in html
+    assert "Elevation profile" in html
+    assert "Connected Records" in html
+    assert "Oakland Distance Club" in html
+    assert "Skyline Spur" in html
+    assert "Original route page" in html
+
+
+def test_admin_segment_detail_page_renders_full_record(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        route = Route(
+            name="Redwood Access Loop",
+            type="route",
+            length=27.5,
+            elevation_gain=860.0,
+        )
+        segment = Segment(
+            name="Redwood Wall",
+            desc="A short steep ramp with a shaded approach",
+            tags=["steep", "woods"],
+            type="climb",
+            subtype="paved",
+            length=3.2,
+            duration=14.0,
+            elevation_gain=355.0,
+            elevation_loss=22.0,
+            elev_high=902.0,
+            elev_low=544.0,
+            rating=4.9,
+            grade=9.4,
+            src="strava",
+            src_id="segment-99",
+            src_url="https://example.com/segments/redwood-wall",
+            start_latitude=37.80123,
+            start_longitude=-122.15432,
+            end_latitude=37.81234,
+            end_longitude=-122.14321,
+            elevation_array=[544.0, 700.0, 902.0],
+            track_hash="abc123def456",
+            track_maxspeed=38.4,
+        )
+        image = Image(
+            title="Canopy switchback",
+            caption="Tree cover through the steepest pitch",
+            img_medium="https://images.example.com/redwood-wall.jpg",
+            segment=segment,
+        )
+        segment.routes.append(route)
+        db.session.add_all([route, segment, image])
+        db.session.commit()
+        segment_id = segment.id
+
+    response = admin_client.get(f"/admin/segments/{segment_id}")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "Redwood Wall" in html
+    assert "A short steep ramp with a shaded approach" in html
+    assert "355.00" in html
+    assert "Elevation loss" in html
+    assert "Track hash" in html
+    assert "abc123def456" in html
+    assert "https://example.com/segments/redwood-wall" in html
+    assert "37.80123, -122.15432" in html
+    assert "Redwood Access Loop" in html
+    assert "Canopy switchback" in html
 
 
 def test_admin_group_edit_page_updates_group_and_search(
