@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Login | explor_codex{% endblock %}
+
+{% block body %}
+  <section class="hero">
+    <p class="eyebrow">Auth</p>
+    <h1>Log in</h1>
+    <p>Use your username or email to enter the rebuilt admin and account flows.</p>
+  </section>
+
+  <section class="grid">
+    <aside class="panel stack">
+      <h2>Next</h2>
+      <div class="result-meta">
+        <div><a href="{{ url_for('auth.password_reset_request') }}">Forgot your password?</a></div>
+        {% if signup_enabled %}
+          <div><a href="{{ url_for('auth.signup') }}">Need an account? Sign up</a></div>
+        {% endif %}
+      </div>
+    </aside>
+
+    <form class="panel stack" method="post">
+      <h2>Credentials</h2>
+      <input type="hidden" name="next" value="{{ next_url or '' }}">
+      <label>
+        Username or email
+        <input type="text" name="identity" autocomplete="username">
+      </label>
+      <label>
+        Password
+        <input type="password" name="password" autocomplete="current-password">
+      </label>
+      <button type="submit">Log In</button>
+    </form>
+  </section>
+{% endblock %}

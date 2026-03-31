@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Account | explor_codex{% endblock %}
+
+{% block body %}
+  <section class="hero">
+    <p class="eyebrow">Account</p>
+    <h1>{{ current_user.display_name }}</h1>
+    <p>
+      {{ current_user.email }}
+      {% if current_user.site_admin %}
+        · site admin
+      {% endif %}
+    </p>
+  </section>
+
+  <section class="grid">
+    <aside class="panel stack">
+      <h2>Actions</h2>
+      <div class="result-meta">
+        {% if current_user.site_admin %}
+          <div><a href="{{ url_for('core.admin_dashboard_route') }}">Open admin dashboard</a></div>
+          <div><a href="{{ url_for('core.admin_user_list_route') }}">Manage users</a></div>
+        {% endif %}
+        <div><a href="{{ url_for('auth.password_reset_request') }}">Generate reset link</a></div>
+      </div>
+    </aside>
+
+    <section class="panel stack">
+      <h2>Profile</h2>
+      <div class="result-meta">
+        <div>Username: {{ current_user.username }}</div>
+        <div>First name: {{ current_user.firstname or "—" }}</div>
+        <div>Last name: {{ current_user.lastname or "—" }}</div>
+        <div>Active: {{ "yes" if current_user.active else "no" }}</div>
+        <div>Last login: {{ current_user.last_login_at or "never" }}</div>
+      </div>
+    </section>
+  </section>
+{% endblock %}

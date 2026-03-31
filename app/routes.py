@@ -4,10 +4,11 @@ from http import HTTPStatus
 from typing import Any, TypeVar, cast
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask_login import current_user, logout_user  # type: ignore[import-untyped]
 from sqlalchemy import func, select
 
 from app.bootstrap import ensure_canonical_lookup_rows
-from app.extensions import db
+from app.extensions import db, login_manager
 from app.models import (
     Activity,
     Calendar,
@@ -43,12 +44,14 @@ from app.services import (
     create_point_of_interest,
     create_route,
     create_segment,
+    create_user,
     ensure_group_membership,
     list_activities,
     list_images,
     list_points_of_interest,
     list_routes,
     list_segments,
+    list_users,
     parse_search_types,
     rebuild_search_documents,
     search_documents,
@@ -59,6 +62,7 @@ from app.services import (
     update_point_of_interest,
     update_route,
     update_segment,
+    update_user,
 )
 
 bp = Blueprint("core", __name__)
@@ -77,6 +81,31 @@ def index() -> tuple[dict[str, str], int]:
 @bp.get("/health")
 def health() -> tuple[dict[str, str], int]:
     return {"status": "ok"}, 200
+
+
+@bp.before_app_request
+def protect_admin_routes() -> Any | None:
+    if request.path.startswith("/api/") and request.method != "GET":
+        if not current_user.is_authenticated:
+            return {"error": "authentication required"}, HTTPStatus.UNAUTHORIZED
+        if not getattr(current_user, "active", False):
+            logout_user()
+            return {"error": "account is inactive"}, HTTPStatus.FORBIDDEN
+        if not getattr(current_user, "site_admin", False):
+            return {"error": "site admin access required"}, HTTPStatus.FORBIDDEN
+        return None
+
+    if request.endpoint is None or not request.endpoint.startswith("core.admin_"):
+        return None
+    if not current_user.is_authenticated:
+        return login_manager.unauthorized()
+    if not getattr(current_user, "active", False):
+        logout_user()
+        flash("Your account is inactive.", "error")
+        return redirect(url_for("auth.login"))
+    if not getattr(current_user, "site_admin", False):
+        abort(HTTPStatus.FORBIDDEN)
+    return None
 
 
 @bp.get("/admin/search")
@@ -107,6 +136,11 @@ def admin_dashboard_route() -> str:
     return render_template(
         "admin/dashboard.html",
         sections=[
+            {
+                "items": [_dashboard_user_item(user) for user in _recent_records(User)],
+                "new_url": url_for("core.admin_user_new_route"),
+                "title": "Recent Users",
+            },
             {
                 "items": [_dashboard_group_item(group) for group in _recent_records(Group)],
                 "new_url": url_for("core.admin_group_new_route"),
@@ -141,6 +175,7 @@ def admin_dashboard_route() -> str:
             },
         ],
         stats=[
+            {"count": _count_records(User), "label": "users"},
             {"count": _count_records(Group), "label": "groups"},
             {"count": _count_records(Route), "label": "routes"},
             {"count": _count_records(Segment), "label": "segments"},
@@ -149,6 +184,193 @@ def admin_dashboard_route() -> str:
             {"count": _count_records(Activity), "label": "activities"},
             {"count": _count_records(SearchDocument), "label": "search docs"},
         ],
+    )
+
+
+@bp.get("/admin/users")
+def admin_user_list_route() -> str:
+    users = list_users()
+    return render_template(
+        "admin/users.html",
+        page_title="Users",
+        users=[_dashboard_user_item(user) for user in users],
+    )
+
+
+@bp.get("/admin/users/<int:user_id>")
+def admin_user_detail_route(user_id: int) -> str:
+    user = _get_or_404(User, user_id)
+    return render_template(
+        "admin/detail.html",
+        detail_rows=_detail_rows(
+            [
+                ("Username", user.username),
+                ("Email", user.email),
+                ("First name", user.firstname),
+                ("Last name", user.lastname),
+                ("Account type", user.account_type),
+                ("Active", "yes" if user.active else "no"),
+                ("Site admin", "yes" if user.site_admin else "no"),
+                ("Home town", user.home_town),
+                ("Home state", user.home_state),
+                ("Home country", user.home_country),
+                ("Home gym", user.home_gym),
+                ("Last login", user.last_login_at),
+            ]
+        ),
+        entity_id=user.id,
+        entity_type_label="User",
+        edit_url=url_for("core.admin_user_edit_route", user_id=user.id),
+        location=_join_location(user.home_town, user.home_state, user.home_country),
+        page_title=user.display_name,
+        recent_links=_recent_user_links(exclude_user_id=user.id),
+        subtitle=user.email,
+        tags=_combine_tags(user.tags, user.preference_tags),
+    )
+
+
+@bp.route("/admin/users/<int:user_id>/edit", methods=["GET", "POST"])
+def admin_user_edit_route(user_id: int) -> str | Any:
+    user = _get_or_404(User, user_id)
+    if request.method == "POST":
+        password = _form_optional_str("password")
+        password_confirm = _form_optional_str("password_confirm")
+        if password and password != password_confirm:
+            flash("Password confirmation did not match.", "error")
+        elif password and len(password) < 8:
+            flash("Password must be at least 8 characters.", "error")
+        else:
+            try:
+                update_user(
+                    user,
+                    username=_form_required_str("username"),
+                    email=_form_required_str("email"),
+                    password=password,
+                    firstname=_form_optional_str("firstname"),
+                    lastname=_form_optional_str("lastname"),
+                    account_type=_form_optional_str("account_type"),
+                    preference_tags=_form_csv_list("preference_tags"),
+                    tags=_form_csv_list("tags"),
+                    home_town=_form_optional_str("home_town"),
+                    home_state=_form_optional_str("home_state"),
+                    home_country=_form_optional_str("home_country"),
+                    home_gym=_form_optional_str("home_gym"),
+                    home_latlng=_form_optional_str("home_latlng"),
+                    geoll=_form_optional_str("geoll"),
+                    active=_form_bool("active"),
+                    site_admin=_form_bool("site_admin"),
+                )
+            except ValueError as exc:
+                flash(str(exc), "error")
+            else:
+                flash("User saved.", "success")
+                return redirect(url_for("core.admin_user_detail_route", user_id=user.id))
+
+    return render_template(
+        "admin/edit.html",
+        dashboard_url=url_for("core.admin_dashboard_route"),
+        detail_url=url_for("core.admin_user_detail_route", user_id=user.id),
+        entity_id=user.id,
+        entity_type_label="User",
+        fields=[
+            _edit_text_field("username", "Username", user.username),
+            _edit_text_field("email", "Email", user.email),
+            _edit_text_field("firstname", "First name", user.firstname),
+            _edit_text_field("lastname", "Last name", user.lastname),
+            _edit_text_field("account_type", "Account type", user.account_type),
+            _edit_checkbox_field("active", "Active", user.active),
+            _edit_checkbox_field("site_admin", "Site admin", user.site_admin),
+            _edit_text_field("home_town", "Home town", user.home_town),
+            _edit_text_field("home_state", "Home state", user.home_state),
+            _edit_text_field("home_country", "Home country", user.home_country),
+            _edit_text_field("home_gym", "Home gym", user.home_gym),
+            _edit_text_field("home_latlng", "Home latlng", user.home_latlng),
+            _edit_text_field("geoll", "Geometry", user.geoll),
+            _edit_text_field("tags", "Tags (comma separated)", _csv_value(user.tags)),
+            _edit_text_field(
+                "preference_tags",
+                "Preference tags (comma separated)",
+                _csv_value(user.preference_tags),
+            ),
+            _edit_text_field("password", "New password", None, kind="password"),
+            _edit_text_field(
+                "password_confirm",
+                "Confirm new password",
+                None,
+                kind="password",
+            ),
+        ],
+        intro_text="Manage account details, activation state, and site-admin access.",
+        mode_title="Edit",
+        page_title=user.display_name,
+        submit_label="Save Changes",
+    )
+
+
+@bp.route("/admin/users/new", methods=["GET", "POST"])
+def admin_user_new_route() -> str | Any:
+    if request.method == "POST":
+        password = _form_required_str("password")
+        password_confirm = _form_required_str("password_confirm")
+        if password != password_confirm:
+            flash("Password confirmation did not match.", "error")
+        elif len(password) < 8:
+            flash("Password must be at least 8 characters.", "error")
+        else:
+            try:
+                user = create_user(
+                    username=_form_required_str("username"),
+                    email=_form_required_str("email"),
+                    password=password,
+                    firstname=_form_optional_str("firstname"),
+                    lastname=_form_optional_str("lastname"),
+                    account_type=_form_optional_str("account_type"),
+                    preference_tags=_form_csv_list("preference_tags"),
+                    tags=_form_csv_list("tags"),
+                    home_town=_form_optional_str("home_town"),
+                    home_state=_form_optional_str("home_state"),
+                    home_country=_form_optional_str("home_country"),
+                    home_gym=_form_optional_str("home_gym"),
+                    home_latlng=_form_optional_str("home_latlng"),
+                    geoll=_form_optional_str("geoll"),
+                    active=_form_bool("active"),
+                    site_admin=_form_bool("site_admin"),
+                )
+            except ValueError as exc:
+                flash(str(exc), "error")
+            else:
+                flash("User created.", "success")
+                return redirect(url_for("core.admin_user_detail_route", user_id=user.id))
+
+    return render_template(
+        "admin/edit.html",
+        dashboard_url=url_for("core.admin_dashboard_route"),
+        detail_url=None,
+        entity_id=None,
+        entity_type_label="User",
+        fields=[
+            _edit_text_field("username", "Username", None),
+            _edit_text_field("email", "Email", None),
+            _edit_text_field("firstname", "First name", None),
+            _edit_text_field("lastname", "Last name", None),
+            _edit_text_field("account_type", "Account type", None),
+            _edit_checkbox_field("active", "Active", True),
+            _edit_checkbox_field("site_admin", "Site admin", False),
+            _edit_text_field("home_town", "Home town", None),
+            _edit_text_field("home_state", "Home state", None),
+            _edit_text_field("home_country", "Home country", None),
+            _edit_text_field("home_gym", "Home gym", None),
+            _edit_text_field("home_latlng", "Home latlng", None),
+            _edit_text_field("geoll", "Geometry", None),
+            _edit_text_field("tags", "Tags (comma separated)", None),
+            _edit_text_field("preference_tags", "Preference tags (comma separated)", None),
+            _edit_text_field("password", "Password", None, kind="password"),
+            _edit_text_field("password_confirm", "Confirm password", None, kind="password"),
+        ],
+        intro_text="Create a user account directly from the admin UI.",
+        mode_title="Create",
+        page_title="User",
+        submit_label="Create User",
     )
 
 
@@ -2065,6 +2287,16 @@ def _dashboard_group_item(group: Group) -> dict[str, object]:
     }
 
 
+def _dashboard_user_item(user: User) -> dict[str, object]:
+    return {
+        "detail_url": url_for("core.admin_user_detail_route", user_id=user.id),
+        "id": user.id,
+        "location": _join_location(user.home_town, user.home_state, user.home_country),
+        "subtitle": user.email,
+        "title": user.display_name,
+    }
+
+
 def _dashboard_route_item(route: Route) -> dict[str, object]:
     return {
         "detail_url": url_for("core.admin_route_detail_route", route_id=route.id),
@@ -2149,11 +2381,35 @@ def _recent_activity_links(
     return links
 
 
+def _recent_user_links(
+    *,
+    exclude_user_id: int | None = None,
+    limit: int = 6,
+) -> list[dict[str, object]]:
+    statement = select(User).order_by(User.update_date.desc()).limit(limit + 1)
+    users = list(db.session.scalars(statement))
+    links: list[dict[str, object]] = []
+    for user in users:
+        if exclude_user_id is not None and user.id == exclude_user_id:
+            continue
+        links.append(
+            {
+                "detail_url": url_for("core.admin_user_detail_route", user_id=user.id),
+                "entity_type_label": "User",
+                "title": user.display_name,
+            }
+        )
+        if len(links) >= limit:
+            break
+    return links
+
+
 def _admin_detail_url(entity_type: str, entity_id: int | None) -> str | None:
     if entity_id is None:
         return None
 
     endpoint_map = {
+        "user": "core.admin_user_detail_route",
         "group": "core.admin_group_detail_route",
         "route": "core.admin_route_detail_route",
         "segment": "core.admin_segment_detail_route",
@@ -2165,6 +2421,8 @@ def _admin_detail_url(entity_type: str, entity_id: int | None) -> str | None:
     if endpoint is None:
         return None
 
+    if entity_type == "user":
+        return url_for(endpoint, user_id=entity_id)
     if entity_type == "group":
         return url_for(endpoint, group_id=entity_id)
     if entity_type == "route":
@@ -2196,8 +2454,14 @@ def _detail_rows(
     return rows
 
 
-def _edit_text_field(name: str, label: str, value: object | None) -> dict[str, object]:
-    return {"kind": "text", "label": label, "name": name, "value": _display_value(value) or ""}
+def _edit_text_field(
+    name: str,
+    label: str,
+    value: object | None,
+    *,
+    kind: str = "text",
+) -> dict[str, object]:
+    return {"kind": kind, "label": label, "name": name, "value": _display_value(value) or ""}
 
 
 def _edit_textarea_field(

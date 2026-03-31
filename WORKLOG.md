@@ -284,3 +284,77 @@ This file records session history for `explor_codex` so future work can resume w
 - The next likely step is either:
   - secondary admin entities like images, links, dues, and fees, or
   - deeper UX polish such as breadcrumbs, richer success states, and inline related-record pickers.
+
+## 2026-03-30 (Auth Stack Completion)
+
+### Investigated
+- Revisited the earlier auth groundwork and confirmed it only covered the foundation:
+  - `User`
+  - password hashing
+  - reset-token primitives
+  - `Flask-Login` initialization
+- Identified the remaining missing product-level auth pieces:
+  - login/logout
+  - signup
+  - password reset forms
+  - site-wide admin authorization
+  - admin user-management pages
+- Also found a real policy gap: the HTML admin surface had no auth gate, and the write-side JSON API was still publicly writable.
+
+### Changed
+- Added a real `site_admin` flag to [app/models/user.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/models/user.py) and the migration [migrations/versions/9815df31c0ad_add_site_admin_flag_to_users.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/migrations/versions/9815df31c0ad_add_site_admin_flag_to_users.py).
+- Added user-domain services in [app/services/users.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/services/users.py) for:
+  - user creation
+  - user updates
+  - authentication
+  - login timestamp recording
+  - user listing
+- Rebuilt [app/auth.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/auth.py) into a real auth blueprint with:
+  - `/auth/login`
+  - `/auth/logout`
+  - `/auth/signup`
+  - `/auth/password-reset`
+  - `/auth/password-reset/<token>`
+  - `/auth/account`
+- Registered the auth blueprint and a simple HTML `403` page from [app/__init__.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/__init__.py).
+- Added auth and error templates:
+  - [templates/auth/login.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/login.html)
+  - [templates/auth/signup.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/signup.html)
+  - [templates/auth/password_reset_request.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/password_reset_request.html)
+  - [templates/auth/password_reset.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/password_reset.html)
+  - [templates/auth/account.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/account.html)
+  - [templates/errors/403.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/errors/403.html)
+- Added real admin user-management pages in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) and [templates/admin/users.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/users.html):
+  - `/admin/users`
+  - `/admin/users/new`
+  - `/admin/users/<id>`
+  - `/admin/users/<id>/edit`
+- Extended the shared base/dashboard/admin navigation so users and auth flows are part of the main browser surface.
+- Added authorization enforcement in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py):
+  - all `/admin/*` HTML routes require an authenticated active site admin
+  - write-side `/api/*` routes require an authenticated active site admin
+  - read-only GET API routes remain open
+- Extended [tests/conftest.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/conftest.py) and [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) with:
+  - signup/login/logout coverage
+  - password reset request/reset coverage
+  - admin and API authorization coverage
+  - admin user-management coverage
+  - updated admin/API tests using authenticated site-admin clients
+
+### Decisions
+- Use a simple `site_admin` boolean on `User` instead of reviving the old `Role` / `RolesUsers` stack from `explor_alpha`.
+- Auto-promote the first registered user to site admin so a fresh local instance is bootstrappable without manual SQL.
+- Ensure at least one active site admin always remains by blocking edits that would remove the last one.
+- Keep signup optional via config (`AUTH_SIGNUP_ENABLED`) rather than hard-coding public registration forever.
+- Keep password reset local/dev friendly by exposing the generated reset link in the browser when `AUTH_SHOW_RESET_LINKS` is enabled, instead of pretending email delivery already exists.
+
+### Why
+- This finishes the auth stack in a way that fits the rebuilt app instead of reintroducing the older Flask-Security-era complexity.
+- A dedicated site-admin flag is enough for current project needs, while group membership roles continue to handle group-local permissions separately.
+- Protecting both the browser admin and the write-side JSON API closes the biggest remaining security gap in the new app.
+
+### Notes for the next session
+- The project now has real end-user auth flows and real site-admin authorization.
+- The next likely step is either:
+  - secondary admin entities like images, links, dues, and fees, now that user/admin management is in place, or
+  - deeper auth polish such as email delivery for reset links, remember-me behavior, or per-feature authorization beyond the site-admin gate.

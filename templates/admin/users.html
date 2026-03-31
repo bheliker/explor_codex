@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Users | explor_codex{% endblock %}
+
+{% block body %}
+  <section class="hero">
+    <p class="eyebrow">Admin Users</p>
+    <h1>{{ page_title }}</h1>
+    <p>Manage account access, site-admin privileges, and the current operator roster.</p>
+  </section>
+
+  <section class="grid">
+    <aside class="panel stack">
+      <h2>Actions</h2>
+      <a class="pill" href="{{ url_for('core.admin_user_new_route') }}">New user</a>
+      <a class="pill" href="{{ url_for('core.admin_dashboard_route') }}">Back to dashboard</a>
+    </aside>
+
+    <section class="panel">
+      <h2>Directory</h2>
+      {% if users %}
+        <div class="result-list">
+          {% for user in users %}
+            <article class="result-card">
+              <div class="result-head">
+                <h3 class="result-title"><a href="{{ user.detail_url }}">{{ user.title }}</a></h3>
+                <span class="result-type">ID {{ user.id }}</span>
+              </div>
+              <div class="result-meta">
+                {% if user.subtitle %}
+                  <div>{{ user.subtitle }}</div>
+                {% endif %}
+                {% if user.location %}
+                  <div>{{ user.location }}</div>
+                {% endif %}
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty">No user accounts yet.</div>
+      {% endif %}
+    </section>
+  </section>
+{% endblock %}

@@ -173,7 +173,11 @@
     }
 
     input[type="search"],
-    input[type="number"] {
+    input[type="number"],
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    textarea {
       width: 100%;
       padding: 12px 14px;
       border: 1px solid var(--line);
@@ -210,6 +214,10 @@
       font: inherit;
       font-weight: 600;
       cursor: pointer;
+    }
+
+    .inline-form {
+      margin: 0;
     }
 
     .summary {
@@ -307,13 +315,24 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <div class="topbar-title">explor_codex admin</div>
+      <div class="topbar-title">explor_codex</div>
       <nav class="topbar-nav">
-        <a class="nav-link" href="{{ url_for('core.admin_dashboard_route') }}">Dashboard</a>
-        <a class="nav-link" href="{{ url_for('core.admin_search_route') }}">Search</a>
-        <a class="nav-link" href="{{ url_for('core.admin_group_new_route') }}">New Group</a>
-        <a class="nav-link" href="{{ url_for('core.admin_route_new_route') }}">New Route</a>
-        <a class="nav-link" href="{{ url_for('core.admin_event_new_route') }}">New Event</a>
+        {% if current_user.is_authenticated and current_user.site_admin %}
+          <a class="nav-link" href="{{ url_for('core.admin_dashboard_route') }}">Dashboard</a>
+          <a class="nav-link" href="{{ url_for('core.admin_search_route') }}">Search</a>
+          <a class="nav-link" href="{{ url_for('core.admin_user_list_route') }}">Users</a>
+        {% endif %}
+        {% if current_user.is_authenticated %}
+          <a class="nav-link" href="{{ url_for('auth.account') }}">Account</a>
+          <form class="inline-form" method="post" action="{{ url_for('auth.logout') }}">
+            <button class="nav-link" type="submit">Logout</button>
+          </form>
+        {% else %}
+          <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
+          {% if config["AUTH_SIGNUP_ENABLED"] %}
+            <a class="nav-link" href="{{ url_for('auth.signup') }}">Sign Up</a>
+          {% endif %}
+        {% endif %}
       </nav>
     </header>
     {% with flashes = get_flashed_messages(with_categories=true) %}

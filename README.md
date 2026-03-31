@@ -25,7 +25,17 @@ The app exposes:
 
 - `/`
 - `/health`
+- `/auth/login`
+- `/auth/logout`
+- `/auth/signup`
+- `/auth/password-reset`
+- `/auth/password-reset/<token>`
+- `/auth/account`
 - `/admin`
+- `/admin/users`
+- `/admin/users/new`
+- `/admin/users/<id>`
+- `/admin/users/<id>/edit`
 - `/admin/search`
 - `/admin/groups/new`
 - `/admin/groups/<id>`
@@ -107,11 +117,22 @@ types, and those detail pages include recent-activity links back into the rest o
 surface. The admin UI now supports:
 
 - a dashboard at `/admin`
+- a protected user-management area at `/admin/users`
 - browser-based create flows for groups, routes, segments, events, points of interest, and
-  activities
+  activities, plus user creation for admins
 - browser-based edit flows for those same core entities
 - flash-based success and validation feedback for admin form submissions
 - shared navigation between dashboard, search, detail, create, and edit pages
+
+Authentication now has real end-user and admin flows:
+
+- login/logout via `Flask-Login`
+- public signup controlled by `AUTH_SIGNUP_ENABLED`
+- password reset request and reset-confirm routes backed by `itsdangerous` tokens
+- a `site_admin` flag on `User` for site-wide authorization
+- automatic promotion of the first registered user to site admin
+- write-side `/api/*` routes and all `/admin/*` routes now require an authenticated active
+  site admin, while read-only GET API endpoints remain open
 
 Routes, segments, and activities now carry `summary_polyline` and `full_track` geometry payloads.
 POIs now also carry a `geoll` point geometry alongside their compatibility `lat` and `lon` fields.
@@ -152,7 +173,8 @@ These are wired for PostGIS on Postgres while remaining verification-friendly on
 │   │   ├── search.py
 │   │   ├── points_of_interest.py
 │   │   ├── routes.py
-│   │   └── segments.py
+│   │   ├── segments.py
+│   │   └── users.py
 │   └── routes.py
 ├── docker-compose.yml
 ├── migrations/

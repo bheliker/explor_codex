@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Forbidden | explor_codex{% endblock %}
+
+{% block body %}
+  <section class="hero">
+    <p class="eyebrow">Access</p>
+    <h1>Site admin access required</h1>
+    <p>This page is reserved for authenticated site admins.</p>
+  </section>
+
+  <section class="panel stack">
+    <h2>Next</h2>
+    <div class="result-meta">
+      {% if current_user.is_authenticated %}
+        <div><a href="{{ url_for('auth.account') }}">Back to account</a></div>
+      {% else %}
+        <div><a href="{{ url_for('auth.login') }}">Log in</a></div>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

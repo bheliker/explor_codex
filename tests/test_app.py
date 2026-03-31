@@ -1,5 +1,6 @@
 from flask import Flask
 from flask.testing import FlaskClient
+from sqlalchemy import select
 
 from app.bootstrap import ensure_canonical_lookup_rows
 from app.config import Config, TestConfig
@@ -54,6 +55,29 @@ from app.services import (
     search_documents,
     set_rsvp,
 )
+
+
+def _create_test_user(
+    app: Flask,
+    *,
+    username: str,
+    email: str,
+    password: str = "secret123",
+    site_admin: bool = False,
+    active: bool = True,
+) -> int:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        user = User(
+            username=username,
+            email=email,
+            active=active,
+            site_admin=site_admin,
+        )
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+        return user.id
 
 
 def test_index_route(client: FlaskClient) -> None:
@@ -123,6 +147,186 @@ def test_user_password_and_reset_token_round_trip(app: Flask, database: None) ->
         assert restored.home_gym == "Lake Merritt"
         assert restored.home_latlng == "37.8044,-122.2711"
         assert restored.geoll == '{"type":"Point","coordinates":[-122.2711,37.8044]}'
+
+
+def test_signup_creates_first_site_admin(client: FlaskClient, app: Flask, database: None) -> None:
+    response = client.post(
+        "/auth/signup",
+        data={
+            "username": "founder",
+            "email": "founder@example.com",
+            "firstname": "Founding",
+            "lastname": "Admin",
+            "password": "secret123",
+            "password_confirm": "secret123",
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "site admin access is enabled" in html
+    assert "founder@example.com" in html
+
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        user = db.session.scalar(select(User).where(User.username == "founder"))
+        assert user is not None
+        assert user.site_admin is True
+
+
+def test_login_and_logout_flow(client: FlaskClient, app: Flask, database: None) -> None:
+    _create_test_user(app, username="login-user", email="login@example.com", site_admin=False)
+
+    login_response = client.post(
+        "/auth/login",
+        data={"identity": "login-user", "password": "secret123"},
+        follow_redirects=True,
+    )
+    assert login_response.status_code == 200
+    login_html = login_response.get_data(as_text=True)
+    assert "Welcome back" in login_html
+    assert "login@example.com" in login_html
+
+    logout_response = client.post("/auth/logout", follow_redirects=True)
+    assert logout_response.status_code == 200
+    logout_html = logout_response.get_data(as_text=True)
+    assert "You have been logged out." in logout_html
+    assert "Log in" in logout_html
+
+
+def test_password_reset_request_and_reset_flow(
+    client: FlaskClient, app: Flask, database: None
+) -> None:
+    _create_test_user(app, username="reset-user", email="reset@example.com")
+
+    request_response = client.post(
+        "/auth/password-reset",
+        data={"email": "reset@example.com"},
+        follow_redirects=True,
+    )
+    assert request_response.status_code == 200
+    request_html = request_response.get_data(as_text=True)
+    assert "/auth/password-reset/" in request_html
+
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        user = db.session.scalar(select(User).where(User.email == "reset@example.com"))
+        assert user is not None
+        token = user.get_reset_password_token()
+
+    reset_response = client.post(
+        f"/auth/password-reset/{token}",
+        data={"password": "newsecret123", "password_confirm": "newsecret123"},
+        follow_redirects=True,
+    )
+    assert reset_response.status_code == 200
+    reset_html = reset_response.get_data(as_text=True)
+    assert "Password updated." in reset_html
+
+    login_response = client.post(
+        "/auth/login",
+        data={"identity": "reset@example.com", "password": "newsecret123"},
+        follow_redirects=True,
+    )
+    assert login_response.status_code == 200
+    assert "Welcome back" in login_response.get_data(as_text=True)
+
+
+def test_admin_routes_require_login(client: FlaskClient, database: None) -> None:
+    response = client.get("/admin", follow_redirects=False)
+    assert response.status_code == 302
+    assert "/auth/login" in response.headers["Location"]
+
+
+def test_non_admin_user_gets_forbidden_on_admin_route(
+    client: FlaskClient, app: Flask, database: None
+) -> None:
+    user_id = _create_test_user(app, username="member-user", email="member@example.com")
+    with client.session_transaction() as session:
+        session["_user_id"] = str(user_id)
+        session["_fresh"] = True
+
+    response = client.get("/admin", follow_redirects=False)
+    assert response.status_code == 403
+
+
+def test_api_post_requires_site_admin(client: FlaskClient, database: None) -> None:
+    response = client.post(
+        "/api/groups",
+        json={"name": "Unauthorized", "shortname": "unauthorized"},
+    )
+    assert response.status_code == 401
+    assert response.get_json() == {"error": "authentication required"}
+
+
+def test_non_admin_user_gets_forbidden_on_api_post(
+    client: FlaskClient, app: Flask, database: None
+) -> None:
+    user_id = _create_test_user(app, username="api-member", email="api-member@example.com")
+    with client.session_transaction() as session:
+        session["_user_id"] = str(user_id)
+        session["_fresh"] = True
+
+    response = client.post(
+        "/api/groups",
+        json={"name": "Blocked", "shortname": "blocked"},
+    )
+    assert response.status_code == 403
+    assert response.get_json() == {"error": "site admin access required"}
+
+
+def test_admin_user_pages_support_create_and_edit(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
+    create_response = admin_client.post(
+        "/admin/users/new",
+        data={
+            "username": "ops-user",
+            "email": "ops@example.com",
+            "firstname": "Ops",
+            "lastname": "User",
+            "active": "true",
+            "site_admin": "true",
+            "password": "secret123",
+            "password_confirm": "secret123",
+        },
+        follow_redirects=True,
+    )
+    assert create_response.status_code == 200
+    create_html = create_response.get_data(as_text=True)
+    assert "User created." in create_html
+    assert "ops@example.com" in create_html
+
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        user = db.session.scalar(select(User).where(User.username == "ops-user"))
+        assert user is not None
+        user_id = user.id
+
+    list_response = admin_client.get("/admin/users")
+    assert list_response.status_code == 200
+    assert "ops@example.com" in list_response.get_data(as_text=True)
+
+    edit_response = admin_client.post(
+        f"/admin/users/{user_id}/edit",
+        data={
+            "username": "ops-user",
+            "email": "ops@example.com",
+            "firstname": "Updated",
+            "lastname": "Operator",
+            "account_type": "moderator",
+            "active": "true",
+            "site_admin": "true",
+            "password": "",
+            "password_confirm": "",
+        },
+        follow_redirects=True,
+    )
+    assert edit_response.status_code == 200
+    edit_html = edit_response.get_data(as_text=True)
+    assert "User saved." in edit_html
+    assert "Updated Operator" in edit_html
 
 
 def test_membership_models_persist_relationships(app: Flask, database: None) -> None:
@@ -839,7 +1043,7 @@ def test_event_can_link_route_and_activity(app: Flask, database: None) -> None:
 
 def test_api_endpoints_exercise_group_and_event_flows(
     app: Flask,
-    client: FlaskClient,
+    admin_client: FlaskClient,
     database: None,
 ) -> None:
     with app.app_context():
@@ -860,14 +1064,14 @@ def test_api_endpoints_exercise_group_and_event_flows(
         calendar_id = calendar.id
         hero_photo_id = hero_photo.id
 
-    bootstrap_response = client.post("/api/bootstrap/lookup-rows", json={})
+    bootstrap_response = admin_client.post("/api/bootstrap/lookup-rows", json={})
     assert bootstrap_response.status_code == 200
     assert bootstrap_response.get_json() == {
         "event_invitation_statuses": list(EVENT_INVITATION_STATUS_NAMES),
         "group_roles": list(GROUP_ROLE_NAMES),
     }
 
-    group_response = client.post(
+    group_response = admin_client.post(
         "/api/groups",
         json={
             "name": "API Group",
@@ -910,7 +1114,7 @@ def test_api_endpoints_exercise_group_and_event_flows(
     }
     group_id = group_payload["id"]
 
-    membership_response = client.post(
+    membership_response = admin_client.post(
         f"/api/groups/{group_id}/memberships",
         json={"user_id": owner_id},
     )
@@ -922,7 +1126,7 @@ def test_api_endpoints_exercise_group_and_event_flows(
         "role_name": "pending",
     }
 
-    link_response = client.post(
+    link_response = admin_client.post(
         f"/api/groups/{group_id}/links",
         json={
             "name": "API Site",
@@ -941,7 +1145,7 @@ def test_api_endpoints_exercise_group_and_event_flows(
         "url": "https://example.com/api-group",
     }
 
-    dues_response = client.post(
+    dues_response = admin_client.post(
         f"/api/groups/{group_id}/dues",
         json={
             "name": "API Dues",
@@ -961,7 +1165,7 @@ def test_api_endpoints_exercise_group_and_event_flows(
         "tags": ["annual", "members"],
     }
 
-    image_create_response = client.post(
+    image_create_response = admin_client.post(
         "/api/images",
         json={
             "photographer_id": owner_id,
@@ -973,7 +1177,7 @@ def test_api_endpoints_exercise_group_and_event_flows(
     assert image_create_response.status_code == 201
     image_id = image_create_response.get_json()["id"]
 
-    event_response = client.post(
+    event_response = admin_client.post(
         "/api/events",
         json={
             "name": "API Event",
@@ -1020,7 +1224,7 @@ def test_api_endpoints_exercise_group_and_event_flows(
     }
     event_id = event_payload["id"]
 
-    calendar_link_response = client.post(
+    calendar_link_response = admin_client.post(
         f"/api/events/{event_id}/calendar-links",
         json={"calendar_id": calendar_id},
     )
@@ -1030,7 +1234,7 @@ def test_api_endpoints_exercise_group_and_event_flows(
         "calendar_ids": [calendar_id],
     }
 
-    event_image_response = client.post(
+    event_image_response = admin_client.post(
         f"/api/events/{event_id}/images",
         json={"image_id": image_id},
     )
@@ -1040,7 +1244,7 @@ def test_api_endpoints_exercise_group_and_event_flows(
         "image_ids": [image_id],
     }
 
-    event_image_list_response = client.get(f"/api/events/{event_id}/images")
+    event_image_list_response = admin_client.get(f"/api/events/{event_id}/images")
     assert event_image_list_response.status_code == 200
     assert event_image_list_response.get_json() == {
         "items": [
@@ -1065,7 +1269,7 @@ def test_api_endpoints_exercise_group_and_event_flows(
         ]
     }
 
-    rsvp_response = client.post(
+    rsvp_response = admin_client.post(
         f"/api/events/{event_id}/rsvps",
         json={"user_id": attendee_id, "status_name": "attending"},
     )
@@ -1077,7 +1281,7 @@ def test_api_endpoints_exercise_group_and_event_flows(
         "status_name": "attending",
     }
 
-    fee_response = client.post(
+    fee_response = admin_client.post(
         f"/api/events/{event_id}/fees",
         json={
             "name": "API Event Fee",
@@ -1100,7 +1304,7 @@ def test_api_endpoints_exercise_group_and_event_flows(
 
 def test_api_event_can_link_route_and_activity(
     app: Flask,
-    client: FlaskClient,
+    admin_client: FlaskClient,
     database: None,
 ) -> None:
     with app.app_context():
@@ -1123,7 +1327,7 @@ def test_api_event_can_link_route_and_activity(
         route_id = route.id
         activity_id = activity.id
 
-    response = client.post(
+    response = admin_client.post(
         "/api/events",
         json={
             "name": "Linked API Event",
@@ -1160,7 +1364,7 @@ def test_api_event_can_link_route_and_activity(
 
 def test_api_group_can_attach_and_list_routes(
     app: Flask,
-    client: FlaskClient,
+    admin_client: FlaskClient,
     database: None,
 ) -> None:
     with app.app_context():
@@ -1172,7 +1376,7 @@ def test_api_group_can_attach_and_list_routes(
         group_id = group.id
         route_id = route.id
 
-    attach_response = client.post(
+    attach_response = admin_client.post(
         f"/api/groups/{group_id}/routes",
         json={"route_id": route_id},
     )
@@ -1182,7 +1386,7 @@ def test_api_group_can_attach_and_list_routes(
         "route_ids": [route_id],
     }
 
-    list_response = client.get(f"/api/groups/{group_id}/routes")
+    list_response = admin_client.get(f"/api/groups/{group_id}/routes")
     assert list_response.status_code == 200
     assert list_response.get_json() == {
         "items": [
@@ -1219,14 +1423,14 @@ def test_api_group_can_attach_and_list_routes(
 
 def test_api_route_can_attach_and_list_links(
     app: Flask,
-    client: FlaskClient,
+    admin_client: FlaskClient,
     database: None,
 ) -> None:
     with app.app_context():
         route = create_route(name="API Linked Route")
         route_id = route.id
 
-    attach_response = client.post(
+    attach_response = admin_client.post(
         f"/api/routes/{route_id}/links",
         json={
             "name": "Route Site",
@@ -1245,7 +1449,7 @@ def test_api_route_can_attach_and_list_links(
         "url": "https://example.com/routes/api-linked",
     }
 
-    list_response = client.get(f"/api/routes/{route_id}/links")
+    list_response = admin_client.get(f"/api/routes/{route_id}/links")
     assert list_response.status_code == 200
     assert list_response.get_json() == {
         "items": [
@@ -1296,7 +1500,9 @@ def test_point_of_interest_services_create_and_filter(app: Flask, database: None
         assert owned_points[0].geoll == '{"type":"Point","coordinates":[-122.2,37.8]}'
 
 
-def test_api_point_of_interest_endpoints(app: Flask, client: FlaskClient, database: None) -> None:
+def test_api_point_of_interest_endpoints(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
     geoll = '{"type":"Point","coordinates":[-122.51,37.91]}'
 
     with app.app_context():
@@ -1306,7 +1512,7 @@ def test_api_point_of_interest_endpoints(app: Flask, client: FlaskClient, databa
         db.session.commit()
         owner_id = owner.id
 
-    create_response = client.post(
+    create_response = admin_client.post(
         "/api/points-of-interest",
         json={
             "owner_id": owner_id,
@@ -1338,7 +1544,7 @@ def test_api_point_of_interest_endpoints(app: Flask, client: FlaskClient, databa
         "icon": "binoculars",
     }
 
-    list_response = client.get(f"/api/points-of-interest?owner_id={owner_id}")
+    list_response = admin_client.get(f"/api/points-of-interest?owner_id={owner_id}")
     assert list_response.status_code == 200
     assert list_response.get_json() == {
         "items": [
@@ -1359,7 +1565,7 @@ def test_api_point_of_interest_endpoints(app: Flask, client: FlaskClient, databa
         ]
     }
 
-    image_create_response = client.post(
+    image_create_response = admin_client.post(
         "/api/images",
         json={
             "photographer_id": owner_id,
@@ -1370,7 +1576,7 @@ def test_api_point_of_interest_endpoints(app: Flask, client: FlaskClient, databa
     assert image_create_response.status_code == 201
     image_id = image_create_response.get_json()["id"]
 
-    poi_image_response = client.post(
+    poi_image_response = admin_client.post(
         f"/api/points-of-interest/{create_response.get_json()['id']}/images",
         json={"image_id": image_id},
     )
@@ -1380,7 +1586,7 @@ def test_api_point_of_interest_endpoints(app: Flask, client: FlaskClient, databa
         "image_ids": [image_id],
     }
 
-    poi_image_list_response = client.get(
+    poi_image_list_response = admin_client.get(
         f"/api/points-of-interest/{create_response.get_json()['id']}/images"
     )
     assert poi_image_list_response.status_code == 200
@@ -1461,7 +1667,7 @@ def test_route_services_create_and_filter(app: Flask, database: None) -> None:
         assert creator_routes[0].full_track is not None
 
 
-def test_api_route_endpoints(app: Flask, client: FlaskClient, database: None) -> None:
+def test_api_route_endpoints(app: Flask, admin_client: FlaskClient, database: None) -> None:
     summary_polyline = '{"type":"LineString","coordinates":[[-122.48,37.83],[-122.45,37.85]]}'
     full_track = '{"type":"LineString","coordinates":[[-122.48,37.83,5],[-122.45,37.85,15]]}'
 
@@ -1472,7 +1678,7 @@ def test_api_route_endpoints(app: Flask, client: FlaskClient, database: None) ->
         db.session.commit()
         creator_id = creator.id
 
-    create_response = client.post(
+    create_response = admin_client.post(
         "/api/routes",
         json={
             "creator_id": creator_id,
@@ -1530,7 +1736,7 @@ def test_api_route_endpoints(app: Flask, client: FlaskClient, database: None) ->
         "map_thumbnail": "https://example.com/maps/marin.png",
     }
 
-    list_response = client.get(f"/api/routes?creator_id={creator_id}")
+    list_response = admin_client.get(f"/api/routes?creator_id={creator_id}")
     assert list_response.status_code == 200
     assert list_response.get_json() == {
         "items": [
@@ -1602,11 +1808,11 @@ def test_segment_services_create_and_attach_to_route(app: Flask, database: None)
         assert segment.routes[0].id == route.id
 
 
-def test_api_segment_endpoints(app: Flask, client: FlaskClient, database: None) -> None:
+def test_api_segment_endpoints(app: Flask, admin_client: FlaskClient, database: None) -> None:
     summary_polyline = '{"type":"LineString","coordinates":[[-122.6,37.9],[-122.5,37.84]]}'
     full_track = '{"type":"LineString","coordinates":[[-122.6,37.9,50],[-122.5,37.84,12]]}'
 
-    create_response = client.post(
+    create_response = admin_client.post(
         "/api/segments",
         json={
             "name": "Coastal Descent",
@@ -1666,7 +1872,7 @@ def test_api_segment_endpoints(app: Flask, client: FlaskClient, database: None) 
         "track_maxspeed": 18.7,
     }
 
-    list_response = client.get("/api/segments")
+    list_response = admin_client.get("/api/segments")
     assert list_response.status_code == 200
     assert list_response.get_json() == {
         "items": [
@@ -1702,7 +1908,9 @@ def test_api_segment_endpoints(app: Flask, client: FlaskClient, database: None) 
     }
 
 
-def test_api_can_attach_segment_to_route(app: Flask, client: FlaskClient, database: None) -> None:
+def test_api_can_attach_segment_to_route(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
     with app.app_context():
         db = app.extensions["sqlalchemy"]
         creator = User(
@@ -1717,7 +1925,7 @@ def test_api_can_attach_segment_to_route(app: Flask, client: FlaskClient, databa
         route_id = route.id
         segment_id = segment.id
 
-    attach_response = client.post(
+    attach_response = admin_client.post(
         f"/api/routes/{route_id}/segments",
         json={"segment_id": segment_id},
     )
@@ -1778,7 +1986,9 @@ def test_activity_services_create_and_filter(app: Flask, database: None) -> None
         assert route_activities[0].full_track is not None
 
 
-def test_api_activity_endpoints(app: Flask, client: FlaskClient, database: None) -> None:
+def test_api_activity_endpoints(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
     summary_polyline = '{"type":"LineString","coordinates":[[-122.42,37.78],[-122.39,37.8]]}'
     full_track = '{"type":"LineString","coordinates":[[-122.42,37.78,11],[-122.39,37.8,27]]}'
 
@@ -1795,7 +2005,7 @@ def test_api_activity_endpoints(app: Flask, client: FlaskClient, database: None)
         athlete_id = athlete.id
         route_id = route.id
 
-    create_response = client.post(
+    create_response = admin_client.post(
         "/api/activities",
         json={
             "athlete_id": athlete_id,
@@ -1857,7 +2067,9 @@ def test_api_activity_endpoints(app: Flask, client: FlaskClient, database: None)
         "full_track": full_track,
     }
 
-    list_response = client.get(f"/api/activities?athlete_id={athlete_id}&route_id={route_id}")
+    list_response = admin_client.get(
+        f"/api/activities?athlete_id={athlete_id}&route_id={route_id}"
+    )
     assert list_response.status_code == 200
     assert list_response.get_json() == {
         "items": [
@@ -1894,7 +2106,7 @@ def test_api_activity_endpoints(app: Flask, client: FlaskClient, database: None)
     }
 
 
-def test_api_image_endpoints(app: Flask, client: FlaskClient, database: None) -> None:
+def test_api_image_endpoints(app: Flask, admin_client: FlaskClient, database: None) -> None:
     geoll = '{"type":"Point","coordinates":[-122.41,37.78]}'
 
     with app.app_context():
@@ -1914,7 +2126,7 @@ def test_api_image_endpoints(app: Flask, client: FlaskClient, database: None) ->
         segment_id = segment.id
         activity_id = activity.id
 
-    create_response = client.post(
+    create_response = admin_client.post(
         "/api/images",
         json={
             "photographer_id": photographer_id,
@@ -1954,7 +2166,7 @@ def test_api_image_endpoints(app: Flask, client: FlaskClient, database: None) ->
         "url": "https://example.com/api-full.jpg",
     }
 
-    list_response = client.get(
+    list_response = admin_client.get(
         f"/api/images?photographer_id={photographer_id}&group_id={group_id}&segment_id={segment_id}&activity_id={activity_id}"
     )
     assert list_response.status_code == 200
@@ -2064,7 +2276,9 @@ def test_search_indexes_new_service_records(app: Flask, database: None) -> None:
         assert [result.entity_id for result in poi_results] == [point.id]
 
 
-def test_api_search_and_reindex_endpoints(app: Flask, client: FlaskClient, database: None) -> None:
+def test_api_search_and_reindex_endpoints(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
     with app.app_context():
         db = app.extensions["sqlalchemy"]
         group = Group(
@@ -2085,11 +2299,11 @@ def test_api_search_and_reindex_endpoints(app: Flask, client: FlaskClient, datab
         db.session.add_all([group, event])
         db.session.commit()
 
-    rebuild_response = client.post("/api/search/reindex", json={})
+    rebuild_response = admin_client.post("/api/search/reindex", json={})
     assert rebuild_response.status_code == 200
     assert rebuild_response.get_json()["indexed"] >= 2
 
-    search_response = client.get("/api/search?q=marin&type=group&type=event")
+    search_response = admin_client.get("/api/search?q=marin&type=group&type=event")
     assert search_response.status_code == 200
     payload = search_response.get_json()
     assert payload is not None
@@ -2102,13 +2316,13 @@ def test_api_search_and_reindex_endpoints(app: Flask, client: FlaskClient, datab
         ("group", "Mill Valley, CA"),
     }
 
-    limited_response = client.get("/api/search?q=marin&limit=1")
+    limited_response = admin_client.get("/api/search?q=marin&limit=1")
     assert limited_response.status_code == 200
     limited_payload = limited_response.get_json()
     assert limited_payload is not None
     assert len(limited_payload["items"]) == 1
 
-    missing_query_response = client.get("/api/search")
+    missing_query_response = admin_client.get("/api/search")
     assert missing_query_response.status_code == 400
 
 
@@ -2155,7 +2369,9 @@ def test_search_removes_documents_after_delete(app: Flask, database: None) -> No
         assert search_documents(query="hidden overlook") == []
 
 
-def test_admin_search_page_renders_results(app: Flask, client: FlaskClient, database: None) -> None:
+def test_admin_search_page_renders_results(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
     with app.app_context():
         db = app.extensions["sqlalchemy"]
         group = Group(
@@ -2176,7 +2392,7 @@ def test_admin_search_page_renders_results(app: Flask, client: FlaskClient, data
         db.session.add_all([group, route])
         db.session.commit()
 
-    response = client.get("/admin/search?q=fairfax&type=group&type=route&limit=5")
+    response = admin_client.get("/admin/search?q=fairfax&type=group&type=route&limit=5")
     assert response.status_code == 200
     html = response.get_data(as_text=True)
 
@@ -2186,8 +2402,8 @@ def test_admin_search_page_renders_results(app: Flask, client: FlaskClient, data
     assert "Fairfax, CA" in html
 
 
-def test_admin_search_page_handles_empty_state(client: FlaskClient, database: None) -> None:
-    response = client.get("/admin/search")
+def test_admin_search_page_handles_empty_state(admin_client: FlaskClient, database: None) -> None:
+    response = admin_client.get("/admin/search")
     assert response.status_code == 200
     html = response.get_data(as_text=True)
 
@@ -2195,7 +2411,7 @@ def test_admin_search_page_handles_empty_state(client: FlaskClient, database: No
 
 
 def test_admin_search_page_links_to_detail_views(
-    app: Flask, client: FlaskClient, database: None
+    app: Flask, admin_client: FlaskClient, database: None
 ) -> None:
     with app.app_context():
         db = app.extensions["sqlalchemy"]
@@ -2210,14 +2426,16 @@ def test_admin_search_page_links_to_detail_views(
         db.session.commit()
         event_id = event.id
 
-    response = client.get("/admin/search?q=summit")
+    response = admin_client.get("/admin/search?q=summit")
     assert response.status_code == 200
     html = response.get_data(as_text=True)
 
     assert f"/admin/events/{event_id}" in html
 
 
-def test_admin_group_detail_page_renders(app: Flask, client: FlaskClient, database: None) -> None:
+def test_admin_group_detail_page_renders(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
     with app.app_context():
         db = app.extensions["sqlalchemy"]
         group = Group(
@@ -2232,7 +2450,7 @@ def test_admin_group_detail_page_renders(app: Flask, client: FlaskClient, databa
         db.session.commit()
         group_id = group.id
 
-    response = client.get(f"/admin/groups/{group_id}")
+    response = admin_client.get(f"/admin/groups/{group_id}")
     assert response.status_code == 200
     html = response.get_data(as_text=True)
 
@@ -2241,7 +2459,9 @@ def test_admin_group_detail_page_renders(app: Flask, client: FlaskClient, databa
     assert "Oakland, CA" in html
 
 
-def test_admin_route_detail_page_renders(app: Flask, client: FlaskClient, database: None) -> None:
+def test_admin_route_detail_page_renders(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
     with app.app_context():
         db = app.extensions["sqlalchemy"]
         route = Route(
@@ -2256,7 +2476,7 @@ def test_admin_route_detail_page_renders(app: Flask, client: FlaskClient, databa
         db.session.commit()
         route_id = route.id
 
-    response = client.get(f"/admin/routes/{route_id}")
+    response = admin_client.get(f"/admin/routes/{route_id}")
     assert response.status_code == 200
     html = response.get_data(as_text=True)
 
@@ -2266,7 +2486,7 @@ def test_admin_route_detail_page_renders(app: Flask, client: FlaskClient, databa
 
 
 def test_admin_group_edit_page_updates_group_and_search(
-    app: Flask, client: FlaskClient, database: None
+    app: Flask, admin_client: FlaskClient, database: None
 ) -> None:
     with app.app_context():
         db = app.extensions["sqlalchemy"]
@@ -2282,7 +2502,7 @@ def test_admin_group_edit_page_updates_group_and_search(
         db.session.commit()
         group_id = group.id
 
-    response = client.post(
+    response = admin_client.post(
         f"/admin/groups/{group_id}/edit",
         data={
             "name": "North Shore Gravel",
@@ -2315,7 +2535,7 @@ def test_admin_group_edit_page_updates_group_and_search(
 
 
 def test_admin_route_edit_page_updates_route_and_search(
-    app: Flask, client: FlaskClient, database: None
+    app: Flask, admin_client: FlaskClient, database: None
 ) -> None:
     with app.app_context():
         db = app.extensions["sqlalchemy"]
@@ -2331,7 +2551,7 @@ def test_admin_route_edit_page_updates_route_and_search(
         db.session.commit()
         route_id = route.id
 
-    response = client.post(
+    response = admin_client.post(
         f"/admin/routes/{route_id}/edit",
         data={
             "name": "New Ridge Line",
@@ -2366,7 +2586,7 @@ def test_admin_route_edit_page_updates_route_and_search(
 
 
 def test_admin_event_edit_page_updates_event_and_search(
-    app: Flask, client: FlaskClient, database: None
+    app: Flask, admin_client: FlaskClient, database: None
 ) -> None:
     with app.app_context():
         db = app.extensions["sqlalchemy"]
@@ -2385,7 +2605,7 @@ def test_admin_event_edit_page_updates_event_and_search(
         route_id = route.id
         activity_id = activity.id
 
-    response = client.post(
+    response = admin_client.post(
         f"/admin/events/{event_id}/edit",
         data={
             "name": "Sunset Gravel Meetup",
@@ -2422,7 +2642,7 @@ def test_admin_event_edit_page_updates_event_and_search(
 
 
 def test_admin_dashboard_renders_counts_and_recent_records(
-    app: Flask, client: FlaskClient, database: None
+    app: Flask, admin_client: FlaskClient, database: None
 ) -> None:
     with app.app_context():
         db = app.extensions["sqlalchemy"]
@@ -2432,7 +2652,7 @@ def test_admin_dashboard_renders_counts_and_recent_records(
         db.session.add_all([group, route, event])
         db.session.commit()
 
-    response = client.get("/admin")
+    response = admin_client.get("/admin")
     assert response.status_code == 200
     html = response.get_data(as_text=True)
 
@@ -2448,9 +2668,9 @@ def test_admin_dashboard_renders_counts_and_recent_records(
 
 
 def test_admin_group_create_page_creates_group_and_search_document(
-    app: Flask, client: FlaskClient, database: None
+    app: Flask, admin_client: FlaskClient, database: None
 ) -> None:
-    response = client.post(
+    response = admin_client.post(
         "/admin/groups/new",
         data={
             "name": "Golden Gate Rollers",
@@ -2474,9 +2694,9 @@ def test_admin_group_create_page_creates_group_and_search_document(
 
 
 def test_admin_route_create_page_creates_route_and_search_document(
-    app: Flask, client: FlaskClient, database: None
+    app: Flask, admin_client: FlaskClient, database: None
 ) -> None:
-    response = client.post(
+    response = admin_client.post(
         "/admin/routes/new",
         data={
             "name": "Wildcat Figure Eight",
@@ -2501,9 +2721,9 @@ def test_admin_route_create_page_creates_route_and_search_document(
 
 
 def test_admin_event_create_page_creates_event_and_search_document(
-    app: Flask, client: FlaskClient, database: None
+    app: Flask, admin_client: FlaskClient, database: None
 ) -> None:
-    response = client.post(
+    response = admin_client.post(
         "/admin/events/new",
         data={
             "name": "Sunday Harbor Meetup",
@@ -2530,9 +2750,9 @@ def test_admin_event_create_page_creates_event_and_search_document(
 
 
 def test_admin_event_create_invalid_related_id_shows_flash_error(
-    client: FlaskClient, database: None
+    admin_client: FlaskClient, database: None
 ) -> None:
-    response = client.post(
+    response = admin_client.post(
         "/admin/events/new",
         data={
             "name": "Broken Link Event",
@@ -2548,7 +2768,7 @@ def test_admin_event_create_invalid_related_id_shows_flash_error(
 
 
 def test_admin_detail_pages_show_recent_activity_links(
-    app: Flask, client: FlaskClient, database: None
+    app: Flask, admin_client: FlaskClient, database: None
 ) -> None:
     with app.app_context():
         db = app.extensions["sqlalchemy"]
@@ -2559,7 +2779,7 @@ def test_admin_detail_pages_show_recent_activity_links(
         db.session.commit()
         current_group_id = current_group.id
 
-    response = client.get(f"/admin/groups/{current_group_id}")
+    response = admin_client.get(f"/admin/groups/{current_group_id}")
     assert response.status_code == 200
     html = response.get_data(as_text=True)
 
@@ -2569,9 +2789,9 @@ def test_admin_detail_pages_show_recent_activity_links(
 
 
 def test_admin_dashboard_includes_remaining_create_links(
-    client: FlaskClient, database: None
+    admin_client: FlaskClient, database: None
 ) -> None:
-    response = client.get("/admin")
+    response = admin_client.get("/admin")
     assert response.status_code == 200
     html = response.get_data(as_text=True)
 
@@ -2581,9 +2801,9 @@ def test_admin_dashboard_includes_remaining_create_links(
 
 
 def test_admin_segment_create_and_edit_flow_updates_search(
-    app: Flask, client: FlaskClient, database: None
+    app: Flask, admin_client: FlaskClient, database: None
 ) -> None:
-    create_response = client.post(
+    create_response = admin_client.post(
         "/admin/segments/new",
         data={
             "name": "Summit Spur",
@@ -2603,7 +2823,7 @@ def test_admin_segment_create_and_edit_flow_updates_search(
         assert len(segment_hit) == 1
         segment_id = segment_hit[0].entity_id
 
-    edit_response = client.post(
+    edit_response = admin_client.post(
         f"/admin/segments/{segment_id}/edit",
         data={
             "name": "Summit Spur Revised",
@@ -2624,9 +2844,9 @@ def test_admin_segment_create_and_edit_flow_updates_search(
 
 
 def test_admin_point_of_interest_create_and_edit_flow_updates_search(
-    app: Flask, client: FlaskClient, database: None
+    app: Flask, admin_client: FlaskClient, database: None
 ) -> None:
-    create_response = client.post(
+    create_response = admin_client.post(
         "/admin/points-of-interest/new",
         data={
             "name": "Vista Point",
@@ -2646,7 +2866,7 @@ def test_admin_point_of_interest_create_and_edit_flow_updates_search(
         assert len(point_hit) == 1
         point_id = point_hit[0].entity_id
 
-    edit_response = client.post(
+    edit_response = admin_client.post(
         f"/admin/points-of-interest/{point_id}/edit",
         data={
             "name": "Vista Point North",
@@ -2667,7 +2887,7 @@ def test_admin_point_of_interest_create_and_edit_flow_updates_search(
 
 
 def test_admin_activity_create_and_edit_flow_updates_search(
-    app: Flask, client: FlaskClient, database: None
+    app: Flask, admin_client: FlaskClient, database: None
 ) -> None:
     with app.app_context():
         db = app.extensions["sqlalchemy"]
@@ -2676,7 +2896,7 @@ def test_admin_activity_create_and_edit_flow_updates_search(
         db.session.commit()
         route_id = route.id
 
-    create_response = client.post(
+    create_response = admin_client.post(
         "/admin/activities/new",
         data={
             "name": "Morning Tempo",
@@ -2697,7 +2917,7 @@ def test_admin_activity_create_and_edit_flow_updates_search(
         assert len(activity_hit) == 1
         activity_id = activity_hit[0].entity_id
 
-    edit_response = client.post(
+    edit_response = admin_client.post(
         f"/admin/activities/{activity_id}/edit",
         data={
             "name": "Morning Tempo Plus",

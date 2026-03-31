@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Sign Up | explor_codex{% endblock %}
+
+{% block body %}
+  <section class="hero">
+    <p class="eyebrow">Auth</p>
+    <h1>Create an account</h1>
+    <p>The first registered user becomes the initial site admin for the rebuilt app.</p>
+  </section>
+
+  <section class="grid">
+    <aside class="panel stack">
+      <h2>Already here?</h2>
+      <div class="result-meta">
+        <div><a href="{{ url_for('auth.login') }}">Return to login</a></div>
+      </div>
+    </aside>
+
+    <form class="panel stack" method="post">
+      <h2>Profile</h2>
+      <label>
+        Username
+        <input type="text" name="username" autocomplete="username">
+      </label>
+      <label>
+        Email
+        <input type="email" name="email" autocomplete="email">
+      </label>
+      <label>
+        First name
+        <input type="text" name="firstname" autocomplete="given-name">
+      </label>
+      <label>
+        Last name
+        <input type="text" name="lastname" autocomplete="family-name">
+      </label>
+      <label>
+        Password
+        <input type="password" name="password" autocomplete="new-password">
+      </label>
+      <label>
+        Confirm password
+        <input type="password" name="password_confirm" autocomplete="new-password">
+      </label>
+      <button type="submit">Create Account</button>
+    </form>
+  </section>
+{% endblock %}

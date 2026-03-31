@@ -42,6 +42,13 @@ from app.services.segments import (
     list_segments,
     update_segment,
 )
+from app.services.users import (
+    authenticate_user,
+    create_user,
+    list_users,
+    record_login,
+    update_user,
+)
 
 __all__ = [
     "add_event_fee",
@@ -65,17 +72,22 @@ __all__ = [
     "list_points_of_interest",
     "create_route",
     "create_segment",
+    "create_user",
     "index_instance",
     "list_routes",
+    "list_users",
     "update_route",
     "attach_segment_to_route",
     "list_segments",
     "update_segment",
+    "authenticate_user",
     "parse_search_types",
+    "record_login",
     "rebuild_search_documents",
     "SEARCHABLE_ENTITY_TYPES",
     "search_documents",
     "set_rsvp",
     "update_event",
     "update_point_of_interest",
+    "update_user",
 ]

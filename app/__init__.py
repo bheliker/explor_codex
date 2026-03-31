@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from flask import Flask
+from flask import Flask, render_template
 
+from app.auth import bp as auth_bp
 from app.auth import init_auth
 from app.config import Config, TestConfig
 from app.extensions import init_extensions
@@ -26,5 +27,10 @@ def create_app(*, testing: bool = False) -> Flask:
     # Ensure model modules are imported before migration commands inspect metadata.
     from app import models  # noqa: F401
 
+    @app.errorhandler(403)
+    def forbidden(_: object) -> tuple[str, int]:
+        return render_template("errors/403.html"), 403
+
+    app.register_blueprint(auth_bp)
     app.register_blueprint(bp)
     return app
