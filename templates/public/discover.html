@@ -95,6 +95,21 @@
         </button>
       </div>
 
+      {% if not query %}
+        <div class="story-grid" style="margin-bottom: 18px;">
+          <article class="collection-card collection-card-hero">
+            <p class="landing-eyebrow">Now</p>
+            <h3 class="landing-title">Upcoming rides, places, and people worth acting on.</h3>
+            <p class="landing-copy">This public browse flow should feel like a prompt to go, not a report to read.</p>
+          </article>
+          <article class="collection-card">
+            <p class="landing-eyebrow">Next</p>
+            <h3 class="landing-title">Recommended routes and entities from the latest updates.</h3>
+            <p class="landing-copy">The search index gives us a portable way to build recommendation-style surfaces without rebuilding the backend.</p>
+          </article>
+        </div>
+      {% endif %}
+
       {% if results %}
         <div class="collection-grid">
           {% for result in results %}

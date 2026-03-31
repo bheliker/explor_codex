@@ -735,3 +735,45 @@ This file records session history for `explor_codex` so future work can resume w
 - The next likely step is either:
   - entity-specific storytelling sections, such as related records and curated supporting context, or
   - Alpine enhancements for search/discover filters, saved views, and richer card transitions.
+
+## 2026-03-31 (Closer To Original Design Language)
+
+### Investigated
+- Compared the current refreshed templates directly against:
+  - the old `explor_alpha` template set
+  - the local `design_drafts/` folder
+- Identified that the biggest remaining gap was not only copy or palette, but the old product’s more image-led, atmospheric page rhythm.
+
+### Changed
+- Copied owned draft imagery from `design_drafts/` into the current repo’s static tree:
+  - [static/images/discovery.jpg](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/images/discovery.jpg)
+  - [static/images/east-ride.jpg](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/images/east-ride.jpg)
+  - [static/images/grid-1.jpg](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/images/grid-1.jpg)
+  - [static/images/things-1.jpg](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/images/things-1.jpg)
+- Expanded [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css) with media-driven presentation primitives such as:
+  - `media-strip`
+  - `media-frame`
+  - `media-frame-copy`
+- Updated [templates/public/landing.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/public/landing.html) with a stronger media-led strip and more product-voice-forward section language.
+- Updated [templates/public/discover.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/public/discover.html) with more of the original “Now / Next” browse rhythm.
+
+### Decisions
+- Reuse owned draft imagery where it helps recover the original product feel.
+- Keep using those assets as composition and mood anchors, not as a reason to reintroduce the old dependency stack.
+
+### Why
+- The original product language was as much about atmosphere and pacing as it was about color or layout.
+- Pulling in some of the draft imagery helps the rebuilt app feel less abstract and closer to the earlier brand intent.
+
+### Verification
+- `uv run pytest`
+- `uv run ruff check .`
+- `uv run mypy app tests`
+
+### Notes for the next session
+- The app is now materially closer to the original design language in:
+  - palette
+  - product voice
+  - image use
+  - browse rhythm
+- The next likely step is entity-specific storytelling with related-record strips, image-led highlights, and per-entity supporting context blocks.

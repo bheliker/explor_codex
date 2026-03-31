@@ -422,6 +422,53 @@ h1 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.media-strip {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.media-frame {
+  position: relative;
+  overflow: hidden;
+  min-height: 220px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: linear-gradient(180deg, rgba(22, 34, 49, 0.08), rgba(22, 34, 49, 0.24));
+  box-shadow: var(--shadow-md);
+}
+
+.media-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.media-frame-copy {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 16px;
+  background: linear-gradient(180deg, transparent, rgba(18, 28, 40, 0.88));
+  color: #f5efe7;
+}
+
+.media-frame-copy p,
+.media-frame-copy h3 {
+  margin: 0;
+}
+
+.media-frame-kicker {
+  margin-bottom: 6px;
+  color: rgba(245, 239, 231, 0.72);
+  font-size: 0.74rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.media-frame-title {
+  font-size: 1.1rem;
+}
+
 .result-list,
 .detail-rows,
 .action-list,
@@ -779,7 +826,8 @@ textarea {
   .dashboard-stat-grid,
   .metric-strip,
   .landing-grid,
-  .story-grid {
+  .story-grid,
+  .media-strip {
     grid-template-columns: 1fr;
   }
 }
