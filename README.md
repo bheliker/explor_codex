@@ -31,11 +31,28 @@ The app exposes:
 - `/auth/password-reset`
 - `/auth/password-reset/<token>`
 - `/auth/account`
+- `/auth/account/edit`
 - `/admin`
 - `/admin/users`
 - `/admin/users/new`
 - `/admin/users/<id>`
 - `/admin/users/<id>/edit`
+- `/admin/images`
+- `/admin/images/new`
+- `/admin/images/<id>`
+- `/admin/images/<id>/edit`
+- `/admin/links`
+- `/admin/links/new`
+- `/admin/links/<id>`
+- `/admin/links/<id>/edit`
+- `/admin/dues`
+- `/admin/dues/new`
+- `/admin/dues/<id>`
+- `/admin/dues/<id>/edit`
+- `/admin/fees`
+- `/admin/fees/new`
+- `/admin/fees/<id>`
+- `/admin/fees/<id>/edit`
 - `/admin/search`
 - `/admin/groups/new`
 - `/admin/groups/<id>`
@@ -118,8 +135,9 @@ surface. The admin UI now supports:
 
 - a dashboard at `/admin`
 - a protected user-management area at `/admin/users`
+- secondary admin record pages for images, links, dues, and fees
 - browser-based create flows for groups, routes, segments, events, points of interest, and
-  activities, plus user creation for admins
+  activities, plus user/image/link/dues/fee creation for admins
 - browser-based edit flows for those same core entities
 - flash-based success and validation feedback for admin form submissions
 - shared navigation between dashboard, search, detail, create, and edit pages
@@ -129,6 +147,7 @@ Authentication now has real end-user and admin flows:
 - login/logout via `Flask-Login`
 - public signup controlled by `AUTH_SIGNUP_ENABLED`
 - password reset request and reset-confirm routes backed by `itsdangerous` tokens
+- a self-service account edit page at `/auth/account/edit`
 - a `site_admin` flag on `User` for site-wide authorization
 - automatic promotion of the first registered user to site admin
 - write-side `/api/*` routes and all `/admin/*` routes now require an authenticated active

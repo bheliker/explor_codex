@@ -358,3 +358,83 @@ This file records session history for `explor_codex` so future work can resume w
 - The next likely step is either:
   - secondary admin entities like images, links, dues, and fees, now that user/admin management is in place, or
   - deeper auth polish such as email delivery for reset links, remember-me behavior, or per-feature authorization beyond the site-admin gate.
+
+## 2026-03-30 (Secondary Admin Entities And Account Polish)
+
+### Investigated
+- Looked at the remaining models that already existed in the rebuilt schema but still lacked browser admin coverage:
+  - images
+  - shared external links
+  - group dues
+  - event fees
+- Reviewed the new auth/account surface and identified the main missing self-service piece: users could view their account but not edit it without using the admin user-management pages.
+
+### Changed
+- Added update services for secondary admin entities in:
+  - [app/services/images.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/services/images.py)
+  - [app/services/groups.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/services/groups.py)
+  - [app/services/events.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/services/events.py)
+- Expanded [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) with browser admin list/detail/create/edit flows for:
+  - `/admin/images`
+  - `/admin/links`
+  - `/admin/dues`
+  - `/admin/fees`
+- Added the shared list template [templates/admin/collection.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/collection.html) for those record collections.
+- Expanded [templates/admin/dashboard.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/dashboard.html) with quick-create links for the new secondary entities.
+- Added account self-editing via:
+  - `/auth/account/edit`
+  - [templates/auth/account_edit.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/account_edit.html)
+- Updated [templates/auth/account.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/account.html) so the account page links into the new edit flow.
+- Extended [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) with:
+  - account edit coverage
+  - image admin create/edit coverage
+  - link admin create/edit coverage
+  - dues admin create/edit coverage
+  - fee admin create/edit coverage
+  - dashboard quick-link coverage for the new admin pages
+
+### Decisions
+- Keep secondary entity admin flows on the same shared thin-template pattern as the primary entities instead of adding a separate mini-framework.
+- Treat shared external links as one admin record type even though they can belong to either a group or a route.
+- Let users self-edit profile/contact/location metadata from the account area, while still reserving activation and site-admin controls for the admin user-management pages.
+
+### Why
+- These records were already part of the rebuilt domain, so giving them consistent browser admin coverage increases the usefulness of the current app more than importing additional schema would.
+- Account self-editing rounds out the auth work so normal users are not forced through site-admin-only pages for simple profile updates.
+
+### Notes for the next session
+- The admin browser surface now covers both the primary domain entities and the most important secondary support records.
+- The next likely step is either:
+  - richer UI polish such as breadcrumbs, better related-record selectors, and image previews, or
+  - deeper auth delivery work such as real password-reset email sending and remember-me/session polish.
+
+## 2026-03-30 (Design Port Audit)
+
+### Investigated
+- Compared the current `explor_codex` UI surface against the locally cloned `../explor_alpha` repo.
+- Reviewed the current app factory, admin routes, and shared templates to find safe design port seams.
+- Audited the old repo's base templates, landing page, dashboard, detail pages, and asset pipeline shape.
+
+### Changed
+- No product code changes.
+- Created branch `codex/design-port-audit` to isolate follow-on design merge work from `main`.
+
+### Decisions
+- Start the design merge at the shared shell layer, not by copying old page templates directly.
+- Preserve the current route and service contracts in `app/routes.py` and the service layer, and port visuals into new repo-local templates/static assets around them.
+- Prioritize one vertical slice first:
+  - admin dashboard/search/detail pages, or
+  - public landing page if marketing value matters more than admin usability.
+
+### Why
+- The current app already has stable server-rendered entry points and CRUD/search flows that match the new backend.
+- The old repo's UI is tightly coupled to a larger Bootstrap/jQuery asset stack, modal system, and page-specific data assumptions, so direct template reuse would create regressions and dependency drag.
+
+### Notes for the next session
+- Best migration seam:
+  - move old design tokens, fonts, imagery, and shell patterns into a new real `static/` tree plus a modernized shared base template
+  - then re-skin the existing admin templates incrementally
+- Likely parallel workstreams:
+  - asset inventory and licensing cleanup
+  - template/content mapping from old pages to current entities
+  - static/CSS extraction and reduction from the old asset bundle

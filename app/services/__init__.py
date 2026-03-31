@@ -7,6 +7,7 @@ from app.services.events import (
     create_event,
     set_rsvp,
     update_event,
+    update_event_fee,
 )
 from app.services.groups import (
     add_group_dues,
@@ -16,12 +17,15 @@ from app.services.groups import (
     create_group,
     ensure_group_membership,
     update_group,
+    update_group_dues,
+    update_group_link,
 )
 from app.services.images import (
     attach_image_to_event,
     attach_image_to_poi,
     create_image,
     list_images,
+    update_image,
 )
 from app.services.points_of_interest import (
     create_point_of_interest,
@@ -65,7 +69,10 @@ __all__ = [
     "create_group",
     "create_image",
     "ensure_group_membership",
+    "update_group_dues",
+    "update_group_link",
     "update_group",
+    "update_image",
     "update_activity",
     "list_activities",
     "list_images",
@@ -87,6 +94,7 @@ __all__ = [
     "SEARCHABLE_ENTITY_TYPES",
     "search_documents",
     "set_rsvp",
+    "update_event_fee",
     "update_event",
     "update_point_of_interest",
     "update_user",

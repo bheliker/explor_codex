@@ -22,6 +22,7 @@
           <div><a href="{{ url_for('core.admin_dashboard_route') }}">Open admin dashboard</a></div>
           <div><a href="{{ url_for('core.admin_user_list_route') }}">Manage users</a></div>
         {% endif %}
+        <div><a href="{{ url_for('auth.account_edit') }}">Edit account</a></div>
         <div><a href="{{ url_for('auth.password_reset_request') }}">Generate reset link</a></div>
       </div>
     </aside>

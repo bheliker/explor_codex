@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} | explor_codex{% endblock %}
+
+{% block body %}
+  <section class="hero">
+    <p class="eyebrow">Admin</p>
+    <h1>{{ page_title }}</h1>
+    <p>{{ intro_text }}</p>
+  </section>
+
+  <section class="grid">
+    <aside class="panel stack">
+      <h2>Actions</h2>
+      {% if new_url %}
+        <a class="pill" href="{{ new_url }}">Create new</a>
+      {% endif %}
+      <a class="pill" href="{{ url_for('core.admin_dashboard_route') }}">Back to dashboard</a>
+    </aside>
+
+    <section class="panel">
+      <h2>Records</h2>
+      {% if records %}
+        <div class="result-list">
+          {% for record in records %}
+            <article class="result-card">
+              <div class="result-head">
+                <h3 class="result-title"><a href="{{ record.detail_url }}">{{ record.title }}</a></h3>
+                <span class="result-type">ID {{ record.id }}</span>
+              </div>
+              <div class="result-meta">
+                {% if record.subtitle %}
+                  <div>{{ record.subtitle }}</div>
+                {% endif %}
+                {% if record.location %}
+                  <div>{{ record.location }}</div>
+                {% endif %}
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty">No records yet.</div>
+      {% endif %}
+    </section>
+  </section>
+{% endblock %}

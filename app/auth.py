@@ -185,6 +185,48 @@ def account() -> ResponseReturnValue:
     return render_template("auth/account.html")
 
 
+@bp.route("/account/edit", methods=["GET", "POST"])
+@login_required
+def account_edit() -> ResponseReturnValue:
+    if request.method == "POST":
+        password = request.form.get("password", "", type=str).strip()
+        password_confirm = request.form.get("password_confirm", "", type=str).strip()
+        if password and password != password_confirm:
+            flash("Password confirmation did not match.", "error")
+        elif password and len(password) < 8:
+            flash("Password must be at least 8 characters.", "error")
+        else:
+            try:
+                update_user(
+                    current_user,
+                    username=request.form.get("username", "", type=str),
+                    email=request.form.get("email", "", type=str),
+                    password=password or None,
+                    firstname=request.form.get("firstname", type=str),
+                    lastname=request.form.get("lastname", type=str),
+                    account_type=current_user.account_type,
+                    preference_tags=_csv_list_value(
+                        request.form.get("preference_tags", "", type=str)
+                    ),
+                    tags=_csv_list_value(request.form.get("tags", "", type=str)),
+                    home_town=request.form.get("home_town", type=str),
+                    home_state=request.form.get("home_state", type=str),
+                    home_country=request.form.get("home_country", type=str),
+                    home_gym=request.form.get("home_gym", type=str),
+                    home_latlng=request.form.get("home_latlng", type=str),
+                    geoll=request.form.get("geoll", type=str),
+                    active=current_user.active,
+                    site_admin=current_user.site_admin,
+                )
+            except ValueError as exc:
+                flash(str(exc), "error")
+            else:
+                flash("Account saved.", "success")
+                return redirect(url_for("auth.account"))
+
+    return render_template("auth/account_edit.html")
+
+
 def site_admin_required(view: Callable[..., Any]) -> Callable[..., ResponseReturnValue]:
     @wraps(view)
     def wrapped_view(*args: Any, **kwargs: Any) -> ResponseReturnValue:
@@ -221,3 +263,9 @@ def _find_user_by_email(email: str) -> User | None:
     from app.extensions import db
 
     return db.session.scalar(select(User).where(User.email == email).limit(1))
+
+
+def _csv_list_value(raw_value: str) -> list[str] | None:
+    values = [item.strip() for item in raw_value.split(",")]
+    filtered = [item for item in values if item]
+    return filtered or None

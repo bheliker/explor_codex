@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Account | explor_codex{% endblock %}
+
+{% block body %}
+  <section class="hero">
+    <p class="eyebrow">Account</p>
+    <h1>Edit your account</h1>
+    <p>Update your profile details, home location, and password.</p>
+  </section>
+
+  <section class="grid">
+    <aside class="panel stack">
+      <h2>Actions</h2>
+      <div class="result-meta">
+        <div><a href="{{ url_for('auth.account') }}">Back to account</a></div>
+      </div>
+    </aside>
+
+    <form class="panel stack" method="post">
+      <h2>Profile</h2>
+      <label>
+        Username
+        <input type="text" name="username" value="{{ current_user.username }}">
+      </label>
+      <label>
+        Email
+        <input type="email" name="email" value="{{ current_user.email }}">
+      </label>
+      <label>
+        First name
+        <input type="text" name="firstname" value="{{ current_user.firstname or '' }}">
+      </label>
+      <label>
+        Last name
+        <input type="text" name="lastname" value="{{ current_user.lastname or '' }}">
+      </label>
+      <label>
+        Home town
+        <input type="text" name="home_town" value="{{ current_user.home_town or '' }}">
+      </label>
+      <label>
+        Home state
+        <input type="text" name="home_state" value="{{ current_user.home_state or '' }}">
+      </label>
+      <label>
+        Home country
+        <input type="text" name="home_country" value="{{ current_user.home_country or '' }}">
+      </label>
+      <label>
+        Home gym
+        <input type="text" name="home_gym" value="{{ current_user.home_gym or '' }}">
+      </label>
+      <label>
+        Home latlng
+        <input type="text" name="home_latlng" value="{{ current_user.home_latlng or '' }}">
+      </label>
+      <label>
+        Geometry
+        <input type="text" name="geoll" value="{{ current_user.geoll or '' }}">
+      </label>
+      <label>
+        Tags (comma separated)
+        <input type="text" name="tags" value="{{ (current_user.tags or [])|join(', ') }}">
+      </label>
+      <label>
+        Preference tags (comma separated)
+        <input type="text" name="preference_tags" value="{{ (current_user.preference_tags or [])|join(', ') }}">
+      </label>
+      <label>
+        New password
+        <input type="password" name="password" autocomplete="new-password">
+      </label>
+      <label>
+        Confirm new password
+        <input type="password" name="password_confirm" autocomplete="new-password">
+      </label>
+      <button type="submit">Save Account</button>
+    </form>
+  </section>
+{% endblock %}

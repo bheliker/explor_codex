@@ -159,3 +159,23 @@ def add_event_fee(
     db.session.add(event_fee)
     db.session.commit()
     return event_fee
+
+
+def update_event_fee(
+    event_fee: EventFee,
+    *,
+    event: Event | None = None,
+    name: str | None = None,
+    fee: float | None = None,
+    duration: int | None = None,
+    description: str | None = None,
+    tags: list[str] | None = None,
+) -> EventFee:
+    event_fee.event = event
+    event_fee.name = name
+    event_fee.fee = fee
+    event_fee.duration = duration
+    event_fee.description = description
+    event_fee.tags = tags
+    db.session.commit()
+    return event_fee

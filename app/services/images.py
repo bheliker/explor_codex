@@ -65,6 +65,44 @@ def list_images(
     return list(db.session.scalars(statement))
 
 
+def update_image(
+    image: Image,
+    *,
+    photographer: User | None = None,
+    group: Group | None = None,
+    segment: Segment | None = None,
+    activity: Activity | None = None,
+    img_small: str | None = None,
+    img_medium: str | None = None,
+    img_large: str | None = None,
+    img_thumb: str | None = None,
+    alt_txt: str | None = None,
+    title: str | None = None,
+    caption: str | None = None,
+    latlng: str | None = None,
+    geoll: str | None = None,
+    tags: list[str] | None = None,
+    url: str | None = None,
+) -> Image:
+    image.photographer = photographer
+    image.group = group
+    image.segment = segment
+    image.activity = activity
+    image.img_small = img_small
+    image.img_medium = img_medium
+    image.img_large = img_large
+    image.img_thumb = img_thumb
+    image.alt_txt = alt_txt
+    image.title = title
+    image.caption = caption
+    image.latlng = latlng
+    image.geoll = geoll
+    image.tags = tags
+    image.url = url
+    db.session.commit()
+    return image
+
+
 def attach_image_to_event(event: Event, image: Image) -> Event:
     if image not in event.images:
         event.images.append(image)

@@ -233,6 +233,43 @@ def test_password_reset_request_and_reset_flow(
     assert "Welcome back" in login_response.get_data(as_text=True)
 
 
+def test_account_edit_flow_updates_profile(client: FlaskClient, app: Flask, database: None) -> None:
+    user_id = _create_test_user(app, username="profile-user", email="profile@example.com")
+    with client.session_transaction() as session:
+        session["_user_id"] = str(user_id)
+        session["_fresh"] = True
+
+    response = client.post(
+        "/auth/account/edit",
+        data={
+            "username": "profile-user",
+            "email": "profile-updated@example.com",
+            "firstname": "Profile",
+            "lastname": "Updated",
+            "home_town": "Oakland",
+            "home_state": "CA",
+            "tags": "road, coffee",
+            "preference_tags": "community",
+            "password": "",
+            "password_confirm": "",
+        },
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Account saved." in html
+    assert "profile-updated@example.com" in html
+
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        user = db.session.get(User, user_id)
+        assert user is not None
+        assert user.email == "profile-updated@example.com"
+        assert user.firstname == "Profile"
+        assert user.lastname == "Updated"
+        assert user.tags == ["road", "coffee"]
+
+
 def test_admin_routes_require_login(client: FlaskClient, database: None) -> None:
     response = client.get("/admin", follow_redirects=False)
     assert response.status_code == 302
@@ -327,6 +364,182 @@ def test_admin_user_pages_support_create_and_edit(
     edit_html = edit_response.get_data(as_text=True)
     assert "User saved." in edit_html
     assert "Updated Operator" in edit_html
+
+
+def test_admin_image_create_and_edit_flow(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        photographer_id = _create_test_user(app, username="img-photog", email="img@example.com")
+
+    create_response = admin_client.post(
+        "/admin/images/new",
+        data={
+            "photographer_id": str(photographer_id),
+            "title": "Harbor Shot",
+            "img_medium": "https://example.com/harbor.jpg",
+            "tags": "featured, harbor",
+        },
+        follow_redirects=True,
+    )
+    assert create_response.status_code == 200
+    assert "Image created." in create_response.get_data(as_text=True)
+
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        image = db.session.scalar(select(Image).where(Image.title == "Harbor Shot"))
+        assert image is not None
+        image_id = image.id
+
+    edit_response = admin_client.post(
+        f"/admin/images/{image_id}/edit",
+        data={
+            "photographer_id": str(photographer_id),
+            "title": "Harbor Shot Revised",
+            "img_medium": "https://example.com/harbor-revised.jpg",
+            "tags": "featured, revised",
+        },
+        follow_redirects=True,
+    )
+    assert edit_response.status_code == 200
+    assert "Image saved." in edit_response.get_data(as_text=True)
+
+
+def test_admin_link_create_and_edit_flow(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        group = Group(name="Link Group", shortname="link-group")
+        db.session.add(group)
+        db.session.commit()
+        group_id = group.id
+
+    create_response = admin_client.post(
+        "/admin/links/new",
+        data={
+            "group_id": str(group_id),
+            "name": "Club Site",
+            "url": "https://example.com/club",
+            "type": "website",
+            "tags": "official",
+        },
+        follow_redirects=True,
+    )
+    assert create_response.status_code == 200
+    assert "Link created." in create_response.get_data(as_text=True)
+
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        link = db.session.scalar(
+            select(GroupExternalUrl).where(GroupExternalUrl.name == "Club Site")
+        )
+        assert link is not None
+        link_id = link.id
+
+    edit_response = admin_client.post(
+        f"/admin/links/{link_id}/edit",
+        data={
+            "group_id": str(group_id),
+            "name": "Club Site Updated",
+            "url": "https://example.com/club-updated",
+            "type": "website",
+            "tags": "official, updated",
+        },
+        follow_redirects=True,
+    )
+    assert edit_response.status_code == 200
+    assert "Link saved." in edit_response.get_data(as_text=True)
+
+
+def test_admin_dues_create_and_edit_flow(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        group = Group(name="Dues Group", shortname="dues-group")
+        db.session.add(group)
+        db.session.commit()
+        group_id = group.id
+
+    create_response = admin_client.post(
+        "/admin/dues/new",
+        data={
+            "group_id": str(group_id),
+            "name": "Annual Dues",
+            "fee": "49.5",
+            "duration": "365",
+            "tags": "annual",
+        },
+        follow_redirects=True,
+    )
+    assert create_response.status_code == 200
+    assert "Dues created." in create_response.get_data(as_text=True)
+
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        dues = db.session.scalar(select(GroupDues).where(GroupDues.name == "Annual Dues"))
+        assert dues is not None
+        dues_id = dues.id
+
+    edit_response = admin_client.post(
+        f"/admin/dues/{dues_id}/edit",
+        data={
+            "group_id": str(group_id),
+            "name": "Annual Dues Updated",
+            "fee": "59.0",
+            "duration": "365",
+            "tags": "annual, updated",
+        },
+        follow_redirects=True,
+    )
+    assert edit_response.status_code == 200
+    assert "Dues saved." in edit_response.get_data(as_text=True)
+
+
+def test_admin_fee_create_and_edit_flow(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        event = Event(name="Fee Event")
+        db.session.add(event)
+        db.session.commit()
+        event_id = event.id
+
+    create_response = admin_client.post(
+        "/admin/fees/new",
+        data={
+            "event_id": str(event_id),
+            "name": "Entry Fee",
+            "fee": "15.0",
+            "duration": "1",
+            "tags": "entry",
+        },
+        follow_redirects=True,
+    )
+    assert create_response.status_code == 200
+    assert "Fee created." in create_response.get_data(as_text=True)
+
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        fee = db.session.scalar(select(EventFee).where(EventFee.name == "Entry Fee"))
+        assert fee is not None
+        fee_id = fee.id
+
+    edit_response = admin_client.post(
+        f"/admin/fees/{fee_id}/edit",
+        data={
+            "event_id": str(event_id),
+            "name": "Entry Fee Updated",
+            "fee": "18.0",
+            "duration": "1",
+            "tags": "entry, updated",
+        },
+        follow_redirects=True,
+    )
+    assert edit_response.status_code == 200
+    assert "Fee saved." in edit_response.get_data(as_text=True)
 
 
 def test_membership_models_persist_relationships(app: Flask, database: None) -> None:
@@ -2663,6 +2876,7 @@ def test_admin_dashboard_renders_counts_and_recent_records(
     assert "/admin/groups/new" in html
     assert "/admin/routes/new" in html
     assert "/admin/events/new" in html
+    assert "/admin/users/new" in html
     assert "Dashboard" in html
     assert "Search" in html
 
@@ -2798,6 +3012,10 @@ def test_admin_dashboard_includes_remaining_create_links(
     assert "/admin/segments/new" in html
     assert "/admin/points-of-interest/new" in html
     assert "/admin/activities/new" in html
+    assert "/admin/images/new" in html
+    assert "/admin/links/new" in html
+    assert "/admin/dues/new" in html
+    assert "/admin/fees/new" in html
 
 
 def test_admin_segment_create_and_edit_flow_updates_search(

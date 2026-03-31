@@ -58,7 +58,11 @@ from app.services import (
     set_rsvp,
     update_activity,
     update_event,
+    update_event_fee,
     update_group,
+    update_group_dues,
+    update_group_link,
+    update_image,
     update_point_of_interest,
     update_route,
     update_segment,
@@ -371,6 +375,481 @@ def admin_user_new_route() -> str | Any:
         mode_title="Create",
         page_title="User",
         submit_label="Create User",
+    )
+
+
+@bp.get("/admin/images")
+def admin_image_list_route() -> str:
+    images = list_images()
+    return render_template(
+        "admin/collection.html",
+        page_title="Images",
+        intro_text="Manage uploaded image metadata and ownership links.",
+        new_url=url_for("core.admin_image_new_route"),
+        records=[_dashboard_image_item(image) for image in images],
+    )
+
+
+@bp.get("/admin/images/<int:image_id>")
+def admin_image_detail_route(image_id: int) -> str:
+    image = _get_or_404(Image, image_id)
+    return render_template(
+        "admin/detail.html",
+        detail_rows=_detail_rows(
+            [
+                (
+                    "Photographer ID",
+                    image.photographer_id,
+                    _admin_detail_url("user", image.photographer_id),
+                ),
+                ("Group ID", image.group_id, _admin_detail_url("group", image.group_id)),
+                ("Segment ID", image.segment_id, _admin_detail_url("segment", image.segment_id)),
+                (
+                    "Activity ID",
+                    image.activity_id,
+                    _admin_detail_url("activity", image.activity_id),
+                ),
+                ("Caption", image.caption),
+                ("Alt text", image.alt_txt),
+                ("Latitude/Longitude", image.latlng),
+                ("URL", image.url),
+            ]
+        ),
+        entity_id=image.id,
+        entity_type_label="Image",
+        edit_url=url_for("core.admin_image_edit_route", image_id=image.id),
+        location=None,
+        page_title=image.title or "Image",
+        recent_links=_recent_image_links(exclude_image_id=image.id),
+        subtitle=image.img_medium or image.url,
+        tags=image.tags,
+    )
+
+
+@bp.route("/admin/images/<int:image_id>/edit", methods=["GET", "POST"])
+def admin_image_edit_route(image_id: int) -> str | Any:
+    image = _get_or_404(Image, image_id)
+    if request.method == "POST":
+        try:
+            update_image(
+                image,
+                photographer=_optional_related_record(User, "photographer_id"),
+                group=_optional_related_record(Group, "group_id"),
+                segment=_optional_related_record(Segment, "segment_id"),
+                activity=_optional_related_record(Activity, "activity_id"),
+                img_small=_form_optional_str("img_small"),
+                img_medium=_form_optional_str("img_medium"),
+                img_large=_form_optional_str("img_large"),
+                img_thumb=_form_optional_str("img_thumb"),
+                alt_txt=_form_optional_str("alt_txt"),
+                title=_form_optional_str("title"),
+                caption=_form_optional_str("caption"),
+                latlng=_form_optional_str("latlng"),
+                geoll=_form_optional_str("geoll"),
+                tags=_form_csv_list("tags"),
+                url=_form_optional_str("url"),
+            )
+        except AdminFormError as exc:
+            flash(str(exc), "error")
+        else:
+            flash("Image saved.", "success")
+            return redirect(url_for("core.admin_image_detail_route", image_id=image.id))
+
+    return render_template(
+        "admin/edit.html",
+        dashboard_url=url_for("core.admin_dashboard_route"),
+        detail_url=url_for("core.admin_image_detail_route", image_id=image.id),
+        entity_id=image.id,
+        entity_type_label="Image",
+        fields=_image_fields(image),
+        intro_text="Adjust image ownership and media metadata from the admin UI.",
+        mode_title="Edit",
+        page_title=image.title or "Image",
+        submit_label="Save Changes",
+    )
+
+
+@bp.route("/admin/images/new", methods=["GET", "POST"])
+def admin_image_new_route() -> str | Any:
+    if request.method == "POST":
+        try:
+            image = create_image(
+                photographer=_optional_related_record(User, "photographer_id"),
+                group=_optional_related_record(Group, "group_id"),
+                segment=_optional_related_record(Segment, "segment_id"),
+                activity=_optional_related_record(Activity, "activity_id"),
+                img_small=_form_optional_str("img_small"),
+                img_medium=_form_optional_str("img_medium"),
+                img_large=_form_optional_str("img_large"),
+                img_thumb=_form_optional_str("img_thumb"),
+                alt_txt=_form_optional_str("alt_txt"),
+                title=_form_optional_str("title"),
+                caption=_form_optional_str("caption"),
+                latlng=_form_optional_str("latlng"),
+                geoll=_form_optional_str("geoll"),
+                tags=_form_csv_list("tags"),
+                url=_form_optional_str("url"),
+            )
+        except AdminFormError as exc:
+            flash(str(exc), "error")
+        else:
+            flash("Image created.", "success")
+            return redirect(url_for("core.admin_image_detail_route", image_id=image.id))
+
+    return render_template(
+        "admin/edit.html",
+        dashboard_url=url_for("core.admin_dashboard_route"),
+        detail_url=None,
+        entity_id=None,
+        entity_type_label="Image",
+        fields=_image_fields(None),
+        intro_text="Create an image record and assign it to the right owner records.",
+        mode_title="Create",
+        page_title="Image",
+        submit_label="Create Image",
+    )
+
+
+@bp.get("/admin/links")
+def admin_link_list_route() -> str:
+    links = list(db.session.scalars(select(GroupExternalUrl).order_by(GroupExternalUrl.id)))
+    return render_template(
+        "admin/collection.html",
+        page_title="Links",
+        intro_text="Manage shared external links for groups and routes.",
+        new_url=url_for("core.admin_link_new_route"),
+        records=[_dashboard_link_item(link) for link in links],
+    )
+
+
+@bp.get("/admin/links/<int:link_id>")
+def admin_link_detail_route(link_id: int) -> str:
+    link = _get_or_404(GroupExternalUrl, link_id)
+    return render_template(
+        "admin/detail.html",
+        detail_rows=_detail_rows(
+            [
+                ("Group ID", link.group_id, _admin_detail_url("group", link.group_id)),
+                ("Route ID", link.route_id, _admin_detail_url("route", link.route_id)),
+                ("Type", link.type),
+                ("Subtype", link.subtype),
+                ("URL", link.url),
+                ("Description", link.description),
+                ("Icon", link.icon),
+                ("Image", link.img),
+            ]
+        ),
+        entity_id=link.id,
+        entity_type_label="Link",
+        edit_url=url_for("core.admin_link_edit_route", link_id=link.id),
+        location=None,
+        page_title=link.name or "Link",
+        recent_links=_recent_link_links(exclude_link_id=link.id),
+        subtitle=link.url,
+        tags=link.tags,
+    )
+
+
+@bp.route("/admin/links/<int:link_id>/edit", methods=["GET", "POST"])
+def admin_link_edit_route(link_id: int) -> str | Any:
+    link = _get_or_404(GroupExternalUrl, link_id)
+    if request.method == "POST":
+        try:
+            update_group_link(
+                link,
+                group=_optional_related_record(Group, "group_id"),
+                route=_optional_related_record(Route, "route_id"),
+                name=_form_optional_str("name"),
+                url=_form_optional_str("url"),
+                link_type=_form_optional_str("type"),
+                subtype=_form_optional_str("subtype"),
+                description=_form_optional_str("description"),
+                tags=_form_csv_list("tags"),
+                icon=_form_optional_str("icon"),
+                img=_form_optional_str("img"),
+            )
+        except AdminFormError as exc:
+            flash(str(exc), "error")
+        else:
+            flash("Link saved.", "success")
+            return redirect(url_for("core.admin_link_detail_route", link_id=link.id))
+
+    return render_template(
+        "admin/edit.html",
+        dashboard_url=url_for("core.admin_dashboard_route"),
+        detail_url=url_for("core.admin_link_detail_route", link_id=link.id),
+        entity_id=link.id,
+        entity_type_label="Link",
+        fields=_link_fields(link),
+        intro_text="Adjust the shared external-link metadata used across groups and routes.",
+        mode_title="Edit",
+        page_title=link.name or "Link",
+        submit_label="Save Changes",
+    )
+
+
+@bp.route("/admin/links/new", methods=["GET", "POST"])
+def admin_link_new_route() -> str | Any:
+    if request.method == "POST":
+        try:
+            group = _optional_related_record(Group, "group_id")
+            route = _optional_related_record(Route, "route_id")
+            if group is None and route is None:
+                raise AdminFormError("Either group id or route id is required.")
+            if group is not None and route is not None:
+                raise AdminFormError("Choose either a group id or a route id, not both.")
+
+            if route is not None:
+                link = add_route_link(
+                    route,
+                    name=_form_required_str("name"),
+                    url=_form_required_str("url"),
+                    link_type=_form_optional_str("type") or "website",
+                    tags=_form_csv_list("tags"),
+                )
+            else:
+                link = add_group_link(
+                    cast(Group, group),
+                    name=_form_required_str("name"),
+                    url=_form_required_str("url"),
+                    link_type=_form_optional_str("type") or "website",
+                    tags=_form_csv_list("tags"),
+                )
+
+            update_group_link(
+                link,
+                group=group,
+                route=route,
+                name=_form_required_str("name"),
+                url=_form_required_str("url"),
+                link_type=_form_optional_str("type"),
+                subtype=_form_optional_str("subtype"),
+                description=_form_optional_str("description"),
+                tags=_form_csv_list("tags"),
+                icon=_form_optional_str("icon"),
+                img=_form_optional_str("img"),
+            )
+        except (AdminFormError, ValueError) as exc:
+            flash(str(exc), "error")
+        else:
+            flash("Link created.", "success")
+            return redirect(url_for("core.admin_link_detail_route", link_id=link.id))
+
+    return render_template(
+        "admin/edit.html",
+        dashboard_url=url_for("core.admin_dashboard_route"),
+        detail_url=None,
+        entity_id=None,
+        entity_type_label="Link",
+        fields=_link_fields(None),
+        intro_text="Create a shared external link for either a group or a route.",
+        mode_title="Create",
+        page_title="Link",
+        submit_label="Create Link",
+    )
+
+
+@bp.get("/admin/dues")
+def admin_dues_list_route() -> str:
+    dues_entries = list(db.session.scalars(select(GroupDues).order_by(GroupDues.id)))
+    return render_template(
+        "admin/collection.html",
+        page_title="Dues",
+        intro_text="Manage group dues definitions and member-payment metadata.",
+        new_url=url_for("core.admin_dues_new_route"),
+        records=[_dashboard_dues_item(dues) for dues in dues_entries],
+    )
+
+
+@bp.get("/admin/dues/<int:dues_id>")
+def admin_dues_detail_route(dues_id: int) -> str:
+    dues = _get_or_404(GroupDues, dues_id)
+    return render_template(
+        "admin/detail.html",
+        detail_rows=_detail_rows(
+            [
+                ("Group ID", dues.group_id, _admin_detail_url("group", dues.group_id)),
+                ("Fee", dues.fee),
+                ("Duration", dues.duration),
+                ("Description", dues.description),
+            ]
+        ),
+        entity_id=dues.id,
+        entity_type_label="Dues",
+        edit_url=url_for("core.admin_dues_edit_route", dues_id=dues.id),
+        location=None,
+        page_title=dues.name or "Dues",
+        recent_links=_recent_dues_links(exclude_dues_id=dues.id),
+        subtitle=f"Group {dues.group_id}" if dues.group_id else None,
+        tags=dues.tags,
+    )
+
+
+@bp.route("/admin/dues/<int:dues_id>/edit", methods=["GET", "POST"])
+def admin_dues_edit_route(dues_id: int) -> str | Any:
+    dues = _get_or_404(GroupDues, dues_id)
+    if request.method == "POST":
+        try:
+            update_group_dues(
+                dues,
+                group=_required_related_record(Group, "group_id"),
+                name=_form_optional_str("name"),
+                fee=_form_optional_float("fee"),
+                duration=_form_optional_int("duration"),
+                description=_form_optional_str("description"),
+                tags=_form_csv_list("tags"),
+            )
+        except AdminFormError as exc:
+            flash(str(exc), "error")
+        else:
+            flash("Dues saved.", "success")
+            return redirect(url_for("core.admin_dues_detail_route", dues_id=dues.id))
+
+    return render_template(
+        "admin/edit.html",
+        dashboard_url=url_for("core.admin_dashboard_route"),
+        detail_url=url_for("core.admin_dues_detail_route", dues_id=dues.id),
+        entity_id=dues.id,
+        entity_type_label="Dues",
+        fields=_dues_fields(dues),
+        intro_text="Adjust group dues settings from the admin UI.",
+        mode_title="Edit",
+        page_title=dues.name or "Dues",
+        submit_label="Save Changes",
+    )
+
+
+@bp.route("/admin/dues/new", methods=["GET", "POST"])
+def admin_dues_new_route() -> str | Any:
+    if request.method == "POST":
+        try:
+            dues = add_group_dues(
+                _required_related_record(Group, "group_id"),
+                name=_form_required_str("name"),
+                fee=_form_required_float("fee"),
+                duration=_form_required_int("duration"),
+                description=_form_optional_str("description"),
+                tags=_form_csv_list("tags"),
+            )
+        except AdminFormError as exc:
+            flash(str(exc), "error")
+        else:
+            flash("Dues created.", "success")
+            return redirect(url_for("core.admin_dues_detail_route", dues_id=dues.id))
+
+    return render_template(
+        "admin/edit.html",
+        dashboard_url=url_for("core.admin_dashboard_route"),
+        detail_url=None,
+        entity_id=None,
+        entity_type_label="Dues",
+        fields=_dues_fields(None),
+        intro_text="Create a new group dues definition from the admin UI.",
+        mode_title="Create",
+        page_title="Dues",
+        submit_label="Create Dues",
+    )
+
+
+@bp.get("/admin/fees")
+def admin_fee_list_route() -> str:
+    fees = list(db.session.scalars(select(EventFee).order_by(EventFee.id)))
+    return render_template(
+        "admin/collection.html",
+        page_title="Fees",
+        intro_text="Manage event fee definitions and registration costs.",
+        new_url=url_for("core.admin_fee_new_route"),
+        records=[_dashboard_fee_item(fee) for fee in fees],
+    )
+
+
+@bp.get("/admin/fees/<int:fee_id>")
+def admin_fee_detail_route(fee_id: int) -> str:
+    fee = _get_or_404(EventFee, fee_id)
+    return render_template(
+        "admin/detail.html",
+        detail_rows=_detail_rows(
+            [
+                ("Event ID", fee.event_id, _admin_detail_url("event", fee.event_id)),
+                ("Fee", fee.fee),
+                ("Duration", fee.duration),
+                ("Description", fee.description),
+            ]
+        ),
+        entity_id=fee.id,
+        entity_type_label="Fee",
+        edit_url=url_for("core.admin_fee_edit_route", fee_id=fee.id),
+        location=None,
+        page_title=fee.name or "Fee",
+        recent_links=_recent_fee_links(exclude_fee_id=fee.id),
+        subtitle=f"Event {fee.event_id}" if fee.event_id else None,
+        tags=fee.tags,
+    )
+
+
+@bp.route("/admin/fees/<int:fee_id>/edit", methods=["GET", "POST"])
+def admin_fee_edit_route(fee_id: int) -> str | Any:
+    fee = _get_or_404(EventFee, fee_id)
+    if request.method == "POST":
+        try:
+            update_event_fee(
+                fee,
+                event=_required_related_record(Event, "event_id"),
+                name=_form_optional_str("name"),
+                fee=_form_optional_float("fee"),
+                duration=_form_optional_int("duration"),
+                description=_form_optional_str("description"),
+                tags=_form_csv_list("tags"),
+            )
+        except AdminFormError as exc:
+            flash(str(exc), "error")
+        else:
+            flash("Fee saved.", "success")
+            return redirect(url_for("core.admin_fee_detail_route", fee_id=fee.id))
+
+    return render_template(
+        "admin/edit.html",
+        dashboard_url=url_for("core.admin_dashboard_route"),
+        detail_url=url_for("core.admin_fee_detail_route", fee_id=fee.id),
+        entity_id=fee.id,
+        entity_type_label="Fee",
+        fields=_fee_fields(fee),
+        intro_text="Adjust event fee settings from the admin UI.",
+        mode_title="Edit",
+        page_title=fee.name or "Fee",
+        submit_label="Save Changes",
+    )
+
+
+@bp.route("/admin/fees/new", methods=["GET", "POST"])
+def admin_fee_new_route() -> str | Any:
+    if request.method == "POST":
+        try:
+            fee = add_event_fee(
+                _required_related_record(Event, "event_id"),
+                name=_form_required_str("name"),
+                fee=_form_required_float("fee"),
+                duration=_form_required_int("duration"),
+                description=_form_optional_str("description"),
+                tags=_form_csv_list("tags"),
+            )
+        except AdminFormError as exc:
+            flash(str(exc), "error")
+        else:
+            flash("Fee created.", "success")
+            return redirect(url_for("core.admin_fee_detail_route", fee_id=fee.id))
+
+    return render_template(
+        "admin/edit.html",
+        dashboard_url=url_for("core.admin_dashboard_route"),
+        detail_url=None,
+        entity_id=None,
+        entity_type_label="Fee",
+        fields=_fee_fields(None),
+        intro_text="Create a new event fee from the admin UI.",
+        mode_title="Create",
+        page_title="Fee",
+        submit_label="Create Fee",
     )
 
 
@@ -2297,6 +2776,51 @@ def _dashboard_user_item(user: User) -> dict[str, object]:
     }
 
 
+def _dashboard_image_item(image: Image) -> dict[str, object]:
+    return {
+        "detail_url": url_for("core.admin_image_detail_route", image_id=image.id),
+        "id": image.id,
+        "location": image.latlng,
+        "subtitle": image.img_medium or image.url,
+        "title": image.title or "Image",
+    }
+
+
+def _dashboard_link_item(link: GroupExternalUrl) -> dict[str, object]:
+    owner = (
+        f"Group {link.group_id}"
+        if link.group_id is not None
+        else f"Route {link.route_id}" if link.route_id is not None else None
+    )
+    return {
+        "detail_url": url_for("core.admin_link_detail_route", link_id=link.id),
+        "id": link.id,
+        "location": None,
+        "subtitle": owner or link.url,
+        "title": link.name or "Link",
+    }
+
+
+def _dashboard_dues_item(dues: GroupDues) -> dict[str, object]:
+    return {
+        "detail_url": url_for("core.admin_dues_detail_route", dues_id=dues.id),
+        "id": dues.id,
+        "location": None,
+        "subtitle": f"Group {dues.group_id}" if dues.group_id is not None else None,
+        "title": dues.name or "Dues",
+    }
+
+
+def _dashboard_fee_item(fee: EventFee) -> dict[str, object]:
+    return {
+        "detail_url": url_for("core.admin_fee_detail_route", fee_id=fee.id),
+        "id": fee.id,
+        "location": None,
+        "subtitle": f"Event {fee.event_id}" if fee.event_id is not None else None,
+        "title": fee.name or "Fee",
+    }
+
+
 def _dashboard_route_item(route: Route) -> dict[str, object]:
     return {
         "detail_url": url_for("core.admin_route_detail_route", route_id=route.id),
@@ -2404,6 +2928,101 @@ def _recent_user_links(
     return links
 
 
+def _recent_image_links(
+    *,
+    exclude_image_id: int | None = None,
+    limit: int = 6,
+) -> list[dict[str, object]]:
+    images = list(db.session.scalars(select(Image).order_by(Image.id.desc()).limit(limit + 1)))
+    return _recent_record_links(
+        images,
+        exclude_id=exclude_image_id,
+        label="Image",
+        endpoint="core.admin_image_detail_route",
+        key="image_id",
+        title_getter=lambda image: image.title or "Image",
+    )
+
+
+def _recent_link_links(
+    *,
+    exclude_link_id: int | None = None,
+    limit: int = 6,
+) -> list[dict[str, object]]:
+    links = list(
+        db.session.scalars(
+            select(GroupExternalUrl).order_by(GroupExternalUrl.id.desc()).limit(limit + 1)
+        )
+    )
+    return _recent_record_links(
+        links,
+        exclude_id=exclude_link_id,
+        label="Link",
+        endpoint="core.admin_link_detail_route",
+        key="link_id",
+        title_getter=lambda link: link.name or "Link",
+    )
+
+
+def _recent_dues_links(
+    *,
+    exclude_dues_id: int | None = None,
+    limit: int = 6,
+) -> list[dict[str, object]]:
+    dues_entries = list(
+        db.session.scalars(select(GroupDues).order_by(GroupDues.id.desc()).limit(limit + 1))
+    )
+    return _recent_record_links(
+        dues_entries,
+        exclude_id=exclude_dues_id,
+        label="Dues",
+        endpoint="core.admin_dues_detail_route",
+        key="dues_id",
+        title_getter=lambda dues: dues.name or "Dues",
+    )
+
+
+def _recent_fee_links(
+    *,
+    exclude_fee_id: int | None = None,
+    limit: int = 6,
+) -> list[dict[str, object]]:
+    fees = list(db.session.scalars(select(EventFee).order_by(EventFee.id.desc()).limit(limit + 1)))
+    return _recent_record_links(
+        fees,
+        exclude_id=exclude_fee_id,
+        label="Fee",
+        endpoint="core.admin_fee_detail_route",
+        key="fee_id",
+        title_getter=lambda fee: fee.name or "Fee",
+    )
+
+
+def _recent_record_links(
+    records: list[ModelT],
+    *,
+    exclude_id: int | None,
+    label: str,
+    endpoint: str,
+    key: str,
+    title_getter: Any,
+) -> list[dict[str, object]]:
+    links: list[dict[str, object]] = []
+    for record in records:
+        record_id = cast(int, getattr(record, "id"))
+        if exclude_id is not None and record_id == exclude_id:
+            continue
+        route_kwargs = cast(dict[str, Any], {key: record_id})
+        links.append(
+            {
+                "detail_url": url_for(endpoint, **route_kwargs),
+                "entity_type_label": label,
+                "title": title_getter(record),
+            }
+        )
+    return links
+
+
 def _admin_detail_url(entity_type: str, entity_id: int | None) -> str | None:
     if entity_id is None:
         return None
@@ -2480,6 +3099,71 @@ def _edit_checkbox_field(name: str, label: str, checked: bool | None) -> dict[st
     return {"checked": bool(checked), "kind": "checkbox", "label": label, "name": name}
 
 
+def _image_fields(image: Image | None) -> list[dict[str, object]]:
+    return [
+        _edit_text_field(
+            "photographer_id",
+            "Photographer ID",
+            image.photographer_id if image else None,
+        ),
+        _edit_text_field("group_id", "Group ID", image.group_id if image else None),
+        _edit_text_field("segment_id", "Segment ID", image.segment_id if image else None),
+        _edit_text_field("activity_id", "Activity ID", image.activity_id if image else None),
+        _edit_text_field("title", "Title", image.title if image else None),
+        _edit_text_field("caption", "Caption", image.caption if image else None),
+        _edit_text_field("alt_txt", "Alt text", image.alt_txt if image else None),
+        _edit_text_field("img_small", "Small image URL", image.img_small if image else None),
+        _edit_text_field("img_medium", "Medium image URL", image.img_medium if image else None),
+        _edit_text_field("img_large", "Large image URL", image.img_large if image else None),
+        _edit_text_field("img_thumb", "Thumb image URL", image.img_thumb if image else None),
+        _edit_text_field("url", "Canonical URL", image.url if image else None),
+        _edit_text_field("latlng", "Latlng", image.latlng if image else None),
+        _edit_text_field("geoll", "Geometry", image.geoll if image else None),
+        _edit_text_field(
+            "tags",
+            "Tags (comma separated)",
+            _csv_value(image.tags if image else None),
+        ),
+    ]
+
+
+def _link_fields(link: GroupExternalUrl | None) -> list[dict[str, object]]:
+    return [
+        _edit_text_field("group_id", "Group ID", link.group_id if link else None),
+        _edit_text_field("route_id", "Route ID", link.route_id if link else None),
+        _edit_text_field("name", "Name", link.name if link else None),
+        _edit_text_field("type", "Type", link.type if link else None),
+        _edit_text_field("subtype", "Subtype", link.subtype if link else None),
+        _edit_text_field("url", "URL", link.url if link else None),
+        _edit_textarea_field("description", "Description", link.description if link else None),
+        _edit_text_field("icon", "Icon", link.icon if link else None),
+        _edit_text_field("img", "Image URL", link.img if link else None),
+        _edit_text_field("tags", "Tags (comma separated)", _csv_value(link.tags if link else None)),
+    ]
+
+
+def _dues_fields(dues: GroupDues | None) -> list[dict[str, object]]:
+    return [
+        _edit_text_field("group_id", "Group ID", dues.group_id if dues else None),
+        _edit_text_field("name", "Name", dues.name if dues else None),
+        _edit_text_field("fee", "Fee", dues.fee if dues else None),
+        _edit_text_field("duration", "Duration", dues.duration if dues else None),
+        _edit_textarea_field("description", "Description", dues.description if dues else None),
+        _edit_text_field("tags", "Tags (comma separated)", _csv_value(dues.tags if dues else None)),
+    ]
+
+
+def _fee_fields(fee: EventFee | None) -> list[dict[str, object]]:
+    return [
+        _edit_text_field("event_id", "Event ID", fee.event_id if fee else None),
+        _edit_text_field("name", "Name", fee.name if fee else None),
+        _edit_text_field("fee", "Fee", fee.fee if fee else None),
+        _edit_text_field("duration", "Duration", fee.duration if fee else None),
+        _edit_textarea_field("description", "Description", fee.description if fee else None),
+        _edit_text_field("tags", "Tags (comma separated)", _csv_value(fee.tags if fee else None)),
+    ]
+
+
 def _display_value(value: object | None) -> str | None:
     if value is None:
         return None
@@ -2543,6 +3227,30 @@ def _form_optional_float(name: str) -> float | None:
         raise AdminFormError(f"{_field_label(name)} must be a number.")
 
 
+def _form_required_float(name: str) -> float:
+    value = _form_optional_float(name)
+    if value is None:
+        raise AdminFormError(f"{_field_label(name)} is required.")
+    return value
+
+
+def _form_optional_int(name: str) -> int | None:
+    raw_value = request.form.get(name, "").strip()
+    if not raw_value:
+        return None
+    try:
+        return int(raw_value)
+    except ValueError:
+        raise AdminFormError(f"{_field_label(name)} must be a whole number.")
+
+
+def _form_required_int(name: str) -> int:
+    value = _form_optional_int(name)
+    if value is None:
+        raise AdminFormError(f"{_field_label(name)} is required.")
+    return value
+
+
 def _form_bool(name: str) -> bool:
     return request.form.get(name) == "true"
 
@@ -2594,6 +3302,13 @@ def _optional_related_record(model: type[ModelT], form_key: str) -> ModelT | Non
     record = db.session.get(model, record_id)
     if record is None:
         raise AdminFormError(f"{_field_label(form_key)} was not found.")
+    return record
+
+
+def _required_related_record(model: type[ModelT], form_key: str) -> ModelT:
+    record = _optional_related_record(model, form_key)
+    if record is None:
+        raise AdminFormError(f"{_field_label(form_key)} is required.")
     return record
 
 

@@ -137,6 +137,34 @@ def add_group_link(
     return link
 
 
+def update_group_link(
+    link: GroupExternalUrl,
+    *,
+    group: Group | None = None,
+    route: Route | None = None,
+    name: str | None = None,
+    url: str | None = None,
+    link_type: str | None = None,
+    subtype: str | None = None,
+    description: str | None = None,
+    tags: list[str] | None = None,
+    icon: str | None = None,
+    img: str | None = None,
+) -> GroupExternalUrl:
+    link.group = group
+    link.route = route
+    link.name = name
+    link.url = url
+    link.type = link_type
+    link.subtype = subtype
+    link.description = description
+    link.tags = tags
+    link.icon = icon
+    link.img = img
+    db.session.commit()
+    return link
+
+
 def add_route_link(
     route: Route,
     *,
@@ -169,6 +197,26 @@ def add_group_dues(
         tags=tags,
     )
     db.session.add(dues)
+    db.session.commit()
+    return dues
+
+
+def update_group_dues(
+    dues: GroupDues,
+    *,
+    group: Group | None = None,
+    name: str | None = None,
+    fee: float | None = None,
+    duration: int | None = None,
+    description: str | None = None,
+    tags: list[str] | None = None,
+) -> GroupDues:
+    dues.group = group
+    dues.name = name
+    dues.fee = fee
+    dues.duration = duration
+    dues.description = description
+    dues.tags = tags
     db.session.commit()
     return dues
 
