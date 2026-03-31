@@ -12,19 +12,19 @@
   <section class="grid">
     <aside class="panel">
       <h2>Actions</h2>
-      <div class="stack">
-        <div class="result-meta">
-          {% if entity_id %}
-            <div>ID {{ entity_id }}</div>
-          {% endif %}
-          {% if detail_url %}
-            <div><a href="{{ detail_url }}">Back to detail page</a></div>
-          {% endif %}
-          {% if dashboard_url %}
-            <div><a href="{{ dashboard_url }}">Back to dashboard</a></div>
-          {% endif %}
-          <div><a href="{{ url_for('core.admin_search_route') }}">Back to search</a></div>
-        </div>
+      <div class="action-list">
+        {% if entity_id %}
+          <div class="action-link">
+            <span><span class="action-link-label">Record</span><span class="action-link-value">ID {{ entity_id }}</span></span>
+          </div>
+        {% endif %}
+        {% if detail_url %}
+          <a class="action-link" href="{{ detail_url }}"><span><span class="action-link-label">Navigate</span><span class="action-link-value">Back to detail page</span></span><span>&rarr;</span></a>
+        {% endif %}
+        {% if dashboard_url %}
+          <a class="action-link" href="{{ dashboard_url }}"><span><span class="action-link-label">Navigate</span><span class="action-link-value">Back to dashboard</span></span><span>&rarr;</span></a>
+        {% endif %}
+        <a class="action-link" href="{{ url_for('core.admin_search_route') }}"><span><span class="action-link-label">Navigate</span><span class="action-link-value">Back to search</span></span><span>&rarr;</span></a>
       </div>
     </aside>
 
@@ -32,23 +32,19 @@
       <h2>Fields</h2>
       {% for field in fields %}
         {% if field.kind == "checkbox" %}
-          <label class="checkboxes" style="grid-template-columns: 1fr;">
-            <label>
+          <div class="checkboxes" style="grid-template-columns: 1fr;">
+            <label class="choice-chip">
               <input type="checkbox" name="{{ field.name }}" value="true" {% if field.checked %}checked{% endif %}>
               {{ field.label }}
             </label>
-          </label>
+          </div>
         {% elif field.kind == "textarea" %}
-          <label>
+          <label class="field-label">
             {{ field.label }}
-            <textarea
-              name="{{ field.name }}"
-              rows="{{ field.rows or 5 }}"
-              style="width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: #fffdf8; color: var(--ink); font: inherit;"
-            >{{ field.value }}</textarea>
+            <textarea name="{{ field.name }}" rows="{{ field.rows or 5 }}">{{ field.value }}</textarea>
           </label>
         {% else %}
-          <label>
+          <label class="field-label">
             {{ field.label }}
             <input
               type="{{ field.kind or 'text' }}"
@@ -69,7 +65,7 @@
           </label>
         {% endif %}
       {% endfor %}
-      <button type="submit">{{ submit_label }}</button>
+      <button class="button button-primary" type="submit">{{ submit_label }}</button>
     </form>
   </section>
 {% endblock %}

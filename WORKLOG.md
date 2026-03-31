@@ -489,3 +489,50 @@ This file records session history for `explor_codex` so future work can resume w
   - asset inventory and licensing cleanup
   - template/content mapping from old pages to current entities
   - static/CSS extraction and reduction from the old asset bundle
+
+## 2026-03-30 (First Design Slice)
+
+### Investigated
+- Compared the current admin templates against the strongest reusable visual patterns in `../explor_alpha`.
+- Confirmed the safest first slice was the shared shell plus the browser-backed admin dashboard, search, and detail pages.
+- Audited likely risks from the old stack and avoided directly importing its Bootstrap, jQuery, map, and modal dependencies.
+
+### Changed
+- Replaced the inline shared styling in [templates/base.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/base.html) with a repo-local stylesheet at [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css).
+- Reworked [templates/base.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/base.html) into a stronger shared shell with:
+  - branded top navigation
+  - glassy surface treatment
+  - support for the new design-system classes
+- Re-skinned:
+  - [templates/admin/dashboard.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/dashboard.html)
+  - [templates/admin/search.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/search.html)
+  - [templates/admin/detail.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/detail.html)
+  - [templates/admin/edit.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/edit.html)
+- Ported old-repo design cues into the new admin slice:
+  - darker cinematic hero sections
+  - stronger uppercase labels
+  - stat cards
+  - split-column rails
+  - action rows
+  - denser card treatments
+- Kept all existing route, model, and service contracts intact so the new backend remained unchanged.
+
+### Decisions
+- Translate the old design language into a lightweight repo-local CSS layer rather than importing the legacy asset pipeline.
+- Avoid directly porting old commercial/custom font assets until licensing is confirmed.
+- Extend the visual refresh to the shared edit template too, so the first slice feels coherent across inspect and write flows.
+
+### Why
+- This gives the project a real proof that old `explor_alpha` design ideas can be merged into the rebuilt Flask app without dragging old frontend dependencies or backend assumptions back in.
+- Moving the styling into `static/css/admin.css` also gives future UI work a stable place to keep extending the design system.
+
+### Verification
+- `uv run pytest`
+- `uv run ruff check .`
+- `uv run mypy app tests`
+
+### Notes for the next session
+- The first design slice now covers the shared shell plus dashboard, search, detail, and edit flows.
+- The next likely step is either:
+  - extending the same language to collection and auth pages, or
+  - introducing a public-facing landing page slice that borrows from the old marketing/hero patterns while staying backend-light.

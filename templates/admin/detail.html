@@ -4,17 +4,45 @@
 
 {% block body %}
   <section class="hero">
-    <p class="eyebrow">{{ entity_type_label }}</p>
-    <h1>{{ page_title }}</h1>
-    {% if subtitle %}
-      <p>{{ subtitle }}</p>
-    {% endif %}
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">{{ entity_type_label }}</p>
+        <h1>{{ page_title }}</h1>
+        {% if subtitle %}
+          <p>{{ subtitle }}</p>
+        {% endif %}
+      </div>
+      <div class="hero-stats">
+        <article class="hero-card">
+          <p class="hero-card-label">Record</p>
+          <p class="hero-card-value">ID {{ entity_id }}</p>
+          <p class="hero-card-note">
+            {% if location %}
+              {{ location }}
+            {% else %}
+              Shared detail surface on top of the rebuilt data model.
+            {% endif %}
+          </p>
+        </article>
+        {% if tags %}
+          <article class="hero-card">
+            <p class="hero-card-label">Tags</p>
+            <p class="hero-card-value">{{ tags|length }}</p>
+            <div class="tag-list">
+              {% for tag in tags[:4] %}
+                <span class="tag">{{ tag }}</span>
+              {% endfor %}
+            </div>
+          </article>
+        {% endif %}
+      </div>
+    </div>
   </section>
 
   <section class="grid">
-    <aside class="panel">
-      <h2>Summary</h2>
-      <div class="stack">
+    <aside class="detail-layout">
+      <section class="detail-summary-card">
+        <p class="section-heading">Summary</p>
         <div class="result-meta">
           <div>ID {{ entity_id }}</div>
           {% if location %}
@@ -28,50 +56,59 @@
             {% endfor %}
           </div>
         {% endif %}
-        <div>
+      </section>
+
+      <section class="panel">
+        <h2>Actions</h2>
+        <div class="action-list">
           {% if edit_url %}
-            <a href="{{ edit_url }}">Edit this record</a>
+            <a class="action-link" href="{{ edit_url }}"><span><span class="action-link-label">Update</span><span class="action-link-value">Edit this record</span></span><span>&rarr;</span></a>
           {% endif %}
+          <a class="action-link" href="{{ url_for('core.admin_search_route') }}"><span><span class="action-link-label">Navigate</span><span class="action-link-value">Back to search</span></span><span>&rarr;</span></a>
         </div>
-        <div>
-          <a href="{{ url_for('core.admin_search_route') }}">Back to search</a>
-        </div>
-        {% if media_previews %}
+      </section>
+
+      {% if media_previews %}
+        <section class="panel">
+          <h2>Media</h2>
           <div class="media-stack">
-            <h2>Media</h2>
             {% for media in media_previews %}
               <div class="media-preview">
                 <div class="result-type">{{ media.label }}</div>
                 <img src="{{ media.url }}" alt="{{ media.alt or media.label }}">
-                <a href="{{ media.url }}" target="_blank" rel="noreferrer">Open original</a>
+                <a class="result-title-link" href="{{ media.url }}" target="_blank" rel="noreferrer">Open original</a>
               </div>
             {% endfor %}
           </div>
-        {% endif %}
-        {% if recent_links %}
-          <div class="stack">
-            <h2>Recent Activity</h2>
+        </section>
+      {% endif %}
+
+      {% if recent_links %}
+        <section class="panel">
+          <h2>Recent Activity</h2>
+          <div class="action-list">
             {% for link in recent_links %}
-              <a class="nav-link" href="{{ link.detail_url }}">
-                {{ link.entity_type_label }}: {{ link.title }}
+              <a class="action-link" href="{{ link.detail_url }}">
+                <span><span class="action-link-label">{{ link.entity_type_label }}</span><span class="action-link-value">{{ link.title }}</span></span>
+                <span>&rarr;</span>
               </a>
             {% endfor %}
           </div>
-        {% endif %}
-      </div>
+        </section>
+      {% endif %}
     </aside>
 
     <section class="panel">
       <h2>Details</h2>
       {% if detail_rows %}
-        <div class="result-list">
+        <div class="detail-rows">
           {% for row in detail_rows %}
-            <article class="result-card">
-              <div class="result-type">{{ row.label }}</div>
+            <article class="detail-row">
+              <div class="detail-row-label">{{ row.label }}</div>
               {% if row.url %}
-                <p class="result-title"><a href="{{ row.url }}">{{ row.value }}</a></p>
+                <div class="detail-row-value"><a href="{{ row.url }}">{{ row.value }}</a></div>
               {% else %}
-                <p class="result-title">{{ row.value }}</p>
+                <div class="detail-row-value">{{ row.value }}</div>
               {% endif %}
             </article>
           {% endfor %}

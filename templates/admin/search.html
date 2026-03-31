@@ -4,19 +4,41 @@
 
 {% block body %}
   <section class="hero">
-    <p class="eyebrow">Admin Search</p>
-    <h1>Search across the imported domain without rebuilding your mental map.</h1>
-    <p>
-      This thin UI sits directly on top of the portable search index. It is meant to be a practical
-      browser entry point for groups, routes, segments, events, activities, and points of interest
-      while we continue rebuilding richer admin surfaces.
-    </p>
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Admin Search</p>
+        <h1>Search across the imported domain without rebuilding your mental map.</h1>
+        <p>
+          This thin UI sits directly on top of the portable search index. It is meant to be a
+          practical browser entry point for groups, routes, segments, events, activities, and
+          points of interest while we continue rebuilding richer admin surfaces.
+        </p>
+      </div>
+      <div class="hero-stats">
+        <article class="hero-card">
+          <p class="hero-card-label">Indexed Documents</p>
+          <p class="hero-card-value">{{ total_documents }}</p>
+          <p class="hero-card-note">Portable search is the connective tissue for this new admin shell.</p>
+        </article>
+        <article class="hero-card">
+          <p class="hero-card-label">Current Query</p>
+          <p class="hero-card-value">{% if query %}{{ results|length }}{% else %}0{% endif %}</p>
+          <p class="hero-card-note">
+            {% if query %}
+              Matching result{% if results|length != 1 %}s{% endif %} for this search pass.
+            {% else %}
+              Enter a term to inspect the rebuilt domain.
+            {% endif %}
+          </p>
+        </article>
+      </div>
+    </div>
   </section>
 
   <section class="grid">
     <form class="panel stack" method="get" action="{{ url_for('core.admin_search_route') }}">
       <h2>Query</h2>
-      <label>
+      <label class="field-label">
         Search terms
         <input
           type="search"
@@ -25,7 +47,7 @@
           placeholder="Search names, descriptions, places, and tags"
         >
       </label>
-      <label>
+      <label class="field-label">
         Result limit
         <input type="number" name="limit" min="1" max="100" value="{{ limit }}">
       </label>
@@ -33,7 +55,7 @@
         <span>Entity types</span>
         <div class="checkboxes">
           {% for entity_type in entity_types %}
-            <label>
+            <label class="choice-chip">
               <input
                 type="checkbox"
                 name="type"
@@ -45,7 +67,7 @@
           {% endfor %}
         </div>
       </div>
-      <button type="submit">Search</button>
+      <button class="button button-primary" type="submit">Search</button>
     </form>
 
     <section class="panel">
@@ -65,13 +87,14 @@
               <div class="result-head">
                 <h3 class="result-title">
                   {% if result.detail_url %}
-                    <a href="{{ result.detail_url }}">{{ result.title or '(untitled)' }}</a>
+                    <a class="result-title-link" href="{{ result.detail_url }}">{{ result.title or '(untitled)' }}</a>
                   {% else %}
                     {{ result.title or '(untitled)' }}
                   {% endif %}
                 </h3>
                 <span class="result-type">{{ result.entity_type.replace("_", " ") }}</span>
               </div>
+              <div class="result-divider"></div>
               <div class="result-meta">
                 {% if result.subtitle %}
                   <div>{{ result.subtitle }}</div>

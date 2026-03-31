@@ -4,45 +4,69 @@
 
 {% block body %}
   <section class="hero">
-    <p class="eyebrow">Admin</p>
-    <h1>Control room for the rebuilt domain.</h1>
-    <p>
-      This dashboard gives you quick creation links, record counts, and recent activity across the
-      core entities we have already migrated into the new Flask app.
-    </p>
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Admin</p>
+        <h1>Control room for the rebuilt domain.</h1>
+        <p>
+          This dashboard gives you quick creation links, record counts, and recent activity across
+          the core entities we have already migrated into the new Flask app.
+        </p>
+      </div>
+      <div class="hero-stats">
+        <article class="hero-card">
+          <p class="hero-card-label">Current Focus</p>
+          <p class="hero-card-value">Admin</p>
+          <p class="hero-card-note">A visual merge from `explor_alpha` layered onto the new backend.</p>
+        </article>
+        <article class="hero-card">
+          <p class="hero-card-label">Tracked Types</p>
+          <p class="hero-card-value">{{ stats|length }}</p>
+          <p class="hero-card-note">Record families visible from this rebuilt browser surface.</p>
+        </article>
+      </div>
+    </div>
   </section>
 
   <section class="grid">
     <aside class="panel stack">
       <h2>Quick Create</h2>
-      <a class="pill" href="{{ url_for('core.admin_user_new_route') }}">New user</a>
-      <a class="pill" href="{{ url_for('core.admin_group_new_route') }}">New group</a>
-      <a class="pill" href="{{ url_for('core.admin_route_new_route') }}">New route</a>
-      <a class="pill" href="{{ url_for('core.admin_segment_new_route') }}">New segment</a>
-      <a class="pill" href="{{ url_for('core.admin_event_new_route') }}">New event</a>
-      <a class="pill" href="{{ url_for('core.admin_point_of_interest_new_route') }}">New POI</a>
-      <a class="pill" href="{{ url_for('core.admin_activity_new_route') }}">New activity</a>
-      <a class="pill" href="{{ url_for('core.admin_image_new_route') }}">New image</a>
-      <a class="pill" href="{{ url_for('core.admin_link_new_route') }}">New link</a>
-      <a class="pill" href="{{ url_for('core.admin_dues_new_route') }}">New dues</a>
-      <a class="pill" href="{{ url_for('core.admin_fee_new_route') }}">New fee</a>
-      <a class="pill" href="{{ url_for('core.admin_search_route') }}">Open search</a>
+      <div class="action-list">
+        <a class="action-link" href="{{ url_for('core.admin_user_new_route') }}"><span><span class="action-link-label">Create</span><span class="action-link-value">New user</span></span><span>&rarr;</span></a>
+        <a class="action-link" href="{{ url_for('core.admin_group_new_route') }}"><span><span class="action-link-label">Create</span><span class="action-link-value">New group</span></span><span>&rarr;</span></a>
+        <a class="action-link" href="{{ url_for('core.admin_route_new_route') }}"><span><span class="action-link-label">Create</span><span class="action-link-value">New route</span></span><span>&rarr;</span></a>
+        <a class="action-link" href="{{ url_for('core.admin_segment_new_route') }}"><span><span class="action-link-label">Create</span><span class="action-link-value">New segment</span></span><span>&rarr;</span></a>
+        <a class="action-link" href="{{ url_for('core.admin_event_new_route') }}"><span><span class="action-link-label">Create</span><span class="action-link-value">New event</span></span><span>&rarr;</span></a>
+        <a class="action-link" href="{{ url_for('core.admin_point_of_interest_new_route') }}"><span><span class="action-link-label">Create</span><span class="action-link-value">New POI</span></span><span>&rarr;</span></a>
+        <a class="action-link" href="{{ url_for('core.admin_activity_new_route') }}"><span><span class="action-link-label">Create</span><span class="action-link-value">New activity</span></span><span>&rarr;</span></a>
+        <a class="action-link" href="{{ url_for('core.admin_image_new_route') }}"><span><span class="action-link-label">Create</span><span class="action-link-value">New image</span></span><span>&rarr;</span></a>
+        <a class="action-link" href="{{ url_for('core.admin_link_new_route') }}"><span><span class="action-link-label">Create</span><span class="action-link-value">New link</span></span><span>&rarr;</span></a>
+        <a class="action-link" href="{{ url_for('core.admin_dues_new_route') }}"><span><span class="action-link-label">Create</span><span class="action-link-value">New dues</span></span><span>&rarr;</span></a>
+        <a class="action-link" href="{{ url_for('core.admin_fee_new_route') }}"><span><span class="action-link-label">Create</span><span class="action-link-value">New fee</span></span><span>&rarr;</span></a>
+        <a class="action-link" href="{{ url_for('core.admin_search_route') }}"><span><span class="action-link-label">Inspect</span><span class="action-link-value">Open search</span></span><span>&rarr;</span></a>
+      </div>
     </aside>
 
     <section class="panel">
       <h2>Snapshot</h2>
-      <div class="summary">
+      <div class="dashboard-stat-grid">
         {% for stat in stats %}
-          <span class="pill">{{ stat.label }}: {{ stat.count }}</span>
+          <article class="dashboard-stat">
+            <p class="dashboard-stat-value">{{ stat.count }}</p>
+            <p class="dashboard-stat-label">{{ stat.label }}</p>
+          </article>
         {% endfor %}
       </div>
-      <div class="result-list">
+      <div class="dashboard-columns">
         {% for section in sections %}
-          <article class="result-card">
-            <div class="result-head">
-              <h3 class="result-title">{{ section["title"] }}</h3>
+          <article class="result-card dashboard-section">
+            <div class="dashboard-section-header">
+              <div>
+                <div class="section-heading">Recent Records</div>
+                <h3 class="dashboard-section-title">{{ section["title"] }}</h3>
+              </div>
               {% if section["new_url"] %}
-                <span class="result-type"><a href="{{ section["new_url"] }}">Create</a></span>
+                <a class="pill" href="{{ section["new_url"] }}">Create</a>
               {% endif %}
             </div>
             {% if section["items"] %}
@@ -50,9 +74,10 @@
                 {% for item in section["items"] %}
                   <article class="result-card">
                     <div class="result-head">
-                      <h4 class="result-title"><a href="{{ item["detail_url"] }}">{{ item["title"] }}</a></h4>
+                      <h4 class="result-title"><a class="result-title-link" href="{{ item["detail_url"] }}">{{ item["title"] }}</a></h4>
                       <span class="result-type">ID {{ item["id"] }}</span>
                     </div>
+                    <div class="result-divider"></div>
                     {% if item["subtitle"] or item["location"] %}
                       <div class="result-meta">
                         {% if item["subtitle"] %}
