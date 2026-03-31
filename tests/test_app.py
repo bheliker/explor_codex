@@ -94,6 +94,15 @@ def test_health_route(client: FlaskClient) -> None:
     assert response.get_json() == {"status": "ok"}
 
 
+def test_public_landing_route_renders(client: FlaskClient, database: None) -> None:
+    response = client.get("/landing")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "More ride planning, less tool-switching." in html
+    assert "Find the next ride faster." in html
+
+
 def test_app_factory_enables_testing_config(app: Flask) -> None:
     assert app.testing is True
 
@@ -2897,6 +2906,13 @@ def test_admin_dashboard_renders_counts_and_recent_records(
     assert "/admin/users/new" in html
     assert "Dashboard" in html
     assert "Search" in html
+
+
+def test_admin_collection_pages_render(admin_client: FlaskClient, database: None) -> None:
+    for path in ("/admin/images", "/admin/links", "/admin/dues", "/admin/fees"):
+        response = admin_client.get(path)
+        assert response.status_code == 200
+        assert "Back to dashboard" in response.get_data(as_text=True)
 
 
 def test_admin_group_create_page_creates_group_and_search_document(

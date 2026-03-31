@@ -4,46 +4,57 @@
 
 {% block body %}
   <section class="hero">
-    <p class="eyebrow">Auth</p>
-    <h1>Create an account</h1>
-    <p>The first registered user becomes the initial site admin for the rebuilt app.</p>
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Auth</p>
+        <h1>Create an account</h1>
+        <p>The first registered user becomes the initial site admin for the rebuilt app.</p>
+      </div>
+      <div class="hero-stats">
+        <article class="hero-card">
+          <p class="hero-card-label">First User</p>
+          <p class="hero-card-value">Site Admin</p>
+          <p class="hero-card-note">Sign-up remains intentionally lightweight while the product grows around it.</p>
+        </article>
+      </div>
+    </div>
   </section>
 
   <section class="grid">
     <aside class="panel stack">
       <h2>Already here?</h2>
-      <div class="result-meta">
-        <div><a href="{{ url_for('auth.login') }}">Return to login</a></div>
+      <div class="action-list">
+        <a class="action-link" href="{{ url_for('auth.login') }}"><span><span class="action-link-label">Return</span><span class="action-link-value">Return to login</span></span><span>&rarr;</span></a>
       </div>
     </aside>
 
     <form class="panel stack" method="post">
       <h2>Profile</h2>
-      <label>
+      <label class="field-label">
         Username
         <input type="text" name="username" autocomplete="username">
       </label>
-      <label>
+      <label class="field-label">
         Email
         <input type="email" name="email" autocomplete="email">
       </label>
-      <label>
+      <label class="field-label">
         First name
         <input type="text" name="firstname" autocomplete="given-name">
       </label>
-      <label>
+      <label class="field-label">
         Last name
         <input type="text" name="lastname" autocomplete="family-name">
       </label>
-      <label>
+      <label class="field-label">
         Password
         <input type="password" name="password" autocomplete="new-password">
       </label>
-      <label>
+      <label class="field-label">
         Confirm password
         <input type="password" name="password_confirm" autocomplete="new-password">
       </label>
-      <button type="submit">Create Account</button>
+      <button class="button button-primary" type="submit">Create Account</button>
     </form>
   </section>
 {% endblock %}

@@ -4,37 +4,63 @@
 
 {% block body %}
   <section class="hero">
-    <p class="eyebrow">Account</p>
-    <h1>{{ current_user.display_name }}</h1>
-    <p>
-      {{ current_user.email }}
-      {% if current_user.site_admin %}
-        · site admin
-      {% endif %}
-    </p>
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Account</p>
+        <h1>{{ current_user.display_name }}</h1>
+        <p>
+          {{ current_user.email }}
+          {% if current_user.site_admin %}
+            · site admin
+          {% endif %}
+        </p>
+      </div>
+      <div class="hero-stats">
+        <article class="hero-card">
+          <p class="hero-card-label">Profile</p>
+          <p class="hero-card-value">{{ current_user.username }}</p>
+          <p class="hero-card-note">A calmer account surface for the rebuilt product.</p>
+        </article>
+      </div>
+    </div>
   </section>
 
   <section class="grid">
     <aside class="panel stack">
       <h2>Actions</h2>
-      <div class="result-meta">
+      <div class="action-list">
         {% if current_user.site_admin %}
-          <div><a href="{{ url_for('core.admin_dashboard_route') }}">Open admin dashboard</a></div>
-          <div><a href="{{ url_for('core.admin_user_list_route') }}">Manage users</a></div>
+          <a class="action-link" href="{{ url_for('core.admin_dashboard_route') }}"><span><span class="action-link-label">Admin</span><span class="action-link-value">Open admin dashboard</span></span><span>&rarr;</span></a>
+          <a class="action-link" href="{{ url_for('core.admin_user_list_route') }}"><span><span class="action-link-label">Admin</span><span class="action-link-value">Manage users</span></span><span>&rarr;</span></a>
         {% endif %}
-        <div><a href="{{ url_for('auth.account_edit') }}">Edit account</a></div>
-        <div><a href="{{ url_for('auth.password_reset_request') }}">Generate reset link</a></div>
+        <a class="action-link" href="{{ url_for('auth.account_edit') }}"><span><span class="action-link-label">Profile</span><span class="action-link-value">Edit account</span></span><span>&rarr;</span></a>
+        <a class="action-link" href="{{ url_for('auth.password_reset_request') }}"><span><span class="action-link-label">Security</span><span class="action-link-value">Generate reset link</span></span><span>&rarr;</span></a>
       </div>
     </aside>
 
     <section class="panel stack">
       <h2>Profile</h2>
-      <div class="result-meta">
-        <div>Username: {{ current_user.username }}</div>
-        <div>First name: {{ current_user.firstname or "—" }}</div>
-        <div>Last name: {{ current_user.lastname or "—" }}</div>
-        <div>Active: {{ "yes" if current_user.active else "no" }}</div>
-        <div>Last login: {{ current_user.last_login_at or "never" }}</div>
+      <div class="detail-rows">
+        <article class="detail-row">
+          <div class="detail-row-label">Username</div>
+          <div class="detail-row-value">{{ current_user.username }}</div>
+        </article>
+        <article class="detail-row">
+          <div class="detail-row-label">First name</div>
+          <div class="detail-row-value">{{ current_user.firstname or "—" }}</div>
+        </article>
+        <article class="detail-row">
+          <div class="detail-row-label">Last name</div>
+          <div class="detail-row-value">{{ current_user.lastname or "—" }}</div>
+        </article>
+        <article class="detail-row">
+          <div class="detail-row-label">Active</div>
+          <div class="detail-row-value">{{ "yes" if current_user.active else "no" }}</div>
+        </article>
+        <article class="detail-row">
+          <div class="detail-row-label">Last login</div>
+          <div class="detail-row-value">{{ current_user.last_login_at or "never" }}</div>
+        </article>
       </div>
     </section>
   </section>

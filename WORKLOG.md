@@ -536,3 +536,56 @@ This file records session history for `explor_codex` so future work can resume w
 - The next likely step is either:
   - extending the same language to collection and auth pages, or
   - introducing a public-facing landing page slice that borrows from the old marketing/hero patterns while staying backend-light.
+
+## 2026-03-31 (Public/Auth And Collection Design Rollout)
+
+### Investigated
+- Reviewed the remaining server-rendered pages that still sat outside the first design slice:
+  - collection pages
+  - user directory
+  - auth flows
+  - account pages
+- Compared those surfaces to the old `explor_alpha` landing/auth composition to find the minimum viable public slice that would not require reintroducing video, modal, or JS-heavy behavior.
+- Confirmed it was safer to preserve the JSON contract at `/` and add a separate HTML landing route instead of silently changing the existing readiness endpoint.
+
+### Changed
+- Added a backend-light public landing page at [templates/public/landing.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/public/landing.html) with its route in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py).
+- Updated [templates/base.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/base.html) so anonymous navigation points toward the new public landing surface.
+- Extended the shared stylesheet in [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css) with landing-page layout and supporting card/section styles.
+- Re-skinned:
+  - [templates/admin/collection.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/collection.html)
+  - [templates/admin/users.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/users.html)
+  - [templates/auth/login.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/login.html)
+  - [templates/auth/signup.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/signup.html)
+  - [templates/auth/account.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/account.html)
+  - [templates/auth/account_edit.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/account_edit.html)
+  - [templates/auth/password_reset_request.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/password_reset_request.html)
+  - [templates/auth/password_reset.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/password_reset.html)
+- Added smoke coverage in [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) for:
+  - the new public landing route
+  - collection admin routes
+
+### Decisions
+- Keep `/` as a JSON readiness endpoint for now.
+- Use `/landing` as the first public-facing HTML slice until there is a clearer reason to switch to content negotiation or a full homepage replacement.
+- Continue translating the old repo’s tone and structure, but not its legacy asset/dependency stack.
+
+### Why
+- This broadens the visual merge from “admin-only” into a more cohesive product surface without destabilizing the app’s API behavior.
+- It also creates a safe public entry point for future marketing/product storytelling while the backend and domain continue to evolve.
+
+### Verification
+- `uv run pytest`
+- `uv run ruff check .`
+- `uv run mypy app tests`
+
+### Notes for the next session
+- The shared design language now spans:
+  - public landing
+  - auth
+  - account
+  - collection pages
+  - the original admin slice
+- The next likely step is either:
+  - richer public information architecture, such as browse/search landing experiences, or
+  - higher-fidelity visual polish with more original assets and imagery once ownership/licensing is confirmed.

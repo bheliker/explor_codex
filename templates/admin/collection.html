@@ -4,18 +4,31 @@
 
 {% block body %}
   <section class="hero">
-    <p class="eyebrow">Admin</p>
-    <h1>{{ page_title }}</h1>
-    <p>{{ intro_text }}</p>
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Admin</p>
+        <h1>{{ page_title }}</h1>
+        <p>{{ intro_text }}</p>
+      </div>
+      <div class="hero-stats">
+        <article class="hero-card">
+          <p class="hero-card-label">Visible Records</p>
+          <p class="hero-card-value">{{ records|length }}</p>
+          <p class="hero-card-note">A shared collection surface for secondary admin entities.</p>
+        </article>
+      </div>
+    </div>
   </section>
 
   <section class="grid">
     <aside class="panel stack">
       <h2>Actions</h2>
-      {% if new_url %}
-        <a class="pill" href="{{ new_url }}">Create new</a>
-      {% endif %}
-      <a class="pill" href="{{ url_for('core.admin_dashboard_route') }}">Back to dashboard</a>
+      <div class="action-list">
+        {% if new_url %}
+          <a class="action-link" href="{{ new_url }}"><span><span class="action-link-label">Create</span><span class="action-link-value">Create new</span></span><span>&rarr;</span></a>
+        {% endif %}
+        <a class="action-link" href="{{ url_for('core.admin_dashboard_route') }}"><span><span class="action-link-label">Navigate</span><span class="action-link-value">Back to dashboard</span></span><span>&rarr;</span></a>
+      </div>
     </aside>
 
     <section class="panel">
@@ -25,9 +38,10 @@
           {% for record in records %}
             <article class="result-card">
               <div class="result-head">
-                <h3 class="result-title"><a href="{{ record.detail_url }}">{{ record.title }}</a></h3>
+                <h3 class="result-title"><a class="result-title-link" href="{{ record.detail_url }}">{{ record.title }}</a></h3>
                 <span class="result-type">ID {{ record.id }}</span>
               </div>
+              <div class="result-divider"></div>
               <div class="result-meta">
                 {% if record.subtitle %}
                   <div>{{ record.subtitle }}</div>

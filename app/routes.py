@@ -82,6 +82,45 @@ def index() -> tuple[dict[str, str], int]:
     return {"message": "explor_codex is ready"}, 200
 
 
+@bp.get("/landing")
+def landing() -> str:
+    return render_template(
+        "public/landing.html",
+        feature_cards=[
+            {
+                "eyebrow": "1 / Discover",
+                "body": (
+                    "Search routes, groups, events, and places from one rebuilt domain "
+                    "instead of stitching tools together by hand."
+                ),
+                "title": "Find the next ride faster.",
+            },
+            {
+                "eyebrow": "2 / Coordinate",
+                "body": (
+                    "Browser-backed admin and account flows make it easier to update "
+                    "records, manage people, and keep context close to the data."
+                ),
+                "title": "Keep coordination inside the platform.",
+            },
+            {
+                "eyebrow": "3 / Grow",
+                "body": (
+                    "The new Flask app keeps the backend modern while making room to port "
+                    "the strongest product ideas from the original design language."
+                ),
+                "title": "Rebuild without losing the original ambition.",
+            },
+        ],
+        stats=[
+            {"label": "groups", "count": _count_records(Group)},
+            {"label": "routes", "count": _count_records(Route)},
+            {"label": "events", "count": _count_records(Event)},
+            {"label": "search docs", "count": _count_records(SearchDocument)},
+        ],
+    )
+
+
 @bp.get("/health")
 def health() -> tuple[dict[str, str], int]:
     return {"status": "ok"}, 200

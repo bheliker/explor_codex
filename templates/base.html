@@ -12,7 +12,7 @@
   <main class="shell">
     <header class="topbar">
       <div class="topbar-brand">
-        <a class="brand-mark" href="{{ url_for('core.admin_dashboard_route') if current_user.is_authenticated and current_user.site_admin else url_for('core.index') }}">
+        <a class="brand-mark" href="{{ url_for('core.admin_dashboard_route') if current_user.is_authenticated and current_user.site_admin else url_for('core.landing') }}">
           explor
         </a>
         <div>
@@ -21,6 +21,7 @@
         </div>
       </div>
       <nav class="topbar-nav">
+        <a class="nav-link" href="{{ url_for('core.landing') }}">Explore</a>
         {% if current_user.is_authenticated and current_user.site_admin %}
           <a class="nav-link" href="{{ url_for('core.admin_dashboard_route') }}">Dashboard</a>
           <a class="nav-link" href="{{ url_for('core.admin_search_route') }}">Search</a>

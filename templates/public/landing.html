@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}explor_codex | Landing{% endblock %}
+
+{% block body %}
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Public Preview</p>
+        <h1>More ride planning, less tool-switching.</h1>
+        <p>
+          This backend-light landing page starts translating the original `explor_alpha` product
+          voice into the rebuilt Flask app: discovery, coordination, and a stronger shared surface
+          for routes, groups, and events.
+        </p>
+        <div class="landing-cta-row">
+          {% if current_user.is_authenticated %}
+            <a class="button button-primary" href="{{ url_for('auth.account') }}">Open account</a>
+            {% if current_user.site_admin %}
+              <a class="nav-link" href="{{ url_for('core.admin_dashboard_route') }}">Go to admin</a>
+            {% endif %}
+          {% else %}
+            <a class="button button-primary" href="{{ url_for('auth.signup') }}">Create account</a>
+            <a class="nav-link" href="{{ url_for('auth.login') }}">Log in</a>
+          {% endif %}
+          <a class="nav-link" href="{{ url_for('core.admin_search_route') if current_user.is_authenticated and current_user.site_admin else url_for('core.health') }}">Inspect the app</a>
+        </div>
+      </div>
+      <div class="hero-stats">
+        {% for stat in stats %}
+          <article class="hero-card">
+            <p class="hero-card-label">{{ stat.label }}</p>
+            <p class="hero-card-value">{{ stat.count }}</p>
+            <p class="hero-card-note">Live records already available in the rebuilt domain.</p>
+          </article>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section class="landing-section panel">
+    <h2>Start Simple</h2>
+    <div class="landing-grid">
+      {% for card in feature_cards %}
+        <article class="result-card landing-card">
+          <p class="landing-eyebrow">{{ card.eyebrow }}</p>
+          <h3 class="landing-title">{{ card.title }}</h3>
+          <p class="landing-copy">{{ card.body }}</p>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="landing-section story-grid">
+    <article class="panel">
+      <h2>Why This Slice</h2>
+      <div class="stack">
+        <p class="landing-copy">
+          The old repo had a strong product voice and visual rhythm, but it was bound to a much
+          heavier frontend stack. This slice keeps the tone while staying server-rendered and
+          backend-light.
+        </p>
+        <p class="landing-copy">
+          We are starting with the surfaces that already exist in the rebuilt app: search, admin
+          management, account flows, and a public landing page that points people into the product.
+        </p>
+      </div>
+    </article>
+    <article class="panel">
+      <h2>Next Moves</h2>
+      <div class="action-list">
+        <a class="action-link" href="{{ url_for('core.admin_search_route') if current_user.is_authenticated and current_user.site_admin else url_for('auth.login') }}">
+          <span><span class="action-link-label">Explore</span><span class="action-link-value">Search the rebuilt domain</span></span>
+          <span>&rarr;</span>
+        </a>
+        <a class="action-link" href="{{ url_for('auth.account') if current_user.is_authenticated else url_for('auth.signup') }}">
+          <span><span class="action-link-label">Account</span><span class="action-link-value">{% if current_user.is_authenticated %}Manage your profile{% else %}Join the platform{% endif %}</span></span>
+          <span>&rarr;</span>
+        </a>
+        <div class="result-card">
+          <p class="landing-eyebrow">Status</p>
+          <p class="landing-copy">Public marketing, auth, admin, and collection pages now share the same visual language.</p>
+        </div>
+      </div>
+    </article>
+  </section>
+{% endblock %}

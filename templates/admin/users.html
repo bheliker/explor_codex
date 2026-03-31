@@ -4,16 +4,29 @@
 
 {% block body %}
   <section class="hero">
-    <p class="eyebrow">Admin Users</p>
-    <h1>{{ page_title }}</h1>
-    <p>Manage account access, site-admin privileges, and the current operator roster.</p>
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Admin Users</p>
+        <h1>{{ page_title }}</h1>
+        <p>Manage account access, site-admin privileges, and the current operator roster.</p>
+      </div>
+      <div class="hero-stats">
+        <article class="hero-card">
+          <p class="hero-card-label">Directory Size</p>
+          <p class="hero-card-value">{{ users|length }}</p>
+          <p class="hero-card-note">User administration now shares the same shell as the rest of the app.</p>
+        </article>
+      </div>
+    </div>
   </section>
 
   <section class="grid">
     <aside class="panel stack">
       <h2>Actions</h2>
-      <a class="pill" href="{{ url_for('core.admin_user_new_route') }}">New user</a>
-      <a class="pill" href="{{ url_for('core.admin_dashboard_route') }}">Back to dashboard</a>
+      <div class="action-list">
+        <a class="action-link" href="{{ url_for('core.admin_user_new_route') }}"><span><span class="action-link-label">Create</span><span class="action-link-value">New user</span></span><span>&rarr;</span></a>
+        <a class="action-link" href="{{ url_for('core.admin_dashboard_route') }}"><span><span class="action-link-label">Navigate</span><span class="action-link-value">Back to dashboard</span></span><span>&rarr;</span></a>
+      </div>
     </aside>
 
     <section class="panel">
@@ -23,9 +36,10 @@
           {% for user in users %}
             <article class="result-card">
               <div class="result-head">
-                <h3 class="result-title"><a href="{{ user.detail_url }}">{{ user.title }}</a></h3>
+                <h3 class="result-title"><a class="result-title-link" href="{{ user.detail_url }}">{{ user.title }}</a></h3>
                 <span class="result-type">ID {{ user.id }}</span>
               </div>
+              <div class="result-divider"></div>
               <div class="result-meta">
                 {% if user.subtitle %}
                   <div>{{ user.subtitle }}</div>
