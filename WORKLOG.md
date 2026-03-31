@@ -408,6 +408,57 @@ This file records session history for `explor_codex` so future work can resume w
   - richer UI polish such as breadcrumbs, better related-record selectors, and image previews, or
   - deeper auth delivery work such as real password-reset email sending and remember-me/session polish.
 
+## 2026-03-30 (UX Polish And Reset Delivery)
+
+### Investigated
+- Followed up on the most obvious admin/auth UX rough edges left after the secondary-entity pass:
+  - raw related-record ID entry with no guidance
+  - image-heavy pages with no actual previews
+  - password reset still behaving more like a local token generator than an email-delivery flow
+
+### Changed
+- Added a lightweight email delivery service in [app/services/email.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/services/email.py).
+- Added in-memory outbox support from [app/extensions.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/extensions.py) and new config knobs in [app/config.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/config.py):
+  - `EMAIL_DELIVERY_MODE`
+  - `EMAIL_FROM`
+- Updated [app/auth.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/auth.py) so password reset requests now create and queue a reset email, while still showing a browser preview in local/dev mode.
+- Updated [templates/auth/password_reset_request.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/password_reset_request.html) to show an email preview block instead of only a bare link.
+- Added shared admin field support for datalist-style related-record suggestions in [templates/admin/edit.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/edit.html) and [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py).
+- Applied those related-record suggestions to the most common linked-ID fields, including:
+  - event route/activity references
+  - activity route references
+  - image ownership references
+  - link owners
+  - dues group references
+  - fee event references
+- Added media preview support in [templates/admin/detail.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/detail.html) and wired it from [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) for image-heavy records such as:
+  - images
+  - groups with hero photos
+  - routes with map thumbnails
+  - events with photo/logo/profile media
+  - activities with photo URLs
+- Extended [templates/base.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/base.html) with the shared preview/help styling.
+- Extended [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) to cover:
+  - password reset email outbox behavior
+  - email preview rendering
+  - image detail previews
+  - related-record suggestion rendering on admin forms
+
+### Decisions
+- Keep reset delivery local-first for now by queuing mail in memory instead of introducing a real provider before the app needs one.
+- Use datalist suggestions to improve raw-ID fields immediately without forcing a heavier autocomplete stack into the thin server-rendered admin UI.
+- Add previews only where we already have stable media URLs in the current schema instead of creating placeholder preview systems for every entity.
+
+### Why
+- These changes make the current browser/admin/auth flows noticeably friendlier without changing the underlying architecture or data contracts.
+- The outbox approach keeps tests deterministic and gives us a clean seam for plugging in real email later.
+
+### Notes for the next session
+- The app now has a credible local reset-email story plus better admin affordances for linked records and media-heavy pages.
+- The next likely step is either:
+  - deeper UI polish such as breadcrumbs, tabbed detail views, and richer related-record selection, or
+  - a real outbound email provider implementation to replace the in-memory outbox in non-dev environments.
+
 ## 2026-03-30 (Design Port Audit)
 
 ### Investigated

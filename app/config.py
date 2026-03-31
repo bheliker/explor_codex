@@ -25,6 +25,8 @@ class Config:
         "yes",
         "on",
     }
+    EMAIL_DELIVERY_MODE = os.environ.get("EMAIL_DELIVERY_MODE", "memory").lower()
+    EMAIL_FROM = os.environ.get("EMAIL_FROM", "no-reply@explor.local")
     RESET_PASSWORD_TOKEN_MAX_AGE = int(os.environ.get("RESET_PASSWORD_TOKEN_MAX_AGE", "3600"))
     SQLALCHEMY_DATABASE_URI = _normalize_database_url(
         os.environ.get(

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import Any, TypeVar, cast
+from typing import Any, Callable, TypeVar, cast
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, logout_user  # type: ignore[import-untyped]
@@ -226,6 +226,7 @@ def admin_user_detail_route(user_id: int) -> str:
         entity_type_label="User",
         edit_url=url_for("core.admin_user_edit_route", user_id=user.id),
         location=_join_location(user.home_town, user.home_state, user.home_country),
+        media_previews=None,
         page_title=user.display_name,
         recent_links=_recent_user_links(exclude_user_id=user.id),
         subtitle=user.email,
@@ -419,6 +420,15 @@ def admin_image_detail_route(image_id: int) -> str:
         entity_type_label="Image",
         edit_url=url_for("core.admin_image_edit_route", image_id=image.id),
         location=None,
+        media_previews=_media_previews(
+            [
+                ("Thumb", image.img_thumb),
+                ("Small", image.img_small),
+                ("Medium", image.img_medium),
+                ("Large", image.img_large),
+                ("Canonical", image.url),
+            ]
+        ),
         page_title=image.title or "Image",
         recent_links=_recent_image_links(exclude_image_id=image.id),
         subtitle=image.img_medium or image.url,
@@ -543,6 +553,7 @@ def admin_link_detail_route(link_id: int) -> str:
         entity_type_label="Link",
         edit_url=url_for("core.admin_link_edit_route", link_id=link.id),
         location=None,
+        media_previews=_media_previews([("Image", link.img)]),
         page_title=link.name or "Link",
         recent_links=_recent_link_links(exclude_link_id=link.id),
         subtitle=link.url,
@@ -678,6 +689,7 @@ def admin_dues_detail_route(dues_id: int) -> str:
         entity_type_label="Dues",
         edit_url=url_for("core.admin_dues_edit_route", dues_id=dues.id),
         location=None,
+        media_previews=None,
         page_title=dues.name or "Dues",
         recent_links=_recent_dues_links(exclude_dues_id=dues.id),
         subtitle=f"Group {dues.group_id}" if dues.group_id else None,
@@ -780,6 +792,7 @@ def admin_fee_detail_route(fee_id: int) -> str:
         entity_type_label="Fee",
         edit_url=url_for("core.admin_fee_edit_route", fee_id=fee.id),
         location=None,
+        media_previews=None,
         page_title=fee.name or "Fee",
         recent_links=_recent_fee_links(exclude_fee_id=fee.id),
         subtitle=f"Event {fee.event_id}" if fee.event_id else None,
@@ -876,6 +889,9 @@ def admin_group_detail_route(group_id: int) -> str:
         entity_type_label="Group",
         edit_url=url_for("core.admin_group_edit_route", group_id=group.id),
         location=_join_location(group.home_town, group.home_state, group.home_country),
+        media_previews=_media_previews(
+            [("Hero photo", group.hero_photo.img_medium if group.hero_photo else None)]
+        ),
         page_title=group.name or "Group",
         recent_links=_recent_activity_links(exclude=("group", group.id)),
         subtitle=group.shortname or group.primary_activity or group.type,
@@ -1050,6 +1066,7 @@ def admin_route_detail_route(route_id: int) -> str:
         entity_type_label="Route",
         edit_url=url_for("core.admin_route_edit_route", route_id=route.id),
         location=_join_location(route.city, route.state, route.country),
+        media_previews=_media_previews([("Map thumbnail", route.map_thumbnail)]),
         page_title=route.name or "Route",
         recent_links=_recent_activity_links(exclude=("route", route.id)),
         subtitle=route.subtype or route.type,
@@ -1238,6 +1255,7 @@ def admin_segment_detail_route(segment_id: int) -> str:
         entity_type_label="Segment",
         edit_url=url_for("core.admin_segment_edit_route", segment_id=segment.id),
         location=None,
+        media_previews=None,
         page_title=segment.name or "Segment",
         recent_links=_recent_activity_links(exclude=("segment", segment.id)),
         subtitle=segment.subtype or segment.type,
@@ -1432,6 +1450,13 @@ def admin_event_detail_route(event_id: int) -> str:
         entity_type_label="Event",
         edit_url=url_for("core.admin_event_edit_route", event_id=event.id),
         location=_join_location(event.town, event.state, event.country),
+        media_previews=_media_previews(
+            [
+                ("Photo", event.photo_url),
+                ("Logo", event.logo),
+                ("Profile photo", event.profile_photo),
+            ]
+        ),
         page_title=event.name or "Event",
         recent_links=_recent_activity_links(exclude=("event", event.id)),
         subtitle=event.subtype or event.type or event.primary_activity,
@@ -1490,8 +1515,20 @@ def admin_event_edit_route(event_id: int) -> str | Any:
             _edit_text_field("primary_activity", "Primary activity", event.primary_activity),
             _edit_text_field("type", "Type", event.type),
             _edit_text_field("subtype", "Subtype", event.subtype),
-            _edit_text_field("route_id", "Route ID", event.route_id),
-            _edit_text_field("activity_id", "Activity ID", event.activity_id),
+            _edit_related_field(
+                "route_id",
+                "Route ID",
+                event.route_id,
+                model=Route,
+                title_getter=lambda route: route.name or "Route",
+            ),
+            _edit_related_field(
+                "activity_id",
+                "Activity ID",
+                event.activity_id,
+                model=Activity,
+                title_getter=lambda activity: activity.name or "Activity",
+            ),
             _edit_text_field("url", "URL", event.url),
             _edit_text_field("reg_url", "Registration URL", event.reg_url),
             _edit_text_field("photo_url", "Photo URL", event.photo_url),
@@ -1564,8 +1601,20 @@ def admin_event_new_route() -> str | Any:
             _edit_text_field("primary_activity", "Primary activity", None),
             _edit_text_field("type", "Type", None),
             _edit_text_field("subtype", "Subtype", None),
-            _edit_text_field("route_id", "Route ID", None),
-            _edit_text_field("activity_id", "Activity ID", None),
+            _edit_related_field(
+                "route_id",
+                "Route ID",
+                None,
+                model=Route,
+                title_getter=lambda route: route.name or "Route",
+            ),
+            _edit_related_field(
+                "activity_id",
+                "Activity ID",
+                None,
+                model=Activity,
+                title_getter=lambda activity: activity.name or "Activity",
+            ),
             _edit_text_field("url", "URL", None),
             _edit_text_field("reg_url", "Registration URL", None),
             _edit_text_field("photo_url", "Photo URL", None),
@@ -1612,6 +1661,7 @@ def admin_point_of_interest_detail_route(point_id: int) -> str:
         entity_type_label="Point of Interest",
         edit_url=url_for("core.admin_point_of_interest_edit_route", point_id=point.id),
         location=None,
+        media_previews=None,
         page_title=point.name or "Point of Interest",
         recent_links=_recent_activity_links(exclude=("point_of_interest", point.id)),
         subtitle=point.subtype or point.type,
@@ -1739,6 +1789,7 @@ def admin_activity_detail_route(activity_id: int) -> str:
         entity_type_label="Activity",
         edit_url=url_for("core.admin_activity_edit_route", activity_id=activity.id),
         location=None,
+        media_previews=_media_previews([("Photo", activity.photo_url)]),
         page_title=activity.name or "Activity",
         recent_links=_recent_activity_links(exclude=("activity", activity.id)),
         subtitle=activity.subtype or activity.type,
@@ -1798,7 +1849,13 @@ def admin_activity_edit_route(activity_id: int) -> str | Any:
             _edit_text_field(
                 "private", "Private (true/false)", _nullable_bool_value(activity.private)
             ),
-            _edit_text_field("route_id", "Route ID", activity.route_id),
+            _edit_related_field(
+                "route_id",
+                "Route ID",
+                activity.route_id,
+                model=Route,
+                title_getter=lambda route: route.name or "Route",
+            ),
             _edit_text_field("photo_url", "Photo URL", activity.photo_url),
             _edit_text_field("tags", "Tags (comma separated)", _csv_value(activity.tags)),
             _edit_text_field("duration", "Duration", activity.duration),
@@ -1878,7 +1935,13 @@ def admin_activity_new_route() -> str | Any:
             _edit_text_field("name", "Name", None),
             _edit_textarea_field("desc", "Description", None),
             _edit_text_field("private", "Private (true/false)", None),
-            _edit_text_field("route_id", "Route ID", None),
+            _edit_related_field(
+                "route_id",
+                "Route ID",
+                None,
+                model=Route,
+                title_getter=lambda route: route.name or "Route",
+            ),
             _edit_text_field("photo_url", "Photo URL", None),
             _edit_text_field("tags", "Tags (comma separated)", None),
             _edit_text_field("duration", "Duration", None),
@@ -3023,6 +3086,15 @@ def _recent_record_links(
     return links
 
 
+def _media_previews(items: list[tuple[str, str | None]]) -> list[dict[str, str]] | None:
+    previews = [
+        {"alt": label, "label": label, "url": url}
+        for label, url in items
+        if url is not None and url.strip()
+    ]
+    return previews or None
+
+
 def _admin_detail_url(entity_type: str, entity_id: int | None) -> str | None:
     if entity_id is None:
         return None
@@ -3079,8 +3151,42 @@ def _edit_text_field(
     value: object | None,
     *,
     kind: str = "text",
+    suggestions: list[dict[str, object]] | None = None,
+    help_text: str | None = None,
 ) -> dict[str, object]:
-    return {"kind": kind, "label": label, "name": name, "value": _display_value(value) or ""}
+    return {
+        "help_text": help_text,
+        "kind": kind,
+        "label": label,
+        "name": name,
+        "suggestions": suggestions,
+        "value": _display_value(value) or "",
+    }
+
+
+def _edit_related_field(
+    name: str,
+    label: str,
+    value: object | None,
+    *,
+    model: type[ModelT],
+    title_getter: Callable[[ModelT], str],
+    help_text: str | None = None,
+) -> dict[str, object]:
+    suggestions = [
+        {
+            "label": f'{cast(int, getattr(record, "id"))}: {title_getter(record)}',
+            "value": cast(int, getattr(record, "id")),
+        }
+        for record in _recent_records(model, limit=8)
+    ]
+    return _edit_text_field(
+        name,
+        label,
+        value,
+        suggestions=suggestions or None,
+        help_text=help_text or "Use an existing record ID or choose from recent suggestions.",
+    )
 
 
 def _edit_textarea_field(
@@ -3101,14 +3207,34 @@ def _edit_checkbox_field(name: str, label: str, checked: bool | None) -> dict[st
 
 def _image_fields(image: Image | None) -> list[dict[str, object]]:
     return [
-        _edit_text_field(
+        _edit_related_field(
             "photographer_id",
             "Photographer ID",
             image.photographer_id if image else None,
+            model=User,
+            title_getter=lambda user: user.display_name,
         ),
-        _edit_text_field("group_id", "Group ID", image.group_id if image else None),
-        _edit_text_field("segment_id", "Segment ID", image.segment_id if image else None),
-        _edit_text_field("activity_id", "Activity ID", image.activity_id if image else None),
+        _edit_related_field(
+            "group_id",
+            "Group ID",
+            image.group_id if image else None,
+            model=Group,
+            title_getter=lambda group: group.name or "Group",
+        ),
+        _edit_related_field(
+            "segment_id",
+            "Segment ID",
+            image.segment_id if image else None,
+            model=Segment,
+            title_getter=lambda segment: segment.name or "Segment",
+        ),
+        _edit_related_field(
+            "activity_id",
+            "Activity ID",
+            image.activity_id if image else None,
+            model=Activity,
+            title_getter=lambda activity: activity.name or "Activity",
+        ),
         _edit_text_field("title", "Title", image.title if image else None),
         _edit_text_field("caption", "Caption", image.caption if image else None),
         _edit_text_field("alt_txt", "Alt text", image.alt_txt if image else None),
@@ -3129,8 +3255,22 @@ def _image_fields(image: Image | None) -> list[dict[str, object]]:
 
 def _link_fields(link: GroupExternalUrl | None) -> list[dict[str, object]]:
     return [
-        _edit_text_field("group_id", "Group ID", link.group_id if link else None),
-        _edit_text_field("route_id", "Route ID", link.route_id if link else None),
+        _edit_related_field(
+            "group_id",
+            "Group ID",
+            link.group_id if link else None,
+            model=Group,
+            title_getter=lambda group: group.name or "Group",
+            help_text="Choose either a group or a route owner.",
+        ),
+        _edit_related_field(
+            "route_id",
+            "Route ID",
+            link.route_id if link else None,
+            model=Route,
+            title_getter=lambda route: route.name or "Route",
+            help_text="Choose either a route or a group owner.",
+        ),
         _edit_text_field("name", "Name", link.name if link else None),
         _edit_text_field("type", "Type", link.type if link else None),
         _edit_text_field("subtype", "Subtype", link.subtype if link else None),
@@ -3144,7 +3284,13 @@ def _link_fields(link: GroupExternalUrl | None) -> list[dict[str, object]]:
 
 def _dues_fields(dues: GroupDues | None) -> list[dict[str, object]]:
     return [
-        _edit_text_field("group_id", "Group ID", dues.group_id if dues else None),
+        _edit_related_field(
+            "group_id",
+            "Group ID",
+            dues.group_id if dues else None,
+            model=Group,
+            title_getter=lambda group: group.name or "Group",
+        ),
         _edit_text_field("name", "Name", dues.name if dues else None),
         _edit_text_field("fee", "Fee", dues.fee if dues else None),
         _edit_text_field("duration", "Duration", dues.duration if dues else None),
@@ -3155,7 +3301,13 @@ def _dues_fields(dues: GroupDues | None) -> list[dict[str, object]]:
 
 def _fee_fields(fee: EventFee | None) -> list[dict[str, object]]:
     return [
-        _edit_text_field("event_id", "Event ID", fee.event_id if fee else None),
+        _edit_related_field(
+            "event_id",
+            "Event ID",
+            fee.event_id if fee else None,
+            model=Event,
+            title_getter=lambda event: event.name or "Event",
+        ),
         _edit_text_field("name", "Name", fee.name if fee else None),
         _edit_text_field("fee", "Fee", fee.fee if fee else None),
         _edit_text_field("duration", "Duration", fee.duration if fee else None),

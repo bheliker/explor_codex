@@ -19,6 +19,7 @@ migrate = Migrate(compare_type=True)
 def init_extensions(app: Flask) -> None:
     db.init_app(app)
     migrate.init_app(app, db)
+    app.extensions["email_outbox"] = []
 
     from app.services.search import register_search_listeners
 

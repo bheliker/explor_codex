@@ -140,6 +140,8 @@ surface. The admin UI now supports:
   activities, plus user/image/link/dues/fee creation for admins
 - browser-based edit flows for those same core entities
 - flash-based success and validation feedback for admin form submissions
+- recent-record suggestions for related-ID entry on admin forms
+- image/media previews on image-heavy detail pages
 - shared navigation between dashboard, search, detail, create, and edit pages
 
 Authentication now has real end-user and admin flows:
@@ -147,6 +149,7 @@ Authentication now has real end-user and admin flows:
 - login/logout via `Flask-Login`
 - public signup controlled by `AUTH_SIGNUP_ENABLED`
 - password reset request and reset-confirm routes backed by `itsdangerous` tokens
+- password reset email delivery through a local in-memory outbox with browser preview in dev/test
 - a self-service account edit page at `/auth/account/edit`
 - a `site_admin` flag on `User` for site-wide authorization
 - automatic promotion of the first registered user to site admin

@@ -50,7 +50,22 @@
         {% else %}
           <label>
             {{ field.label }}
-            <input type="{{ field.kind or 'text' }}" name="{{ field.name }}" value="{{ field.value }}">
+            <input
+              type="{{ field.kind or 'text' }}"
+              name="{{ field.name }}"
+              value="{{ field.value }}"
+              {% if field.suggestions %}list="{{ field.name }}-options"{% endif %}
+            >
+            {% if field.suggestions %}
+              <datalist id="{{ field.name }}-options">
+                {% for suggestion in field.suggestions %}
+                  <option value="{{ suggestion.value }}">{{ suggestion.label }}</option>
+                {% endfor %}
+              </datalist>
+            {% endif %}
+            {% if field.help_text %}
+              <div class="field-help">{{ field.help_text }}</div>
+            {% endif %}
           </label>
         {% endif %}
       {% endfor %}

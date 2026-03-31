@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.services.activities import create_activity, list_activities, update_activity
+from app.services.email import latest_outbox_message, send_password_reset_email
 from app.services.events import (
     add_event_fee,
     attach_calendar,
@@ -63,6 +64,7 @@ __all__ = [
     "attach_calendar",
     "attach_image_to_event",
     "attach_image_to_poi",
+    "latest_outbox_message",
     "create_activity",
     "create_point_of_interest",
     "create_event",
@@ -92,6 +94,7 @@ __all__ = [
     "record_login",
     "rebuild_search_documents",
     "SEARCHABLE_ENTITY_TYPES",
+    "send_password_reset_email",
     "search_documents",
     "set_rsvp",
     "update_event_fee",

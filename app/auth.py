@@ -27,7 +27,14 @@ from sqlalchemy import select
 
 from app.extensions import login_manager
 from app.models import User
-from app.services import authenticate_user, create_user, record_login, update_user
+from app.services import (
+    authenticate_user,
+    create_user,
+    latest_outbox_message,
+    record_login,
+    send_password_reset_email,
+    update_user,
+)
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -121,19 +128,25 @@ def signup() -> ResponseReturnValue:
 @bp.route("/password-reset", methods=["GET", "POST"])
 def password_reset_request() -> ResponseReturnValue:
     reset_url: str | None = None
+    email_message: dict[str, str] | None = None
     if request.method == "POST":
         email = request.form.get("email", "", type=str).strip().lower()
         user = _find_user_by_email(email)
         if user is not None and user.active:
             token = user.get_reset_password_token()
-            if current_app.config["AUTH_SHOW_RESET_LINKS"]:
-                reset_url = url_for("auth.password_reset", token=token, _external=False)
+            reset_url = url_for("auth.password_reset", token=token, _external=True)
+            email_message = send_password_reset_email(user=user, reset_url=reset_url)
         flash(
-            "If an active account matches that email, a reset link is now available.",
+            "If an active account matches that email, a password reset message has been prepared.",
             "success",
         )
 
-    return render_template("auth/password_reset_request.html", reset_url=reset_url)
+    preview_url = reset_url if current_app.config["AUTH_SHOW_RESET_LINKS"] else None
+    return render_template(
+        "auth/password_reset_request.html",
+        reset_url=preview_url,
+        email_message=email_message or latest_outbox_message(),
+    )
 
 
 @bp.route("/password-reset/<token>", methods=["GET", "POST"])

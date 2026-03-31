@@ -208,6 +208,13 @@ def test_password_reset_request_and_reset_flow(
     assert request_response.status_code == 200
     request_html = request_response.get_data(as_text=True)
     assert "/auth/password-reset/" in request_html
+    assert "Email Preview" in request_html
+    assert "reset@example.com" in request_html
+
+    with app.app_context():
+        outbox = app.extensions["email_outbox"]
+        assert len(outbox) == 1
+        assert outbox[0]["to"] == "reset@example.com"
 
     with app.app_context():
         db = app.extensions["sqlalchemy"]
@@ -403,6 +410,17 @@ def test_admin_image_create_and_edit_flow(
     )
     assert edit_response.status_code == 200
     assert "Image saved." in edit_response.get_data(as_text=True)
+
+    detail_response = admin_client.get(f"/admin/images/{image_id}")
+    assert detail_response.status_code == 200
+    detail_html = detail_response.get_data(as_text=True)
+    assert "Open original" in detail_html
+    assert "https://example.com/harbor-revised.jpg" in detail_html
+
+    new_page_response = admin_client.get("/admin/images/new")
+    assert new_page_response.status_code == 200
+    new_page_html = new_page_response.get_data(as_text=True)
+    assert 'list="photographer_id-options"' in new_page_html
 
 
 def test_admin_link_create_and_edit_flow(
