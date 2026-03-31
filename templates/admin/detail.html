@@ -3,11 +3,13 @@
 {% block title %}{{ page_title }} | explor_codex{% endblock %}
 
 {% block body %}
+  <div x-data="{ showMoreDetails: false, showAllTags: false }">
   <section class="hero">
     <div class="hero-grid">
       <div>
         <p class="eyebrow">{{ entity_type_label }}</p>
         <h1>{{ page_title }}</h1>
+        <p class="voice-line">A record should tell you why it matters before it tells you everything.</p>
         {% if subtitle %}
           <p>{{ subtitle }}</p>
         {% endif %}
@@ -52,9 +54,14 @@
         {% if tags %}
           <div class="tag-list">
             {% for tag in tags %}
-              <span class="tag">{{ tag }}</span>
+              <span class="tag" x-show="showAllTags || {{ 'true' if loop.index <= 6 else 'false' }}">{{ tag }}</span>
             {% endfor %}
           </div>
+          {% if tags|length > 6 %}
+            <button class="toggle-button" type="button" @click="showAllTags = !showAllTags">
+              <span x-text="showAllTags ? 'Show fewer tags' : 'Show all tags'"></span>
+            </button>
+          {% endif %}
         {% endif %}
       </section>
 
@@ -113,7 +120,7 @@
         </div>
       {% endif %}
       {% if remaining_rows or detail_rows %}
-        <div class="detail-rows">
+        <div class="detail-rows" x-show="showMoreDetails || {{ 'true' if not remaining_rows else 'false' }}">
           {% for row in remaining_rows or detail_rows %}
             <article class="detail-row">
               <div class="detail-row-label">{{ row.label }}</div>
@@ -125,9 +132,17 @@
             </article>
           {% endfor %}
         </div>
+        {% if remaining_rows %}
+          <div class="hero-actions">
+            <button class="nav-link" type="button" @click="showMoreDetails = !showMoreDetails">
+              <span x-text="showMoreDetails ? 'Hide extended details' : 'Show extended details'"></span>
+            </button>
+          </div>
+        {% endif %}
       {% else %}
         <div class="empty">No additional detail fields are available yet.</div>
       {% endif %}
     </section>
   </section>
+  </div>
 {% endblock %}

@@ -687,3 +687,51 @@ This file records session history for `explor_codex` so future work can resume w
 - The next likely step is either:
   - Alpine-powered interaction polish for discover/search/detail flows, or
   - deeper per-entity visual storytelling such as related-record sections, better imagery, and secondary navigation.
+
+## 2026-03-31 (Voice, Color, And Alpine Polish)
+
+### Investigated
+- Revisited the visual tone after the public discover slice and identified two remaining gaps:
+  - the palette still leaned too warm and ivory-heavy
+  - the pages had the right structure, but not enough of the original product voice and motion
+- Confirmed we could introduce Alpine progressively, without changing backend behavior, by using it for disclosure and browsing controls.
+
+### Changed
+- Updated [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css) to push the design further toward the original product rhythm:
+  - cooler blue-gray page backgrounds
+  - stronger navy heading treatment
+  - more saturated blue/orange accent use
+  - less ivory-heavy surface treatment
+  - voice-oriented utility classes like `voice-line`
+- Added Alpine via [templates/base.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/base.html) using the CDN build so lightweight interaction is now available repo-wide.
+- Strengthened product voice and rhythm in:
+  - [templates/public/landing.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/public/landing.html)
+  - [templates/public/discover.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/public/discover.html)
+  - [templates/admin/detail.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/detail.html)
+- Added Alpine-powered interaction polish:
+  - discover filter visibility toggle
+  - discover featured-card emphasis toggle
+  - entity detail extended-details toggle
+  - entity detail tag expansion toggle
+
+### Decisions
+- Use Alpine only for progressive disclosure and small interaction improvements, not as the basis for a client-heavy frontend.
+- Keep the stronger product voice concentrated in public browse/storytelling areas first, while letting admin surfaces absorb it more gradually.
+
+### Why
+- This brings the rebuilt app noticeably closer to the original product’s energy without falling back into the old dependency stack.
+- It also proves that we can add motion and interactivity in a controlled way that still fits server-rendered Flask pages.
+
+### Verification
+- `uv run pytest`
+- `uv run ruff check .`
+- `uv run mypy app tests`
+
+### Notes for the next session
+- The app now has:
+  - a stronger blue/gray/orange palette
+  - more product voice in public browse surfaces
+  - the first Alpine-powered interaction layer
+- The next likely step is either:
+  - entity-specific storytelling sections, such as related records and curated supporting context, or
+  - Alpine enhancements for search/discover filters, saved views, and richer card transitions.

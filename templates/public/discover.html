@@ -3,17 +3,22 @@
 {% block title %}Discover | explor_codex{% endblock %}
 
 {% block body %}
+  <div x-data="{ filtersOpen: false, featuredOnly: {{ 'false' if query else 'true' }} }">
   <section class="hero">
     <div class="hero-grid">
       <div>
         <p class="eyebrow">Discover</p>
         <h1>Browse the rebuilt domain like a product, not a database.</h1>
+        <p class="voice-line">Find the ride. Find the people. Find the reason to go.</p>
         <p>
           Search across groups, routes, segments, events, activities, and points of interest from
-          one public surface. This is the next design slice after landing and auth.
+          one public surface. Discovery should feel like momentum, not admin work.
         </p>
         <div class="hero-actions">
           <a class="button button-primary" href="#discover-form">Start exploring</a>
+          <button class="nav-link" type="button" @click="filtersOpen = !filtersOpen">
+            <span x-text="filtersOpen ? 'Hide filters' : 'Show filters'"></span>
+          </button>
           {% if current_user.is_authenticated and current_user.site_admin %}
             <a class="nav-link" href="{{ url_for('core.admin_search_route') }}">Open admin search</a>
           {% else %}
@@ -37,7 +42,13 @@
   </section>
 
   <section class="grid">
-    <form id="discover-form" class="panel stack" method="get" action="{{ url_for('core.discover') }}">
+    <form
+      id="discover-form"
+      class="panel stack"
+      method="get"
+      action="{{ url_for('core.discover') }}"
+      x-show="filtersOpen || window.innerWidth > 980"
+    >
       <h2>Browse</h2>
       <label class="field-label">
         Search terms
@@ -79,12 +90,18 @@
         {% else %}
           <span class="pill">Showing recent records from the rebuilt domain</span>
         {% endif %}
+        <button class="toggle-button" type="button" @click="featuredOnly = !featuredOnly">
+          <span x-text="featuredOnly ? 'Show all cards' : 'Feature the first card'"></span>
+        </button>
       </div>
 
       {% if results %}
         <div class="collection-grid">
           {% for result in results %}
-            <article class="collection-card {% if loop.index == 1 and not query %}collection-card-hero{% endif %}">
+            <article
+              class="collection-card {% if loop.index == 1 and not query %}collection-card-hero{% endif %}"
+              :class="{ 'collection-card-hero': featuredOnly && {{ 'true' if loop.index == 1 else 'false' }} }"
+            >
               <div class="result-head">
                 <h3 class="result-title">
                   {% if result.detail_url %}
@@ -107,7 +124,7 @@
               </div>
               {% if result.tags %}
                 <div class="tag-list">
-                  {% for tag in result.tags %}
+                  {% for tag in result.tags[:5] %}
                     <span class="tag">{{ tag }}</span>
                   {% endfor %}
                 </div>
@@ -127,4 +144,5 @@
       {% endif %}
     </section>
   </section>
+  </div>
 {% endblock %}

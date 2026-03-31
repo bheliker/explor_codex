@@ -8,10 +8,10 @@
       <div>
         <p class="eyebrow">Public Preview</p>
         <h1>More ride planning, less tool-switching.</h1>
+        <p class="voice-line">Start simple. Go further. Powered by you.</p>
         <p>
-          This backend-light landing page starts translating the original `explor_alpha` product
-          voice into the rebuilt Flask app: discovery, coordination, and a stronger shared surface
-          for routes, groups, and events.
+          We are bringing back the original product ambition without dragging the old frontend
+          stack with it: better discovery, cleaner coordination, and more reasons to ride.
         </p>
         <div class="hero-actions">
           {% if current_user.is_authenticated %}
@@ -53,21 +53,22 @@
 
   <section class="landing-section story-grid">
     <article class="panel">
-      <h2>Why This Slice</h2>
+      <h2>Go Further</h2>
       <div class="stack">
+        <p class="voice-line accent-note">Built for riding, not spreadsheet archaeology.</p>
         <p class="landing-copy">
-          The old repo had a strong product voice and visual rhythm, but it was bound to a much
-          heavier frontend stack. This slice keeps the tone while staying server-rendered and
-          backend-light.
+          The old repo had the right energy: cinematic, opinionated, encouraging. What it carried
+          with it was too much legacy frontend weight. This rebuilt version keeps the energy and
+          strips away the drag.
         </p>
         <p class="landing-copy">
-          We are starting with the surfaces that already exist in the rebuilt app: search, admin
-          management, account flows, and a public landing page that points people into the product.
+          That means one shared voice across landing, discover, account, and admin surfaces, plus
+          a lighter stack that can evolve with the backend instead of fighting it.
         </p>
       </div>
     </article>
     <article class="panel">
-      <h2>Next Moves</h2>
+      <h2>Powered By You</h2>
       <div class="action-list">
         <a class="action-link" href="{{ url_for('core.admin_search_route') if current_user.is_authenticated and current_user.site_admin else url_for('auth.login') }}">
           <span><span class="action-link-label">Explore</span><span class="action-link-value">Search the rebuilt domain</span></span>
@@ -83,7 +84,7 @@
         </a>
         <div class="collection-card">
           <p class="landing-eyebrow">Status</p>
-          <p class="landing-copy">Public marketing, auth, admin, and collection pages now share the same visual language.</p>
+          <p class="landing-copy">Public marketing, auth, browse, admin, and collection pages now move with the same rhythm and stronger color language.</p>
         </div>
       </div>
     </article>
