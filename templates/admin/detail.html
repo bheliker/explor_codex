@@ -99,10 +99,22 @@
     </aside>
 
     <section class="panel">
+      {% set highlight_rows = detail_rows[:4] if detail_rows else [] %}
+      {% set remaining_rows = detail_rows[4:] if detail_rows and detail_rows|length > 4 else [] %}
       <h2>Details</h2>
-      {% if detail_rows %}
+      {% if highlight_rows %}
+        <div class="metric-strip" style="margin-bottom: 18px;">
+          {% for row in highlight_rows %}
+            <article class="stat-card">
+              <div class="stat-card-label">{{ row.label }}</div>
+              <div class="stat-card-value" style="font-size: 1.25rem; line-height: 1.25;">{{ row.value }}</div>
+            </article>
+          {% endfor %}
+        </div>
+      {% endif %}
+      {% if remaining_rows or detail_rows %}
         <div class="detail-rows">
-          {% for row in detail_rows %}
+          {% for row in remaining_rows or detail_rows %}
             <article class="detail-row">
               <div class="detail-row-label">{{ row.label }}</div>
               {% if row.url %}

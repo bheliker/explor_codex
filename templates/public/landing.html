@@ -23,7 +23,7 @@
             <a class="button button-primary" href="{{ url_for('auth.signup') }}">Create account</a>
             <a class="nav-link" href="{{ url_for('auth.login') }}">Log in</a>
           {% endif %}
-          <a class="nav-link" href="{{ url_for('core.admin_search_route') if current_user.is_authenticated and current_user.site_admin else url_for('core.health') }}">Inspect the app</a>
+          <a class="nav-link" href="{{ url_for('core.discover') }}">Browse the domain</a>
         </div>
       </div>
       <div class="hero-stats">
@@ -71,6 +71,10 @@
       <div class="action-list">
         <a class="action-link" href="{{ url_for('core.admin_search_route') if current_user.is_authenticated and current_user.site_admin else url_for('auth.login') }}">
           <span><span class="action-link-label">Explore</span><span class="action-link-value">Search the rebuilt domain</span></span>
+          <span>&rarr;</span>
+        </a>
+        <a class="action-link" href="{{ url_for('core.discover') }}">
+          <span><span class="action-link-label">Browse</span><span class="action-link-value">Open public discover</span></span>
           <span>&rarr;</span>
         </a>
         <a class="action-link" href="{{ url_for('auth.account') if current_user.is_authenticated else url_for('auth.signup') }}">

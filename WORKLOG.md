@@ -645,3 +645,45 @@ This file records session history for `explor_codex` so future work can resume w
 - The next likely step is either:
   - adding Alpine-powered lightweight interactions where they materially improve UX, such as live filters or expandable detail sections, or
   - pushing the browse/search and richer entity pages further with stronger imagery, hierarchy, and secondary navigation.
+
+## 2026-03-31 (Public Discover And Richer Entity Presentation)
+
+### Investigated
+- Looked for the next page-pattern slice after landing and auth that could reuse the new design primitives without requiring a frontend rewrite.
+- Confirmed the existing search index was the best backend-light foundation for a public browse/search experience.
+- Identified that entity detail pages could feel richer with better information hierarchy even before introducing any new backend concepts.
+
+### Changed
+- Added a public discover route in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) at `/discover`, backed by the existing search document layer.
+- Added [templates/public/discover.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/public/discover.html) as the first public browse/search page using the new repo-local design system.
+- Updated [templates/base.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/base.html) so top-level navigation now points to:
+  - `Discover`
+  - `About`
+- Updated [templates/public/landing.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/public/landing.html) so its primary browse CTA points into the new discover flow.
+- Expanded [templates/admin/detail.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/detail.html) so detail pages now surface the first few fields as a highlight strip before the full record details.
+- Added coverage in [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) for the new public discover page.
+
+### Decisions
+- Keep public discover read-only for now.
+- Let public users browse the indexed domain and use clear login CTAs for deeper inspection, rather than prematurely creating a separate public entity-detail stack.
+- Continue using generic detail-page enrichment first before building more specialized per-entity presentation layers.
+
+### Why
+- This advances the design language into a real browse/search journey instead of stopping at marketing and auth.
+- It also improves the usefulness of the existing entity pages by giving key fields more visual emphasis without changing the backend model layer.
+
+### Verification
+- `uv run pytest`
+- `uv run ruff check .`
+- `uv run mypy app tests`
+
+### Notes for the next session
+- The current page-pattern rollout now covers:
+  - public landing
+  - auth/account
+  - public discover
+  - admin search
+  - richer entity detail presentation
+- The next likely step is either:
+  - Alpine-powered interaction polish for discover/search/detail flows, or
+  - deeper per-entity visual storytelling such as related-record sections, better imagery, and secondary navigation.

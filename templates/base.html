@@ -21,7 +21,8 @@
         </div>
       </div>
       <nav class="topbar-nav">
-        <a class="nav-link" href="{{ url_for('core.landing') }}">Explore</a>
+        <a class="nav-link" href="{{ url_for('core.discover') }}">Discover</a>
+        <a class="nav-link" href="{{ url_for('core.landing') }}">About</a>
         {% if current_user.is_authenticated and current_user.site_admin %}
           <a class="nav-link" href="{{ url_for('core.admin_dashboard_route') }}">Dashboard</a>
           <a class="nav-link" href="{{ url_for('core.admin_search_route') }}">Search</a>

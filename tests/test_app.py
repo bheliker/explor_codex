@@ -103,6 +103,38 @@ def test_public_landing_route_renders(client: FlaskClient, database: None) -> No
     assert "Find the next ride faster." in html
 
 
+def test_public_discover_route_renders_results(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        group = Group(
+            name="North Bay Climbers",
+            shortname="north-bay-climbers",
+            about_blurb="Steep road rides around Fairfax",
+            tags=["climbing", "road"],
+            home_town="Fairfax",
+            home_state="CA",
+        )
+        route = Route(
+            name="Bolinas Ridge Loop",
+            desc="Mixed surface route over the ridge",
+            tags=["gravel", "ridge"],
+            city="Fairfax",
+            state="CA",
+        )
+        db.session.add_all([group, route])
+        db.session.commit()
+
+    response = client.get("/discover?q=fairfax&type=group&type=route&limit=5")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Browse the rebuilt domain like a product, not a database." in html
+    assert "North Bay Climbers" in html
+    assert "Bolinas Ridge Loop" in html
+    assert "Log in to inspect" in html
+
+
 def test_app_factory_enables_testing_config(app: Flask) -> None:
     assert app.testing is True
 

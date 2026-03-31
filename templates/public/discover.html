@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Discover | explor_codex{% endblock %}
+
+{% block body %}
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Discover</p>
+        <h1>Browse the rebuilt domain like a product, not a database.</h1>
+        <p>
+          Search across groups, routes, segments, events, activities, and points of interest from
+          one public surface. This is the next design slice after landing and auth.
+        </p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#discover-form">Start exploring</a>
+          {% if current_user.is_authenticated and current_user.site_admin %}
+            <a class="nav-link" href="{{ url_for('core.admin_search_route') }}">Open admin search</a>
+          {% else %}
+            <a class="nav-link" href="{{ url_for('auth.login') }}">Log in for deeper access</a>
+          {% endif %}
+        </div>
+      </div>
+      <div class="hero-stats">
+        <article class="hero-card">
+          <p class="hero-card-label">Indexed Documents</p>
+          <p class="hero-card-value">{{ total_documents }}</p>
+          <p class="hero-card-note">All visible from one portable search layer.</p>
+        </article>
+        <article class="hero-card">
+          <p class="hero-card-label">Current View</p>
+          <p class="hero-card-value">{{ results|length }}</p>
+          <p class="hero-card-note">{% if query %}Results matching your current search.{% else %}Recent updates across the domain.{% endif %}</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid">
+    <form id="discover-form" class="panel stack" method="get" action="{{ url_for('core.discover') }}">
+      <h2>Browse</h2>
+      <label class="field-label">
+        Search terms
+        <input
+          type="search"
+          name="q"
+          value="{{ query }}"
+          placeholder="Try a place, route name, tag, or group"
+        >
+      </label>
+      <label class="field-label">
+        Result limit
+        <input type="number" name="limit" min="1" max="24" value="{{ limit }}">
+      </label>
+      <div class="stack">
+        <span>Entity types</span>
+        <div class="checkboxes">
+          {% for entity_type in entity_types %}
+            <label class="choice-chip">
+              <input
+                type="checkbox"
+                name="type"
+                value="{{ entity_type }}"
+                {% if entity_type in selected_types %}checked{% endif %}
+              >
+              {{ entity_type.replace("_", " ") }}
+            </label>
+          {% endfor %}
+        </div>
+      </div>
+      <button class="button button-primary" type="submit">Update results</button>
+    </form>
+
+    <section class="panel">
+      <div class="summary">
+        <span class="pill">{{ total_documents }} indexed documents</span>
+        {% if query %}
+          <span class="pill">{{ results|length }} results for "{{ query }}"</span>
+        {% else %}
+          <span class="pill">Showing recent records from the rebuilt domain</span>
+        {% endif %}
+      </div>
+
+      {% if results %}
+        <div class="collection-grid">
+          {% for result in results %}
+            <article class="collection-card {% if loop.index == 1 and not query %}collection-card-hero{% endif %}">
+              <div class="result-head">
+                <h3 class="result-title">
+                  {% if result.detail_url %}
+                    <a class="result-title-link" href="{{ result.detail_url }}">{{ result.title or '(untitled)' }}</a>
+                  {% else %}
+                    {{ result.title or '(untitled)' }}
+                  {% endif %}
+                </h3>
+                <span class="result-type">{{ result.entity_type.replace("_", " ") }}</span>
+              </div>
+              <div class="result-divider"></div>
+              <div class="result-meta">
+                {% if result.subtitle %}
+                  <div>{{ result.subtitle }}</div>
+                {% endif %}
+                {% if result.location %}
+                  <div>{{ result.location }}</div>
+                {% endif %}
+                <div>ID {{ result.entity_id }}</div>
+              </div>
+              {% if result.tags %}
+                <div class="tag-list">
+                  {% for tag in result.tags %}
+                    <span class="tag">{{ tag }}</span>
+                  {% endfor %}
+                </div>
+              {% endif %}
+              <div class="hero-actions">
+                {% if result.detail_url %}
+                  <a class="nav-link" href="{{ result.detail_url }}">Open record</a>
+                {% else %}
+                  <a class="nav-link" href="{{ url_for('auth.login') }}">Log in to inspect</a>
+                {% endif %}
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty">No results matched this search yet.</div>
+      {% endif %}
+    </section>
+  </section>
+{% endblock %}

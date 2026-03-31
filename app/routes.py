@@ -121,6 +121,30 @@ def landing() -> str:
     )
 
 
+@bp.get("/discover")
+def discover() -> str:
+    query = request.args.get("q", default="", type=str).strip()
+    parsed_types = parse_search_types(request.args.getlist("type"))
+    requested_limit = request.args.get("limit", default=12, type=int)
+    limit = min(max(requested_limit, 1), 24)
+
+    if query:
+        documents = search_documents(query=query, types=parsed_types or None, limit=limit)
+    else:
+        statement = select(SearchDocument).order_by(SearchDocument.updated_at.desc()).limit(limit)
+        documents = list(db.session.scalars(statement))
+
+    return render_template(
+        "public/discover.html",
+        entity_types=SEARCHABLE_ENTITY_TYPES,
+        limit=limit,
+        query=query,
+        results=[_public_search_result_item(document) for document in documents],
+        selected_types=parsed_types,
+        total_documents=_count_records(SearchDocument),
+    )
+
+
 @bp.get("/health")
 def health() -> tuple[dict[str, str], int]:
     return {"status": "ok"}, 200
@@ -2855,6 +2879,17 @@ def _admin_search_result_item(document: SearchDocument) -> dict[str, object]:
     return {
         **_search_document_payload(document),
         "detail_url": _admin_detail_url(document.entity_type, document.entity_id),
+    }
+
+
+def _public_search_result_item(document: SearchDocument) -> dict[str, object]:
+    detail_url = None
+    if current_user.is_authenticated and getattr(current_user, "site_admin", False):
+        detail_url = _admin_detail_url(document.entity_type, document.entity_id)
+
+    return {
+        **_search_document_payload(document),
+        "detail_url": detail_url,
     }
 
 
