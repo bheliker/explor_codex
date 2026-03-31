@@ -589,3 +589,59 @@ This file records session history for `explor_codex` so future work can resume w
 - The next likely step is either:
   - richer public information architecture, such as browse/search landing experiences, or
   - higher-fidelity visual polish with more original assets and imagery once ownership/licensing is confirmed.
+
+## 2026-03-31 (Design System Primitive Pass)
+
+### Investigated
+- Reviewed the refreshed templates after the first two design batches and identified the remaining inconsistency:
+  pages shared colors and general style, but not enough reusable structural primitives.
+- Revisited the old repo’s strongest transferable qualities:
+  - strong editorial hierarchy
+  - rails and card groupings
+  - cinematic hero treatment
+  - concise product-value copy
+- Confirmed this phase did not yet require client-side interaction, so adding Alpine would have been premature.
+
+### Changed
+- Expanded [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css) with more explicit design-system primitives, including:
+  - `content-rail`
+  - `collection-grid`
+  - `collection-card`
+  - `collection-card-hero`
+  - `stat-card`
+  - `metric-strip`
+  - `hero-actions`
+  - `section-copy`
+- Applied those primitives across:
+  - [templates/public/landing.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/public/landing.html)
+  - [templates/admin/dashboard.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/dashboard.html)
+  - [templates/admin/search.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/search.html)
+  - [templates/admin/detail.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/detail.html)
+  - [templates/admin/collection.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/collection.html)
+  - [templates/admin/users.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/users.html)
+  - [templates/auth/login.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/login.html)
+  - [templates/auth/signup.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/signup.html)
+  - [templates/auth/account.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/account.html)
+  - [templates/auth/account_edit.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/account_edit.html)
+  - [templates/auth/password_reset_request.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/password_reset_request.html)
+  - [templates/auth/password_reset.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/password_reset.html)
+
+### Decisions
+- Keep this layer CSS-first and repo-local.
+- Use Alpine only when a page actually needs lightweight interactivity, not as a default dependency with no usage.
+- Treat the design system as a set of reusable page-building primitives rather than a page-by-page set of one-off styles.
+
+### Why
+- This makes future design ports cheaper and more coherent.
+- It also keeps the rebuilt app visually distinctive without pulling in the old frontend stack or introducing unnecessary client complexity.
+
+### Verification
+- `uv run pytest`
+- `uv run ruff check .`
+- `uv run mypy app tests`
+
+### Notes for the next session
+- The design system now has clearer reusable primitives for shells, heroes, rails, stat cards, action rows, and collection cards.
+- The next likely step is either:
+  - adding Alpine-powered lightweight interactions where they materially improve UX, such as live filters or expandable detail sections, or
+  - pushing the browse/search and richer entity pages further with stronger imagery, hierarchy, and secondary navigation.

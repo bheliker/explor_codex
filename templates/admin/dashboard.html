@@ -49,17 +49,17 @@
 
     <section class="panel">
       <h2>Snapshot</h2>
-      <div class="dashboard-stat-grid">
+      <div class="metric-strip">
         {% for stat in stats %}
-          <article class="dashboard-stat">
-            <p class="dashboard-stat-value">{{ stat.count }}</p>
-            <p class="dashboard-stat-label">{{ stat.label }}</p>
+          <article class="stat-card">
+            <p class="stat-card-value">{{ stat.count }}</p>
+            <p class="stat-card-label">{{ stat.label }}</p>
           </article>
         {% endfor %}
       </div>
       <div class="dashboard-columns">
         {% for section in sections %}
-          <article class="result-card dashboard-section">
+          <article class="collection-card dashboard-section">
             <div class="dashboard-section-header">
               <div>
                 <div class="section-heading">Recent Records</div>
@@ -70,9 +70,9 @@
               {% endif %}
             </div>
             {% if section["items"] %}
-              <div class="result-list">
+              <div class="collection-grid">
                 {% for item in section["items"] %}
-                  <article class="result-card">
+                  <article class="collection-card">
                     <div class="result-head">
                       <h4 class="result-title"><a class="result-title-link" href="{{ item["detail_url"] }}">{{ item["title"] }}</a></h4>
                       <span class="result-type">ID {{ item["id"] }}</span>

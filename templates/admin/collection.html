@@ -21,7 +21,7 @@
   </section>
 
   <section class="grid">
-    <aside class="panel stack">
+    <aside class="panel content-rail">
       <h2>Actions</h2>
       <div class="action-list">
         {% if new_url %}
@@ -34,9 +34,9 @@
     <section class="panel">
       <h2>Records</h2>
       {% if records %}
-        <div class="result-list">
+        <div class="collection-grid">
           {% for record in records %}
-            <article class="result-card">
+            <article class="collection-card">
               <div class="result-head">
                 <h3 class="result-title"><a class="result-title-link" href="{{ record.detail_url }}">{{ record.title }}</a></h3>
                 <span class="result-type">ID {{ record.id }}</span>

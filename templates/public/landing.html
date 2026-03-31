@@ -13,7 +13,7 @@
           voice into the rebuilt Flask app: discovery, coordination, and a stronger shared surface
           for routes, groups, and events.
         </p>
-        <div class="landing-cta-row">
+        <div class="hero-actions">
           {% if current_user.is_authenticated %}
             <a class="button button-primary" href="{{ url_for('auth.account') }}">Open account</a>
             {% if current_user.site_admin %}
@@ -40,9 +40,9 @@
 
   <section class="landing-section panel">
     <h2>Start Simple</h2>
-    <div class="landing-grid">
+    <div class="landing-grid collection-grid">
       {% for card in feature_cards %}
-        <article class="result-card landing-card">
+        <article class="collection-card collection-card-hero landing-card">
           <p class="landing-eyebrow">{{ card.eyebrow }}</p>
           <h3 class="landing-title">{{ card.title }}</h3>
           <p class="landing-copy">{{ card.body }}</p>
@@ -77,7 +77,7 @@
           <span><span class="action-link-label">Account</span><span class="action-link-value">{% if current_user.is_authenticated %}Manage your profile{% else %}Join the platform{% endif %}</span></span>
           <span>&rarr;</span>
         </a>
-        <div class="result-card">
+        <div class="collection-card">
           <p class="landing-eyebrow">Status</p>
           <p class="landing-copy">Public marketing, auth, admin, and collection pages now share the same visual language.</p>
         </div>

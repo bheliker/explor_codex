@@ -21,7 +21,7 @@
   </section>
 
   <section class="grid">
-    <aside class="panel stack">
+    <aside class="panel content-rail">
       <h2>Actions</h2>
       <div class="action-list">
         <a class="action-link" href="{{ url_for('core.admin_user_new_route') }}"><span><span class="action-link-label">Create</span><span class="action-link-value">New user</span></span><span>&rarr;</span></a>
@@ -32,9 +32,9 @@
     <section class="panel">
       <h2>Directory</h2>
       {% if users %}
-        <div class="result-list">
+        <div class="collection-grid">
           {% for user in users %}
-            <article class="result-card">
+            <article class="collection-card">
               <div class="result-head">
                 <h3 class="result-title"><a class="result-title-link" href="{{ user.detail_url }}">{{ user.title }}</a></h3>
                 <span class="result-type">ID {{ user.id }}</span>
