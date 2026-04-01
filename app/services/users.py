@@ -31,9 +31,7 @@ def create_user(
     normalized_email = _normalize_email(email)
     _validate_unique_username_email(normalized_username, normalized_email)
 
-    effective_site_admin = (
-        site_admin if site_admin is not None else not _has_active_site_admin()
-    )
+    effective_site_admin = site_admin if site_admin is not None else not _has_active_site_admin()
 
     user = User(
         username=normalized_username,

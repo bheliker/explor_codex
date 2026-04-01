@@ -154,12 +154,14 @@ textarea {
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.78);
   transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+  color: var(--ink);
 }
 
 .nav-link:hover,
 .button:hover {
   transform: translateY(-1px);
   border-color: var(--line-strong);
+  color: var(--accent);
 }
 
 .button {
@@ -167,7 +169,7 @@ textarea {
 }
 
 .button-primary {
-  background: linear-gradient(135deg, var(--accent), var(--warm-accent));
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
   border-color: transparent;
   color: white;
 }
