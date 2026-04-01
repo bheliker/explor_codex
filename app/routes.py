@@ -1415,6 +1415,7 @@ def admin_segment_detail_route(segment_id: int) -> str:
         story_sections=_segment_story_sections(segment),
         subtitle=segment.subtype or segment.type,
         tags=segment.tags,
+        visual_sections=_segment_visual_sections(segment),
     )
 
 
@@ -3406,6 +3407,13 @@ def _line_coordinates(geometry_text: str | None) -> list[tuple[float, float]] | 
     return points or None
 
 
+def _leaflet_latlngs(geometry_text: str | None) -> list[list[float]] | None:
+    coordinates = _line_coordinates(geometry_text)
+    if coordinates is None:
+        return None
+    return [[latitude, longitude] for longitude, latitude in coordinates]
+
+
 def _svg_path_from_points(
     points: Sequence[tuple[float, float]],
     *,
@@ -3437,10 +3445,46 @@ def _svg_path_from_points(
     return {
         "height": height,
         "path": path,
+        "points": svg_points,
         "start": {"x": f"{svg_points[0][0]:.2f}", "y": f"{svg_points[0][1]:.2f}"},
         "view_box": f"0 0 {width} {height}",
         "width": width,
     }
+
+
+def _sample_points(
+    svg_points: Sequence[tuple[float, float]],
+    *,
+    labels: Sequence[str] | None = None,
+    max_points: int = 8,
+) -> list[dict[str, str]]:
+    if not svg_points:
+        return []
+    if len(svg_points) <= max_points:
+        indices = list(range(len(svg_points)))
+    else:
+        indices = sorted(
+            {
+                round(index * (len(svg_points) - 1) / (max_points - 1))
+                for index in range(max_points)
+            }
+        )
+    samples: list[dict[str, str]] = []
+    for index in indices:
+        label = (
+            labels[index]
+            if labels is not None and index < len(labels)
+            else f"Point {index + 1}"
+        )
+        samples.append(
+            {
+                "index": str(index),
+                "label": label,
+                "x": f"{svg_points[index][0]:.2f}",
+                "y": f"{svg_points[index][1]:.2f}",
+            }
+        )
+    return samples
 
 
 def _elevation_profile(elevations: list[float] | None) -> dict[str, object] | None:
@@ -3455,13 +3499,32 @@ def _elevation_profile(elevations: list[float] | None) -> dict[str, object] | No
     baseline = 220 - 18
     width = cast(int, line["width"])
     path = cast(str, line["path"])
+    svg_points = cast(list[tuple[float, float]], line["points"])
     area_path = f"{path} L {width - 18:.2f} {baseline:.2f} L 18.00 {baseline:.2f} Z"
     return {
         "area_path": area_path,
         "max_label": _display_value(max_value),
         "min_label": _display_value(min_value),
         "path": path,
+        "samples": _sample_points(
+            svg_points,
+            labels=[_display_value(value) or "0" for value in elevations],
+        ),
         "view_box": cast(str, line["view_box"]),
+    }
+
+
+def _line_layer(
+    geometry_text: str | None,
+    *,
+    label: str,
+) -> dict[str, object] | None:
+    latlngs = _leaflet_latlngs(geometry_text)
+    if latlngs is None:
+        return None
+    return {
+        "latlngs": latlngs,
+        "label": label,
     }
 
 
@@ -3472,18 +3535,54 @@ def _line_visual(
     title: str,
     body: str,
 ) -> dict[str, object] | None:
-    coordinates = _line_coordinates(geometry_text)
-    if coordinates is None:
-        return None
-    svg = _svg_path_from_points(coordinates)
-    if svg is None:
+    layer = _line_layer(geometry_text, label=title)
+    if layer is None:
         return None
     return {
         "body": body,
         "eyebrow": eyebrow,
         "kind": "map",
-        "svg": svg,
+        "layers": [layer],
         "title": title,
+    }
+
+
+def _multi_line_visual(
+    *,
+    eyebrow: str,
+    title: str,
+    body: str,
+    layers: Sequence[tuple[str, str | None]],
+) -> dict[str, object] | None:
+    line_layers = [
+        layer
+        for label, geometry_text in layers
+        for layer in [_line_layer(geometry_text, label=label)]
+        if layer is not None
+    ]
+    if not line_layers:
+        return None
+    return {
+        "body": body,
+        "eyebrow": eyebrow,
+        "kind": "map",
+        "layers": line_layers,
+        "title": title,
+    }
+
+
+def _start_marker(
+    entity_id: int,
+    entity_type: str | None,
+    latitude: float | None,
+    longitude: float | None,
+) -> dict[str, object] | None:
+    if latitude is None or longitude is None:
+        return None
+    return {
+        "entity_id": entity_id,
+        "entity_type": entity_type or "route",
+        "latlng": [latitude, longitude],
     }
 
 
@@ -3501,6 +3600,7 @@ def _profile_visual(
         "body": body,
         "eyebrow": eyebrow,
         "kind": "profile",
+        "elevations": elevations,
         "profile": profile,
         "title": title,
     }
@@ -3737,22 +3837,67 @@ def _segment_related_sections(segment: Segment) -> list[dict[str, object]] | Non
 
 def _route_visual_sections(route: Route) -> list[dict[str, object]] | None:
     sections = [
-        _line_visual(
-            route.summary_polyline or route.full_track,
+        _multi_line_visual(
             eyebrow="Map",
             title="Route view",
             body=(
-                "A lightweight route trace pulled from the stored geometry so the page "
-                "shows the ride shape before the raw fields."
+                "The route opens with an interactive map panel, carrying forward the "
+                "original page rhythm while staying inside the lighter stack."
             ),
+            layers=[
+                ("Summary line", route.summary_polyline),
+                ("Full track", route.full_track),
+            ],
         ),
         _profile_visual(
             route.elevation_array,
             eyebrow="Elevation",
             title="Elevation profile",
-            body=("The profile keeps the climbing narrative close to the rest of the route story."),
+            body=(
+                "The climbing profile stays near the map, so the route reads like effort "
+                "and shape together rather than separate widgets."
+            ),
         ),
     ]
+    if sections[0] is not None:
+        sections[0]["marker"] = _start_marker(
+            route.id,
+            route.type,
+            route.start_latitude,
+            route.start_longitude,
+        )
+    return [section for section in sections if section is not None] or None
+
+
+def _segment_visual_sections(segment: Segment) -> list[dict[str, object]] | None:
+    sections = [
+        _multi_line_visual(
+            eyebrow="Map",
+            title="Segment line",
+            body=(
+                "Segments need the same spatial clarity as full routes, especially when "
+                "they represent the defining climb or connector."
+            ),
+            layers=[
+                ("Summary line", segment.summary_polyline),
+                ("Full track", segment.full_track),
+            ],
+        ),
+        _profile_visual(
+            segment.elevation_array
+            or [value for value in [segment.elev_low, segment.elev_high] if value is not None],
+            eyebrow="Elevation",
+            title="Segment profile",
+            body="A tighter profile puts the pitch and vertical shape front and center.",
+        ),
+    ]
+    if sections[0] is not None:
+        sections[0]["marker"] = _start_marker(
+            segment.id,
+            segment.type,
+            segment.start_latitude,
+            segment.start_longitude,
+        )
     return [section for section in sections if section is not None] or None
 
 
@@ -3783,6 +3928,13 @@ def _activity_visual_sections(activity: Activity) -> list[dict[str, object]] | N
             ),
         ),
     ]
+    if sections[0] is not None:
+        sections[0]["marker"] = _start_marker(
+            activity.id,
+            activity.type,
+            activity.start_latitude,
+            activity.start_longitude,
+        )
     return [section for section in sections if section is not None] or None
 
 

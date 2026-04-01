@@ -2,6 +2,18 @@
 
 {% block title %}{{ page_title }} | explor_codex{% endblock %}
 
+{% block extra_head %}
+  {{ super() }}
+  {% if visual_sections %}
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    >
+  {% endif %}
+{% endblock %}
+
 {% block body %}
   <div x-data="{ showMoreDetails: false, showAllTags: false, activeVisual: 0 }">
   <section class="hero">
@@ -135,35 +147,35 @@
                 <h3 class="detail-story-title">{{ section["title"] }}</h3>
                 <p class="landing-copy">{{ section["body"] }}</p>
                 {% if section["kind"] == "map" %}
-                  <div class="map-visual-frame">
-                    <svg viewBox="{{ section['svg']['view_box'] }}" role="img" aria-label="{{ section['title'] }}">
-                      <defs>
-                        <linearGradient id="routeStroke" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stop-color="#ff8f2a" />
-                          <stop offset="100%" stop-color="#71b8ff" />
-                        </linearGradient>
-                      </defs>
-                      <path class="map-visual-gridline" d="M 20 40 L 620 40 M 20 140 L 620 140 M 20 240 L 620 240" />
-                      <path class="map-visual-path" d="{{ section['svg']['path'] }}" />
-                      <circle class="map-visual-start" cx="{{ section['svg']['start']['x'] }}" cy="{{ section['svg']['start']['y'] }}" r="7"></circle>
-                    </svg>
+                  {% set map_id = "detail-map-" ~ entity_type_label|lower|replace(" ", "-") ~ "-" ~ entity_id ~ "-" ~ loop.index0 %}
+                  <div class="visual-toggle-row visual-layer-row">
+                    {% for layer in section["layers"] %}
+                      <button
+                        class="visual-toggle"
+                        type="button"
+                        data-map-layer-button
+                        data-map-target="{{ map_id }}"
+                        data-layer-index="{{ loop.index0 }}"
+                      >
+                        {{ layer["label"] }}
+                      </button>
+                    {% endfor %}
                   </div>
+                  <div
+                    class="map-visual-frame map-visual-frame-leaflet"
+                    id="{{ map_id }}"
+                    data-leaflet-visual
+                  ></div>
+                  <script type="application/json" data-map-config data-map-target="{{ map_id }}">
+                    {{ {"layers": section["layers"], "marker": section.get("marker")} | tojson }}
+                  </script>
                 {% elif section["kind"] == "profile" %}
-                  <div class="profile-visual-frame">
-                    <svg viewBox="{{ section['profile']['view_box'] }}" role="img" aria-label="{{ section['title'] }}">
-                      <defs>
-                        <linearGradient id="profileArea" x1="0%" y1="0%" x2="0%" y2="100%">
-                          <stop offset="0%" stop-color="rgba(113, 184, 255, 0.72)" />
-                          <stop offset="100%" stop-color="rgba(113, 184, 255, 0.06)" />
-                        </linearGradient>
-                      </defs>
-                      <path class="profile-visual-area" d="{{ section['profile']['area_path'] }}" />
-                      <path class="profile-visual-line" d="{{ section['profile']['path'] }}" />
-                    </svg>
-                    <div class="profile-visual-meta">
-                      <div><span class="detail-story-label">High</span><span class="detail-story-value">{{ section["profile"]["max_label"] }}</span></div>
-                      <div><span class="detail-story-label">Low</span><span class="detail-story-value">{{ section["profile"]["min_label"] }}</span></div>
-                    </div>
+                  {% set elevation_id = "detail-elevation-" ~ entity_type_label|lower|replace(" ", "-") ~ "-" ~ entity_id ~ "-" ~ loop.index0 %}
+                  <div class="profile-visual-frame profile-visual-frame-chart">
+                    <div class="elevation-visual-canvas" id="{{ elevation_id }}" data-elevation-visual></div>
+                    <script type="application/json" data-elevation-config>
+                      {{ {"elevations": section["elevations"], "max_label": section["profile"]["max_label"], "min_label": section["profile"]["min_label"]} | tojson }}
+                    </script>
                   </div>
                 {% endif %}
               </article>
@@ -273,4 +285,16 @@
     </section>
   </section>
   </div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  {% if visual_sections %}
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="{{ url_for('static', filename='js/detail_visuals.js') }}"></script>
+  {% endif %}
 {% endblock %}

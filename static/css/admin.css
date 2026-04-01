@@ -315,6 +315,10 @@ h1 {
   align-items: start;
 }
 
+.grid > * {
+  min-width: 0;
+}
+
 .panel {
   padding: 24px;
   border: 1px solid rgba(255, 255, 255, 0.56);
@@ -484,6 +488,7 @@ h1 {
 .content-rail {
   display: grid;
   gap: 18px;
+  min-width: 0;
 }
 
 .landing-grid,
@@ -852,12 +857,14 @@ textarea {
 .detail-story-item {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 12px;
   padding-top: 10px;
   border-top: 1px solid rgba(34, 58, 84, 0.1);
 }
 
 .detail-story-label {
+  min-width: 0;
   color: var(--muted);
   font-size: 0.82rem;
   letter-spacing: 0.08em;
@@ -865,8 +872,11 @@ textarea {
 }
 
 .detail-story-value {
+  min-width: 0;
+  max-width: 58%;
   text-align: right;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .visual-header {
@@ -915,6 +925,10 @@ textarea {
   background: linear-gradient(180deg, rgba(250, 253, 255, 0.98), rgba(231, 240, 248, 0.95));
 }
 
+.visual-layer-row {
+  margin: 10px 0 14px;
+}
+
 .map-visual-frame,
 .profile-visual-frame {
   margin-top: 16px;
@@ -926,11 +940,73 @@ textarea {
     linear-gradient(180deg, rgba(19, 33, 48, 0.98), rgba(34, 54, 76, 0.98));
 }
 
-.map-visual-frame svg,
 .profile-visual-frame svg {
   display: block;
   width: 100%;
   height: auto;
+}
+
+.map-visual-frame-leaflet {
+  min-height: 360px;
+  padding: 0;
+}
+
+.map-visual-frame-leaflet .leaflet-container {
+  width: 100%;
+  min-height: 360px;
+  background: linear-gradient(180deg, rgba(19, 33, 48, 0.92), rgba(34, 54, 76, 0.96));
+}
+
+.map-visual-frame-leaflet .leaflet-pane svg {
+  display: block;
+  width: auto;
+  height: auto;
+}
+
+.profile-visual-frame-chart {
+  padding: 18px 18px 12px;
+}
+
+.elevation-visual-canvas {
+  min-height: 280px;
+}
+
+.elevation-chart-shell {
+  display: grid;
+  gap: 10px;
+}
+
+.elevation-chart-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.elevation-chart-line {
+  fill: none;
+  stroke: #3b4145;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 4;
+}
+
+.elevation-chart-hit {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.elevation-chart-active {
+  fill: #ff8f2a;
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 3;
+}
+
+.elevation-chart-readout {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 4px;
+  color: #f4ede4;
 }
 
 .map-visual-gridline {
@@ -941,7 +1017,6 @@ textarea {
 
 .map-visual-path {
   fill: none;
-  stroke: url(#routeStroke);
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 10;
@@ -949,6 +1024,18 @@ textarea {
 
 .map-visual-start {
   fill: #ff8f2a;
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 3;
+}
+
+.map-visual-sample,
+.profile-visual-sample {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.map-visual-highlight {
+  fill: #71b8ff;
   stroke: rgba(255, 255, 255, 0.85);
   stroke-width: 3;
 }
@@ -965,6 +1052,12 @@ textarea {
   stroke-width: 8;
 }
 
+.profile-visual-highlight {
+  fill: #ff8f2a;
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 3;
+}
+
 .profile-visual-meta {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -976,6 +1069,49 @@ textarea {
 .profile-visual-meta div {
   display: grid;
   gap: 4px;
+}
+
+.visual-sample-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 18px 18px;
+}
+
+.visual-sample-chip {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f4ede4;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+}
+
+.visual-sample-chip-active {
+  border-color: rgba(255, 143, 42, 0.9);
+  background: rgba(255, 143, 42, 0.18);
+}
+
+.explor-map-marker {
+  background: transparent;
+  border: 0;
+}
+
+.explor-map-marker-pin {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 3px solid rgba(255, 255, 255, 0.92);
+  background: #ff6b35;
+  box-shadow: 0 6px 18px rgba(18, 28, 40, 0.28);
+}
+
+.explor-map-marker-segment .explor-map-marker-pin {
+  background: #71b8ff;
 }
 
 .landing-section {

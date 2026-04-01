@@ -2810,6 +2810,7 @@ def test_admin_route_detail_page_renders(
     assert "Elevation profile" in html
     assert "Explor View" in html
     assert "Route view" in html
+    assert "Summary line" in html
     assert "Connected Records" in html
     assert "Oakland Distance Club" in html
     assert "Skyline Spur" in html
@@ -2849,6 +2850,7 @@ def test_admin_segment_detail_page_renders_full_record(
             end_latitude=37.81234,
             end_longitude=-122.14321,
             elevation_array=[544.0, 700.0, 902.0],
+            summary_polyline='{"type":"LineString","coordinates":[[-122.15432,37.80123],[-122.14987,37.80654],[-122.14321,37.81234]]}',
             track_hash="abc123def456",
             track_maxspeed=38.4,
         )
@@ -2875,6 +2877,8 @@ def test_admin_segment_detail_page_renders_full_record(
     assert "abc123def456" in html
     assert "https://example.com/segments/redwood-wall" in html
     assert "37.80123, -122.15432" in html
+    assert "Segment line" in html
+    assert "Segment profile" in html
     assert "Redwood Access Loop" in html
     assert "Canopy switchback" in html
 

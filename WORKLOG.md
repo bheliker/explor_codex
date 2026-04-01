@@ -917,6 +917,89 @@ This file records session history for `explor_codex` so future work can resume w
   - stronger segment-specific elevation/map treatment, or
   - a browser detail surface for calendars so event related-record sections can become fully navigable.
 
+## 2026-04-01 (Route And Segment Interactive Map/Elevation)
+
+### Investigated
+- Compared the original route detail experience in `explor_alpha/app/templates/routes/` with the current rebuilt detail page.
+- Reviewed the legacy route page scripts to isolate the high-value behaviors:
+  - map-first route presentation
+  - a dedicated elevation chart on the detail page
+  - quick switching between simplified and fuller route geometry
+- Confirmed the current stored geometry and elevation fields were already sufficient to recreate those interactions without reintroducing the full old Leaflet and Highcharts stack.
+
+### Changed
+- Extended the route and segment detail handlers in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) so both now provide richer `visual_sections`.
+- Added geometry sampling and SVG helper logic in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) to support:
+  - summary and full-track line views
+  - sampled hover targets for map readouts
+  - richer elevation profile samples
+- Updated [templates/admin/detail.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/detail.html) so map visual sections now support:
+  - summary versus full-track switching
+  - hoverable route and segment sample chips
+  - richer elevation hover targets and profile readouts
+- Expanded [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css) with styling for:
+  - map/profile interaction chips
+  - layered visual toggles
+  - interactive highlight states
+- Extended [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) so route and segment detail coverage now asserts the new map/elevation surfaces.
+
+### Decisions
+- Recreate the original interaction priorities with server-rendered SVG and Alpine instead of restoring the old dependency-heavy implementation directly.
+- Treat summary/full-track switching and hoverable map/profile affordances as the most valuable parts of the old route experience to port first.
+
+### Why
+- Maps and elevation are central to the Explor product feel, especially on routes and segments.
+- This gets much closer to the original route detail rhythm while staying aligned with the current repo-local design system and lighter frontend stack.
+
+### Verification
+- `uv run pytest`
+- `uv run ruff check .`
+- `uv run mypy app tests`
+
+### Notes for the next session
+- Route and segment detail pages now both carry a more recognizably Explor-style map/elevation experience.
+- The next strongest step would be adding calendar detail pages and then tightening route/event/share-related interaction flows around those richer destinations.
+
+## 2026-04-01 (Leaflet And Original Elevation Behavior)
+
+### Investigated
+- Re-read the original route detail implementation in `explor_alpha`, especially:
+  - [routes_details.html](/Users/bheliker/Documents/_Projects/explor/explor_alpha/app/templates/routes/routes_details.html)
+  - `app/static/js/elevation.js`
+  - the inline Leaflet map initialization used on the old route page
+- Confirmed that the SVG approximation added earlier was a useful intermediate step, but not a correct substitute for a true geographic map.
+
+### Changed
+- Updated [templates/base.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/base.html) to support page-specific head and script blocks so richer detail pages can load the right frontend assets cleanly.
+- Reworked [templates/admin/detail.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/detail.html) so route, segment, and activity visual sections now mount:
+  - true Leaflet map containers
+  - Highcharts-based elevation containers
+  - summary/full-track layer toggles on map views
+- Added [static/js/detail_visuals.js](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/js/detail_visuals.js) to initialize:
+  - Leaflet maps using the original Mapbox basemap style URL
+  - start markers via `L.divIcon`
+  - Highcharts elevation charts using options closely modeled on the original `elevationChartDetailsPage(...)`
+- Updated [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) so map visual sections now provide real geographic `latlng` layers instead of only SVG approximations.
+- Refined [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css) for Leaflet container presentation, map markers, and chart framing.
+- Extended [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) coverage while preserving green server-side verification.
+
+### Decisions
+- Use Leaflet for geographic route and segment maps, matching the original product behavior more directly.
+- Keep the rebuilt app’s structure and design system, but port the original mapping and elevation primitives much more literally where they are core to product identity.
+
+### Why
+- A route detail page needs to show real geography, not an abstract x/y trace.
+- The original route detail experience was defined by actual map context plus an elevation chart; this restores that priority while staying inside the rebuilt Flask template architecture.
+
+### Verification
+- `uv run pytest`
+- `uv run ruff check .`
+- `uv run mypy app tests`
+
+### Notes for the next session
+- Route and segment pages now use real Leaflet maps and original-style elevation charts rather than the earlier SVG placeholder treatment.
+- The next likely step is tightening share/export/calendar flows around these richer route destinations, or carrying similar basemap treatment into other map-first records where it matters.
+
 ## 2026-04-01 (Archive Import Into Current Local Postgres)
 
 ### Investigated
@@ -998,3 +1081,132 @@ This file records session history for `explor_codex` so future work can resume w
 - `uv run ruff check .`
 - `uv run mypy app tests`
 - `uv run pytest`
+
+## 2026-04-01 (Geo Index Audit And Backfill)
+
+### Investigated
+- Audited the imported local PostgreSQL dataset after the archive import to measure where real scale now exists:
+  - `route`: 54,637
+  - `segment`: 60,662
+  - `image`: 37,156
+  - `search_document`: 117,867
+- Queried PostgreSQL index metadata and `pg_stat_user_tables` to see which tables were still relying on primary keys alone.
+- Ran `EXPLAIN (ANALYZE, BUFFERS)` against representative queries from the current app:
+  - recent search documents
+  - tokenized search over `search_document`
+  - image lookups by `segment_id`
+- Checked geometry coverage in the imported data and found:
+  - route and segment geometry is broadly populated
+  - group and event point geometry is partially populated
+  - image `geoll` was empty even though `latlng` existed on most imported image rows
+
+### Changed
+- Added [migrations/versions/0d7f4ee1d1fa_add_geo_and_search_indexes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/migrations/versions/0d7f4ee1d1fa_add_geo_and_search_indexes.py).
+- Added btree indexes for the most-used foreign key and join paths, including:
+  - `image.segment_id`, `image.group_id`, `image.activity_id`, `image.photographer_id`
+  - `event.owner_id`, `event.route_id`, `event.activity_id`, `event.date_start`
+  - `activity.athlete_id`, `activity.route_id`
+  - `calendar.group_id`
+  - `group.admin_id`, `group.hero_photo_id`
+  - `group_external_url.owner`, `group_external_url.route_id`
+  - `group_dues.owner`
+  - `event_fee.event`
+  - reverse-side indexes for join tables such as `route_segments.segments`, `group_routes.route`, `calendar_events.events`, `event_images.image`, `poi_images.image`, and `event_attendance.attendance`
+- Added a regular index on `search_document.updated_at` to support the “recent search docs” surfaces.
+- Added a PostgreSQL trigram GIN index on `lower(search_text)` for the current portable search implementation.
+- Added PostgreSQL GiST indexes for the most useful populated spatial columns:
+  - `group.geoll`
+  - `event.geoll`
+  - `points_of_interest.geoll`
+  - `image.geoll`
+  - `route.summary_polyline`
+  - `segment.summary_polyline`
+  - `activity.summary_polyline`
+- Backfilled missing geometry where the imported dataset already had coordinates:
+  - `image.geoll` from `image.latlng`
+  - `group.geoll` from `group.home_latlng`
+  - `event.geoll` from `event.lon` / `event.lat`
+
+### Decisions
+- Keep the current cross-database search architecture, but optimize PostgreSQL with trigram indexing instead of reviving legacy `tsvector` columns.
+- Index `summary_polyline` rather than `full_track` for the main spatial browsing path.
+- Prefer partial GiST indexes on populated geometry columns instead of broader indexes on every geometry field.
+- Use the imported dataset itself to drive optimization work rather than guessing from the schema alone.
+
+### Why
+- The imported archive has pushed the app into a scale where sequential scans are now visible in normal UI paths.
+- The current admin and public search surfaces rely heavily on `search_document`, so it was the most immediate win.
+- Browsing and nearby-style geographic work should center on summary geometry and point geometry first, because those are the fields most likely to support real UI interactions without unnecessary index weight.
+- The image backfill materially increases the amount of usable geographic data without changing the public API shape.
+
+### Verification
+- Migration verification:
+  - `DATABASE_URL=sqlite+pysqlite:////Users/bheliker/Documents/_Projects/explor/explor_codex/.codex-tmp/migration-dbs/geo-index-audit.db UV_CACHE_DIR=/Users/bheliker/Documents/_Projects/explor/explor_codex/.codex-tmp/uv-cache uv run flask --app 'app:create_app()' db upgrade`
+  - `uv run flask --app 'app:create_app()' db upgrade`
+- Query-plan spot checks after the migration:
+  - recent `search_document` lookup dropped from a parallel seq scan to an index scan on `updated_at`
+  - tokenized search now uses the trigram GIN index instead of a full table scan
+  - image lookup by `segment_id` now uses `ix_image_segment_id`
+  - nearby image lookup uses `ix_image_geoll_gist`
+- Data coverage after backfill:
+  - `group.geoll`: 2,318 populated
+  - `event.geoll`: 147 populated
+  - `image.geoll`: 34,618 populated
+- `uv run ruff check .`
+- `uv run mypy app tests scripts/import_archive_to_current.py`
+- `uv run pytest`
+
+### Notes for the next session
+- The database now has a much stronger baseline for search, spatial lookups, and related-record joins against the imported archive-scale dataset.
+- The next strongest geography-focused step would be to add explicit nearby/bounding-box query helpers and surface them in either the API or the admin UI.
+- A separate auth/admin concern still exists: verify that non-admin users truly cannot reach admin/write paths in the running environment and tighten that if needed.
+
+## 2026-04-01 (Route Map Debugging)
+
+### Investigated
+- Followed up on the new Leaflet detail-page maps after the elevation renderer moved to a repo-local SVG implementation.
+- Verified that route visual payloads were producing real `latlngs` arrays from stored `summary_polyline` and `full_track` geometry.
+- Confirmed that some imported records have degenerate summary geometry with repeated points, which can make the default map layer look like a single-point route.
+
+### Changed
+- Moved the detail-page map JSON config mount outside the Leaflet container in [templates/admin/detail.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/detail.html).
+- Hardened [static/js/detail_visuals.js](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/js/detail_visuals.js) so map initialization now:
+  - looks up config by explicit `data-map-target`
+  - prefers the first layer with visible geographic distance instead of blindly selecting the first layer
+  - re-invalidates and re-fits the map after mount so the route line has a better chance to render correctly on first paint
+
+### Decisions
+- Keep the current lightweight Leaflet path, but make it resilient to messy imported geometry instead of assuming every summary line is valid.
+- Preserve the current repo-local elevation renderer while focusing map work on geographic correctness and original route-page behavior.
+
+### Why
+- The original Explor route experience depends on the route line itself being the hero, not just the trailhead marker.
+- Imported real-world geometry is noisy enough that the client should actively avoid collapsed or placeholder linework when picking a default map layer.
+
+### Verification
+- `uv run pytest`
+- `uv run ruff check .`
+- `uv run mypy app tests`
+
+### Notes for the next session
+- If any detail pages still show marker-only behavior, inspect those records for geometry variants such as `FeatureCollection`, `MultiLineString`, or malformed imported coordinate payloads and expand the parser accordingly.
+
+## 2026-04-01 (Segment Detail Layout Fix)
+
+### Investigated
+- Followed up on a segment-detail CSS defect where the right-hand value column could overlap the left-hand label column.
+- Narrowed the problem to shared detail/story row layout rather than segment-specific data or template structure.
+
+### Changed
+- Updated [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css) so detail-page grid children can shrink correctly and long story-row values wrap instead of overrunning adjacent content.
+
+### Decisions
+- Fix this in the shared detail layout primitives instead of adding a one-off segment-only override.
+
+### Why
+- Segment pages naturally surface long coordinate and metadata values, so they expose layout assumptions that should be resilient across all entity detail pages.
+
+### Verification
+- `uv run pytest`
+- `uv run ruff check .`
+- `uv run mypy app tests`
