@@ -10,3 +10,5 @@ __pycache__/
 !.codex-tmp/.gitkeep
 !.codex-tmp/migration-dbs/
 !.codex-tmp/migration-dbs/.gitkeep
+db_archive/
+design_drafts/
