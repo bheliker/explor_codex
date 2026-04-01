@@ -3,7 +3,7 @@
 {% block title %}{{ page_title }} | explor_codex{% endblock %}
 
 {% block body %}
-  <div x-data="{ showMoreDetails: false, showAllTags: false }">
+  <div x-data="{ showMoreDetails: false, showAllTags: false, activeVisual: 0 }">
   <section class="hero">
     <div class="hero-grid">
       <div>
@@ -106,6 +106,72 @@
     </aside>
 
     <section class="content-rail">
+      {% if visual_sections %}
+        <section class="panel">
+          <div class="visual-header">
+            <div>
+              <h2>Explor View</h2>
+              <p class="section-copy visual-header-copy">Maps and elevation should carry the page, not hide in the footnotes.</p>
+            </div>
+            {% if visual_sections|length > 1 %}
+              <div class="visual-toggle-row">
+                {% for section in visual_sections %}
+                  <button
+                    class="visual-toggle"
+                    type="button"
+                    :class="{ 'visual-toggle-active': activeVisual === {{ loop.index0 }} }"
+                    @click="activeVisual = {{ loop.index0 }}"
+                  >
+                    {{ section["title"] }}
+                  </button>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+          <div class="visual-grid">
+            {% for section in visual_sections %}
+              <article class="visual-card" x-show="activeVisual === {{ loop.index0 }}" x-transition.opacity.duration.200ms>
+                <p class="landing-eyebrow">{{ section["eyebrow"] }}</p>
+                <h3 class="detail-story-title">{{ section["title"] }}</h3>
+                <p class="landing-copy">{{ section["body"] }}</p>
+                {% if section["kind"] == "map" %}
+                  <div class="map-visual-frame">
+                    <svg viewBox="{{ section['svg']['view_box'] }}" role="img" aria-label="{{ section['title'] }}">
+                      <defs>
+                        <linearGradient id="routeStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stop-color="#ff8f2a" />
+                          <stop offset="100%" stop-color="#71b8ff" />
+                        </linearGradient>
+                      </defs>
+                      <path class="map-visual-gridline" d="M 20 40 L 620 40 M 20 140 L 620 140 M 20 240 L 620 240" />
+                      <path class="map-visual-path" d="{{ section['svg']['path'] }}" />
+                      <circle class="map-visual-start" cx="{{ section['svg']['start']['x'] }}" cy="{{ section['svg']['start']['y'] }}" r="7"></circle>
+                    </svg>
+                  </div>
+                {% elif section["kind"] == "profile" %}
+                  <div class="profile-visual-frame">
+                    <svg viewBox="{{ section['profile']['view_box'] }}" role="img" aria-label="{{ section['title'] }}">
+                      <defs>
+                        <linearGradient id="profileArea" x1="0%" y1="0%" x2="0%" y2="100%">
+                          <stop offset="0%" stop-color="rgba(113, 184, 255, 0.72)" />
+                          <stop offset="100%" stop-color="rgba(113, 184, 255, 0.06)" />
+                        </linearGradient>
+                      </defs>
+                      <path class="profile-visual-area" d="{{ section['profile']['area_path'] }}" />
+                      <path class="profile-visual-line" d="{{ section['profile']['path'] }}" />
+                    </svg>
+                    <div class="profile-visual-meta">
+                      <div><span class="detail-story-label">High</span><span class="detail-story-value">{{ section["profile"]["max_label"] }}</span></div>
+                      <div><span class="detail-story-label">Low</span><span class="detail-story-value">{{ section["profile"]["min_label"] }}</span></div>
+                    </div>
+                  </div>
+                {% endif %}
+              </article>
+            {% endfor %}
+          </div>
+        </section>
+      {% endif %}
+
       {% if story_sections %}
             <section class="panel">
               <h2>Story</h2>

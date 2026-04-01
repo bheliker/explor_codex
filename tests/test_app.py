@@ -2772,6 +2772,7 @@ def test_admin_route_detail_page_renders(
             end_latitude=37.88123,
             end_longitude=-122.24456,
             elevation_array=[110.0, 340.0, 280.0],
+            summary_polyline='{"type":"LineString","coordinates":[[-122.18345,37.81234],[-122.2,37.84],[-122.24456,37.88123]]}',
         )
         route.creator = creator
         route.groups.append(group)
@@ -2800,6 +2801,8 @@ def test_admin_route_detail_page_renders(
     assert "Joaquin Miller Park, Oakland, CA" in html
     assert "37.81234, -122.18345" in html
     assert "Elevation profile" in html
+    assert "Explor View" in html
+    assert "Route view" in html
     assert "Connected Records" in html
     assert "Oakland Distance Club" in html
     assert "Skyline Spur" in html
@@ -2996,6 +2999,7 @@ def test_admin_activity_detail_page_renders_full_record(
             start_longitude=-122.4775,
             end_latitude=37.8072,
             end_longitude=-122.4754,
+            summary_polyline='{"type":"LineString","coordinates":[[-122.4775,37.8061],[-122.4763,37.8068],[-122.4754,37.8072]]}',
             route=route,
         )
         image = Image(
@@ -3016,6 +3020,9 @@ def test_admin_activity_detail_page_renders_full_record(
     assert "1910.00" in html
     assert "activity-42" in html
     assert "37.80610, -122.47750" in html
+    assert "Explor View" in html
+    assert "Activity trace" in html
+    assert "Climbing shape" in html
     assert "Headlands Long Loop" in html
     assert "Fog bank over the bridge" in html
 

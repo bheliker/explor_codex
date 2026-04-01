@@ -877,3 +877,42 @@ This file records session history for `explor_codex` so future work can resume w
 ### Notes for the next session
 - The richer detail treatment now covers routes, segments, events, points of interest, and activities.
 - The next likely step is stronger route and activity media/map storytelling or filling in missing related-entity browser surfaces such as calendars.
+
+## 2026-04-01 (Route And Activity Map/Elevation Storytelling)
+
+### Investigated
+- Reviewed the stored geometry and elevation fields already available on `Route` and `Activity`.
+- Confirmed the app already stores line data as GeoJSON-like text through the geometry helpers, which made lightweight SVG rendering feasible without pulling in a new frontend map stack.
+- Checked the shared detail template and design system to confirm there was enough room to add a dedicated Explor-specific visual section.
+
+### Changed
+- Added server-side geometry and elevation helpers in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) to generate:
+  - simplified SVG route traces
+  - compact elevation profiles
+  - lightweight visual-section payloads for detail templates
+- Updated the route detail page in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) to surface a dedicated Explor visual section using stored line geometry and elevation arrays.
+- Updated the activity detail page in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) to show a recorded trace and a compact climbing profile based on available elevation markers.
+- Expanded [templates/admin/detail.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/detail.html) with an `Explor View` section that:
+  - gives maps and profiles their own first-class space
+  - uses Alpine for simple view toggling when more than one visual is available
+- Added the styling for these visual cards in [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css), keeping the look aligned with the stronger blue/gray/orange design direction.
+- Extended [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) so route and activity detail tests now assert the presence of the new Explor map/elevation surfaces.
+
+### Decisions
+- Prefer server-rendered SVG visuals over reintroducing a client-heavy map/chart library for this stage.
+- Treat maps and elevation as authored storytelling surfaces, not just extra raw fields appended lower on the page.
+
+### Why
+- Maps and elevation are central to the Explor product feel, especially on routes and activities.
+- This approach gets that experience materially closer to the original product language while keeping the implementation lightweight, testable, and consistent with the current server-rendered stack.
+
+### Verification
+- `uv run pytest`
+- `uv run ruff check .`
+- `uv run mypy app tests`
+
+### Notes for the next session
+- Route and activity pages now have first-class map/elevation storytelling instead of only raw geometry/elevation fields.
+- The next likely step is either:
+  - stronger segment-specific elevation/map treatment, or
+  - a browser detail surface for calendars so event related-record sections can become fully navigable.

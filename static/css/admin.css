@@ -794,6 +794,115 @@ textarea {
   font-weight: 600;
 }
 
+.visual-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.visual-header-copy {
+  max-width: 40rem;
+}
+
+.visual-toggle-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.visual-toggle {
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 9px 14px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--heading);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.88rem;
+}
+
+.visual-toggle-active {
+  border-color: rgba(44, 102, 143, 0.32);
+  background: rgba(44, 102, 143, 0.12);
+}
+
+.visual-grid {
+  display: grid;
+}
+
+.visual-card {
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 26px;
+  background: linear-gradient(180deg, rgba(250, 253, 255, 0.98), rgba(231, 240, 248, 0.95));
+}
+
+.map-visual-frame,
+.profile-visual-frame {
+  margin-top: 16px;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid rgba(34, 58, 84, 0.1);
+  background:
+    radial-gradient(circle at top left, rgba(255, 143, 42, 0.18), transparent 30%),
+    linear-gradient(180deg, rgba(19, 33, 48, 0.98), rgba(34, 54, 76, 0.98));
+}
+
+.map-visual-frame svg,
+.profile-visual-frame svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.map-visual-gridline {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 1.5;
+}
+
+.map-visual-path {
+  fill: none;
+  stroke: url(#routeStroke);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 10;
+}
+
+.map-visual-start {
+  fill: #ff8f2a;
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 3;
+}
+
+.profile-visual-area {
+  fill: url(#profileArea);
+}
+
+.profile-visual-line {
+  fill: none;
+  stroke: #71b8ff;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 8;
+}
+
+.profile-visual-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px 18px 18px;
+  color: #f4ede4;
+}
+
+.profile-visual-meta div {
+  display: grid;
+  gap: 4px;
+}
+
 .landing-section {
   margin-top: 24px;
 }
@@ -897,7 +1006,8 @@ textarea {
   }
 
   .result-head,
-  .dashboard-section-header {
+  .dashboard-section-header,
+  .visual-header {
     align-items: start;
     flex-direction: column;
   }
