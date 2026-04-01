@@ -1,5 +1,5 @@
 const EXPLOR_TILE_URL =
-  "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+  "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 const EXPLOR_TILE_SUBDOMAINS = "abcd";
 
 function generateDivIcon(entityId, entityType) {
