@@ -1533,11 +1533,23 @@ def admin_event_detail_route(event_id: int) -> str:
         "admin/detail.html",
         detail_rows=_detail_rows(
             [
-                ("Description", event.description),
+                ("Starts", event.date_start),
+                ("Ends", event.date_end),
+                ("Duration", event.duration),
                 ("Primary activity", event.primary_activity),
                 ("Type", event.type),
                 ("Subtype", event.subtype),
+                ("Private", event.private),
+                ("Email", event.email),
+                ("URL", event.url, event.url),
+                ("Registration URL", event.reg_url, event.reg_url),
                 ("Notes", event.notes),
+                ("Latitude", event.lat),
+                ("Longitude", event.lon),
+                ("Latlng", event.latlng),
+                ("Geometry", event.geoll),
+                ("Created", event.date_created),
+                ("Updated", event.date_updated),
                 ("Route ID", event.route_id, _admin_detail_url("route", event.route_id)),
                 (
                     "Activity ID",
@@ -1553,15 +1565,11 @@ def admin_event_detail_route(event_id: int) -> str:
         entity_type_label="Event",
         edit_url=url_for("core.admin_event_edit_route", event_id=event.id),
         location=_join_location(event.town, event.state, event.country),
-        media_previews=_media_previews(
-            [
-                ("Photo", event.photo_url),
-                ("Logo", event.logo),
-                ("Profile photo", event.profile_photo),
-            ]
-        ),
+        media_previews=_event_media_previews(event),
         page_title=event.name or "Event",
         recent_links=_recent_activity_links(exclude=("event", event.id)),
+        related_sections=_event_related_sections(event),
+        story_sections=_event_story_sections(event),
         subtitle=event.subtype or event.type or event.primary_activity,
         tags=event.tags,
     )
@@ -1750,13 +1758,17 @@ def admin_point_of_interest_detail_route(point_id: int) -> str:
         "admin/detail.html",
         detail_rows=_detail_rows(
             [
-                ("Description", point.description),
                 ("Type", point.type),
                 ("Subtype", point.subtype),
-                ("URL", point.url),
                 ("Latitude", point.lat),
                 ("Longitude", point.lon),
+                ("Coordinates", _coordinate_pair(point.lat, point.lon)),
+                ("Geometry", point.geoll),
+                ("URL", point.url, point.url),
                 ("Icon", point.icon),
+                ("Owner ID", point.owner_id),
+                ("Created", point.date_created),
+                ("Updated", point.date_updated),
                 ("Images", len(point.images)),
             ]
         ),
@@ -1764,9 +1776,11 @@ def admin_point_of_interest_detail_route(point_id: int) -> str:
         entity_type_label="Point of Interest",
         edit_url=url_for("core.admin_point_of_interest_edit_route", point_id=point.id),
         location=None,
-        media_previews=None,
+        media_previews=_point_of_interest_media_previews(point),
         page_title=point.name or "Point of Interest",
         recent_links=_recent_activity_links(exclude=("point_of_interest", point.id)),
+        related_sections=_point_of_interest_related_sections(point),
+        story_sections=_point_of_interest_story_sections(point),
         subtitle=point.subtype or point.type,
         tags=point.tags,
     )
@@ -1875,16 +1889,36 @@ def admin_activity_detail_route(activity_id: int) -> str:
         "admin/detail.html",
         detail_rows=_detail_rows(
             [
-                ("Description", activity.desc),
-                ("Type", activity.type),
-                ("Subtype", activity.subtype),
-                ("Duration", activity.duration),
                 ("Length", activity.length),
+                ("Duration", activity.duration),
                 ("Elevation gain", activity.elevation_gain),
                 ("Average speed", activity.average_speed),
                 ("Max speed", activity.max_speed),
+                ("Moving time", activity.moving_time),
+                ("Total elevation gain", activity.total_elevation_gain),
+                ("Elevation high", activity.elev_high),
+                ("Elevation low", activity.elev_low),
+                ("Type", activity.type),
+                ("Subtype", activity.subtype),
+                ("Private", activity.private),
+                ("Athlete ID", activity.athlete_id),
+                ("Source", activity.src),
+                ("Source ID", activity.src_id),
+                ("Starts", activity.start_date),
+                ("Ends", activity.end_date),
+                (
+                    "Start coordinates",
+                    _coordinate_pair(activity.start_latitude, activity.start_longitude),
+                ),
+                (
+                    "End coordinates",
+                    _coordinate_pair(activity.end_latitude, activity.end_longitude),
+                ),
+                ("Summary polyline", activity.summary_polyline),
+                ("Full track", activity.full_track),
+                ("Created", activity.init_date),
+                ("Updated", activity.update_date),
                 ("Route ID", activity.route_id, _admin_detail_url("route", activity.route_id)),
-                ("Photo URL", activity.photo_url),
                 ("Images", len(activity.images)),
             ]
         ),
@@ -1892,9 +1926,11 @@ def admin_activity_detail_route(activity_id: int) -> str:
         entity_type_label="Activity",
         edit_url=url_for("core.admin_activity_edit_route", activity_id=activity.id),
         location=None,
-        media_previews=_media_previews([("Photo", activity.photo_url)]),
+        media_previews=_activity_media_previews(activity),
         page_title=activity.name or "Activity",
         recent_links=_recent_activity_links(exclude=("activity", activity.id)),
+        related_sections=_activity_related_sections(activity),
+        story_sections=_activity_story_sections(activity),
         subtitle=activity.subtype or activity.type,
         tags=activity.tags,
     )
@@ -3247,6 +3283,36 @@ def _segment_media_previews(segment: Segment) -> list[dict[str, str]] | None:
     return _media_previews(preview_items)
 
 
+def _event_media_previews(event: Event) -> list[dict[str, str]] | None:
+    preview_items: list[tuple[str, str | None]] = [
+        ("Photo", event.photo_url),
+        ("Logo", event.logo),
+        ("Profile photo", event.profile_photo),
+    ]
+    preview_items.extend(
+        (image.title or image.caption or f"Image {image.id}", _image_preview_url(image))
+        for image in event.images[:3]
+    )
+    return _media_previews(preview_items)
+
+
+def _point_of_interest_media_previews(point: PointOfInterest) -> list[dict[str, str]] | None:
+    preview_items = [
+        (image.title or image.caption or f"Image {image.id}", _image_preview_url(image))
+        for image in point.images[:4]
+    ]
+    return _media_previews(preview_items)
+
+
+def _activity_media_previews(activity: Activity) -> list[dict[str, str]] | None:
+    preview_items: list[tuple[str, str | None]] = [("Photo", activity.photo_url)]
+    preview_items.extend(
+        (image.title or image.caption or f"Image {image.id}", _image_preview_url(image))
+        for image in activity.images[:3]
+    )
+    return _media_previews(preview_items)
+
+
 def _media_previews(items: list[tuple[str, str | None]]) -> list[dict[str, str]] | None:
     previews = [
         {"alt": label, "label": label, "url": url}
@@ -3478,6 +3544,239 @@ def _segment_related_sections(segment: Segment) -> list[dict[str, object]] | Non
                     "title": image.title or f"Image {image.id}",
                 }
                 for image in segment.images
+                if _image_preview_url(image)
+            ],
+        ),
+    ]
+    return [section for section in sections if section is not None] or None
+
+
+def _event_story_sections(event: Event) -> list[dict[str, object]] | None:
+    sections = [
+        _story_section(
+            "Why this event exists",
+            eyebrow="Event notes",
+            body=event.description
+            or (
+                "The event is on the calendar, even if the fuller event brief has not "
+                "been written yet."
+            ),
+        ),
+        _story_section(
+            "When and where",
+            eyebrow="Timing",
+            items=[
+                ("Starts", event.date_start),
+                ("Ends", event.date_end),
+                ("Place", _join_location(event.town, event.state, event.country)),
+                ("Coordinates", _coordinate_pair(event.lat, event.lon)),
+            ],
+        ),
+    ]
+    return [section for section in sections if section is not None] or None
+
+
+def _point_of_interest_story_sections(point: PointOfInterest) -> list[dict[str, object]] | None:
+    sections = [
+        _story_section(
+            "Why it matters on the map",
+            eyebrow="Point notes",
+            body=point.description
+            or (
+                "This point is stored as a named waypoint even if the descriptive "
+                "context is still sparse."
+            ),
+        ),
+        _story_section(
+            "Location",
+            eyebrow="Map context",
+            items=[
+                ("Coordinates", _coordinate_pair(point.lat, point.lon)),
+                ("Geometry", point.geoll),
+                ("Reference URL", point.url),
+            ],
+        ),
+    ]
+    return [section for section in sections if section is not None] or None
+
+
+def _activity_story_sections(activity: Activity) -> list[dict[str, object]] | None:
+    sections = [
+        _story_section(
+            "What happened out there",
+            eyebrow="Activity notes",
+            body=activity.desc
+            or (
+                "The recorded metrics are in place even if a fuller ride summary has "
+                "not been added yet."
+            ),
+        ),
+        _story_section(
+            "Effort profile",
+            eyebrow="Performance",
+            items=[
+                ("Starts", activity.start_date),
+                ("Ends", activity.end_date),
+                ("Start", _coordinate_pair(activity.start_latitude, activity.start_longitude)),
+                ("Finish", _coordinate_pair(activity.end_latitude, activity.end_longitude)),
+                ("Moving time", activity.moving_time),
+            ],
+        ),
+    ]
+    return [section for section in sections if section is not None] or None
+
+
+def _event_related_sections(event: Event) -> list[dict[str, object]] | None:
+    sections = [
+        _related_section(
+            "Linked route and activity",
+            eyebrow="Program",
+            empty_copy="This event is not linked to a route or activity yet.",
+            items=[
+                *(
+                    [
+                        {
+                            "eyebrow": "Route",
+                            "external": False,
+                            "href": url_for(
+                                "core.admin_route_detail_route",
+                                route_id=event.route.id,
+                            ),
+                            "meta": _format_route_meta(event.route),
+                            "title": event.route.name or f"Route {event.route.id}",
+                        }
+                    ]
+                    if event.route is not None
+                    else []
+                ),
+                *(
+                    [
+                        {
+                            "eyebrow": "Activity",
+                            "external": False,
+                            "href": url_for(
+                                "core.admin_activity_detail_route",
+                                activity_id=event.activity.id,
+                            ),
+                            "meta": _join_location(
+                                event.activity.subtype or event.activity.type,
+                                _display_value(event.activity.length),
+                            ),
+                            "title": event.activity.name or f"Activity {event.activity.id}",
+                        }
+                    ]
+                    if event.activity is not None
+                    else []
+                ),
+            ],
+        ),
+        _related_section(
+            "Calendars and fees",
+            eyebrow="Operations",
+            empty_copy="This event is not connected to calendars or fees yet.",
+            items=[
+                *[
+                    {
+                        "eyebrow": "Calendar",
+                        "external": False,
+                        "href": None,
+                        "meta": _join_location(
+                            calendar.primary_activity,
+                            calendar.type,
+                            calendar.subtype,
+                        ),
+                        "title": calendar.name or f"Calendar {calendar.id}",
+                    }
+                    for calendar in event.calendars
+                ],
+                *[
+                    {
+                        "eyebrow": "Fee",
+                        "external": False,
+                        "href": url_for("core.admin_fee_detail_route", fee_id=fee.id),
+                        "meta": _join_location(_display_value(fee.fee), fee.description),
+                        "title": fee.name or f"Fee {fee.id}",
+                    }
+                    for fee in event.fees
+                ],
+            ],
+        ),
+        _related_section(
+            "Participants",
+            eyebrow="Attendance",
+            empty_copy="No participants are attached to this event yet.",
+            items=[
+                {
+                    "eyebrow": participant.status.name if participant.status else "Participant",
+                    "external": False,
+                    "href": url_for("core.admin_user_detail_route", user_id=participant.user.id),
+                    "meta": _join_location(
+                        _display_value(participant.rsvp_date),
+                        _display_value(participant.fee_paid_date),
+                    ),
+                    "title": participant.user.display_name,
+                }
+                for participant in event.participants
+                if participant.user is not None
+            ],
+        ),
+    ]
+    return [section for section in sections if section is not None] or None
+
+
+def _point_of_interest_related_sections(point: PointOfInterest) -> list[dict[str, object]] | None:
+    sections = [
+        _related_section(
+            "Image set",
+            eyebrow="Visual context",
+            empty_copy="This point does not have images yet.",
+            items=[
+                {
+                    "eyebrow": "Image",
+                    "external": True,
+                    "href": _image_preview_url(image),
+                    "meta": _join_location(image.caption, image.alt_txt),
+                    "title": image.title or f"Image {image.id}",
+                }
+                for image in point.images
+                if _image_preview_url(image)
+            ],
+        ),
+    ]
+    return [section for section in sections if section is not None] or None
+
+
+def _activity_related_sections(activity: Activity) -> list[dict[str, object]] | None:
+    sections = [
+        _related_section(
+            "Linked route",
+            eyebrow="Route context",
+            empty_copy="This activity is not linked to a route yet.",
+            items=[
+                {
+                    "eyebrow": "Route",
+                    "external": False,
+                    "href": url_for("core.admin_route_detail_route", route_id=activity.route.id),
+                    "meta": _format_route_meta(activity.route),
+                    "title": activity.route.name or f"Route {activity.route.id}",
+                }
+                for _ in [activity.route]
+                if activity.route is not None
+            ],
+        ),
+        _related_section(
+            "Image set",
+            eyebrow="Ride media",
+            empty_copy="This activity does not have images yet.",
+            items=[
+                {
+                    "eyebrow": "Image",
+                    "external": True,
+                    "href": _image_preview_url(image),
+                    "meta": _join_location(image.caption, image.alt_txt),
+                    "title": image.title or f"Image {image.id}",
+                }
+                for image in activity.images
                 if _image_preview_url(image)
             ],
         ),

@@ -2869,6 +2869,157 @@ def test_admin_segment_detail_page_renders_full_record(
     assert "Canopy switchback" in html
 
 
+def test_admin_event_detail_page_renders_full_record(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        ensure_canonical_lookup_rows()
+        user = User(username="event-rider", email="event-rider@example.com")
+        user.set_password("secret123")
+        route = Route(name="Sunrise Loop", type="road", length=42.0, elevation_gain=900.0)
+        activity = Activity(name="Preview Spin", type="ride", length=24.0)
+        calendar = Calendar(name="Club Calendar", primary_activity="road", type="club")
+        fee = EventFee(name="Entry", fee=25.0, description="Day-of ride support")
+        image = Image(
+            title="Start line",
+            img_medium="https://images.example.com/start-line.jpg",
+        )
+        event = Event(
+            name="Summit Rally",
+            description="A full-day mountain meetup with staggered starts.",
+            private=False,
+            email="events@example.com",
+            duration=240.0,
+            primary_activity="cycling",
+            type="road",
+            subtype="climbing",
+            url="https://example.com/events/summit-rally",
+            reg_url="https://example.com/events/summit-rally/register",
+            photo_url="https://images.example.com/summit-rally.jpg",
+            logo="https://images.example.com/summit-logo.jpg",
+            profile_photo="https://images.example.com/summit-profile.jpg",
+            notes="Meet at the lower lot before rollout.",
+            lat=37.88,
+            lon=-122.25,
+            town="Berkeley",
+            state="CA",
+            country="USA",
+            route=route,
+            activity=activity,
+            tags=["climb", "community"],
+        )
+        event.calendars.append(calendar)
+        event.fees.append(fee)
+        event.images.append(image)
+        event.invite(user)
+        db.session.add_all([user, route, activity, calendar, fee, image, event])
+        db.session.commit()
+        event_id = event.id
+
+    response = admin_client.get(f"/admin/events/{event_id}")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "Summit Rally" in html
+    assert "A full-day mountain meetup with staggered starts." in html
+    assert "https://example.com/events/summit-rally/register" in html
+    assert "Club Calendar" in html
+    assert "Entry" in html
+    assert "Sunrise Loop" in html
+    assert "Preview Spin" in html
+    assert "event-rider" in html
+
+
+def test_admin_point_of_interest_detail_page_renders_full_record(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        point = PointOfInterest(
+            name="Ridgeline Water Stop",
+            description="Reliable refill spot tucked behind the visitor center.",
+            type="water",
+            subtype="fountain",
+            lat=37.8123,
+            lon=-122.1812,
+            url="https://example.com/poi/ridgeline-water-stop",
+            icon="drop",
+            tags=["water", "support"],
+        )
+        image = Image(
+            title="Bottle fill station",
+            img_medium="https://images.example.com/water-stop.jpg",
+        )
+        point.images.append(image)
+        db.session.add_all([point, image])
+        db.session.commit()
+        point_id = point.id
+
+    response = admin_client.get(f"/admin/points-of-interest/{point_id}")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "Ridgeline Water Stop" in html
+    assert "Reliable refill spot tucked behind the visitor center." in html
+    assert "37.81230, -122.18120" in html
+    assert "https://example.com/poi/ridgeline-water-stop" in html
+    assert "Bottle fill station" in html
+
+
+def test_admin_activity_detail_page_renders_full_record(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        route = Route(name="Headlands Long Loop", type="mixed", length=61.0, elevation_gain=1800.0)
+        activity = Activity(
+            name="Sunday Headlands Ride",
+            desc="Fast rollout, foggy climbs, and a calm return along the water.",
+            private=False,
+            photo_url="https://images.example.com/headlands-ride.jpg",
+            tags=["endurance", "coastal"],
+            duration=205.0,
+            length=63.4,
+            elevation_gain=1910.0,
+            average_speed=18.6,
+            max_speed=42.3,
+            moving_time=188.0,
+            total_elevation_gain=1955.0,
+            elev_high=1180.0,
+            elev_low=12.0,
+            type="ride",
+            subtype="road",
+            src="strava",
+            src_id="activity-42",
+            start_latitude=37.8061,
+            start_longitude=-122.4775,
+            end_latitude=37.8072,
+            end_longitude=-122.4754,
+            route=route,
+        )
+        image = Image(
+            title="Fog bank over the bridge",
+            img_medium="https://images.example.com/headlands-fog.jpg",
+            activity=activity,
+        )
+        db.session.add_all([route, activity, image])
+        db.session.commit()
+        activity_id = activity.id
+
+    response = admin_client.get(f"/admin/activities/{activity_id}")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "Sunday Headlands Ride" in html
+    assert "Fast rollout, foggy climbs, and a calm return along the water." in html
+    assert "1910.00" in html
+    assert "activity-42" in html
+    assert "37.80610, -122.47750" in html
+    assert "Headlands Long Loop" in html
+    assert "Fog bank over the bridge" in html
+
+
 def test_admin_group_edit_page_updates_group_and_search(
     app: Flask, admin_client: FlaskClient, database: None
 ) -> None:

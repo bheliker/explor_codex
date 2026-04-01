@@ -829,3 +829,51 @@ This file records session history for `explor_codex` so future work can resume w
 ### Notes for the next session
 - Route and segment pages now expose a much fuller data inventory and feel materially closer to the older product’s depth.
 - The next strongest continuation would be the same treatment for other entity detail pages that still feel thin, especially events, points of interest, and activity records.
+
+## 2026-03-31 (Event, POI, And Activity Detail Depth)
+
+### Investigated
+- Reviewed the remaining detail routes for `Event`, `PointOfInterest`, and `Activity` after enriching routes and segments.
+- Compared each page’s current field coverage against the underlying model shape and related records already available in the database.
+- Confirmed the same shared detail template could carry these richer pages without introducing another round of entity-specific templates.
+
+### Changed
+- Expanded the event detail handler in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) to surface:
+  - schedule and duration fields
+  - privacy, contact, registration, and location metadata
+  - timestamps and geometry context
+  - richer media previews
+  - related route, activity, calendars, fees, and participants
+- Expanded the point-of-interest detail handler in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) to show:
+  - coordinate and geometry context
+  - creation and update timestamps
+  - media previews from linked images
+  - a more explicit story about why the waypoint matters
+- Expanded the activity detail handler in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) to include:
+  - fuller effort and timing metrics
+  - source identifiers
+  - start and end coordinates
+  - geometry fields and timestamps
+  - related route and image context
+- Added new story-section and related-section helpers in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) for events, points of interest, and activities.
+- Extended [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) with full-record detail coverage for:
+  - events
+  - points of interest
+  - activities
+
+### Decisions
+- Continue treating “stronger detail pages” as a shared system problem, not as a prompt to rebuild old one-off templates.
+- Prefer graceful non-linked related cards when a related entity does not yet have its own browser detail endpoint, instead of inventing broken navigation.
+
+### Why
+- After routes and segments, these were the most visible remaining detail pages that still felt like thin inspectors instead of product surfaces.
+- Carrying the same pattern across entity types makes the admin experience feel coherent and closer to the original product’s depth.
+
+### Verification
+- `uv run pytest`
+- `uv run ruff check .`
+- `uv run mypy app tests`
+
+### Notes for the next session
+- The richer detail treatment now covers routes, segments, events, points of interest, and activities.
+- The next likely step is stronger route and activity media/map storytelling or filling in missing related-entity browser surfaces such as calendars.
