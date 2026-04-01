@@ -1065,9 +1065,7 @@ def import_archive(
             target=target,
             label="public.group_membership",
             select_sql=(
-                "SELECT groups, members "
-                "FROM public.group_membership "
-                "ORDER BY groups, members"
+                "SELECT groups, members FROM public.group_membership ORDER BY groups, members"
             ),
             batch_size=batch_size,
         )
@@ -1083,9 +1081,7 @@ def import_archive(
             target=target,
             label="public.route_segments",
             select_sql=(
-                "SELECT routes, segments "
-                "FROM public.route_segments "
-                "ORDER BY routes, segments"
+                "SELECT routes, segments FROM public.route_segments ORDER BY routes, segments"
             ),
             batch_size=batch_size,
         )
@@ -1094,9 +1090,7 @@ def import_archive(
             target=target,
             label="public.calendar_events",
             select_sql=(
-                "SELECT calendars, events "
-                "FROM public.calendar_events "
-                "ORDER BY calendars, events"
+                "SELECT calendars, events FROM public.calendar_events ORDER BY calendars, events"
             ),
             batch_size=batch_size,
         )
@@ -1105,9 +1099,7 @@ def import_archive(
             target=target,
             label="public.event_attendance",
             select_sql=(
-                "SELECT events, attendance "
-                "FROM public.event_attendance "
-                "ORDER BY events, attendance"
+                "SELECT events, attendance FROM public.event_attendance ORDER BY events, attendance"
             ),
             batch_size=batch_size,
         )
