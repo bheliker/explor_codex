@@ -25,6 +25,7 @@ This file is the local instruction scratchpad for future Codex work in this repo
 - Static assets belong in `static/`
 
 ## Expectations
+- Assume you are not alone in the codebase and work on branches, not main. 
 - Keep changes minimal and targeted.
 - Add or update tests for behavior changes.
 - Run tests, lint, and mypy before finishing substantive changes.
