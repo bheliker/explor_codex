@@ -916,3 +916,58 @@ This file records session history for `explor_codex` so future work can resume w
 - The next likely step is either:
   - stronger segment-specific elevation/map treatment, or
   - a browser detail surface for calendars so event related-record sections can become fully navigable.
+
+## 2026-04-01 (Archive Import Into Current Local Postgres)
+
+### Investigated
+- Confirmed the archived backup at [db_archive/terminal_backup_20230531.sql](/Users/bheliker/Documents/_Projects/explor/explor_codex/db_archive/terminal_backup_20230531.sql) is a PostgreSQL custom-format dump, not plain SQL.
+- Restored that archive into a temporary local comparison database `explor_archive` to inspect the old schema directly instead of guessing from the dump.
+- Compared the restored archive schema with the current app schema and identified the main compatibility points:
+  - core entities still align closely
+  - `external_urls` now maps to `group_external_url`
+  - old group roles include `Lead` and `Invited`, which no longer exist in the current canonical lookup table
+  - old archive-only tables like payments, followers, roles, posts, and subscribers should not be imported into the current app schema
+
+### Changed
+- Reused the existing local `explor` PostGIS database as the import target after truncating the disposable app data already present there.
+- Restored the archive into a sidecar local database `explor_archive` for inspection and import planning.
+- Added an import utility at [scripts/import_archive_to_current.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/scripts/import_archive_to_current.py) that:
+  - copies compatible archive data into the current schema in dependency order
+  - converts legacy array fields into the current JSON-backed columns
+  - preserves geometry via `ST_AsEWKT(...)` / `ST_GeomFromEWKT(...)`
+  - remaps legacy group roles (`Lead -> admin`, `Invited -> pending`)
+  - maps `external_urls` into `group_external_url`
+  - rebuilds `search_document` after the import
+- Ran the import successfully into the current local `explor` database.
+
+### Decisions
+- Keep `explor` as the app-facing target database and use `explor_archive` only as a local restored reference database.
+- Prefer a repeatable repo-local import script over one-off `pg_restore` experiments directly into the current schema.
+- Import only the parts of the 2023 archive that still have a clear place in the current app model, rather than trying to recreate removed legacy product areas.
+
+### Why
+- The current schema has evolved enough that a blind restore into `explor` would be fragile and harder to repeat.
+- A dedicated import script gives us a path we can rerun after future schema changes or when we need a fresh local dataset again.
+- Rebuilding `search_document` immediately makes the imported data visible in the current admin/search surfaces without extra manual repair work.
+
+### Verification
+- Verified local target counts after import:
+  - `user`: 66
+  - `group`: 2328
+  - `calendar`: 2468
+  - `route`: 54637
+  - `segment`: 60662
+  - `event`: 240
+  - `membership`: 2476
+  - `image`: 37156
+  - `group_external_url`: 573
+  - `search_document`: 117867
+- Verified `search_document` contains imported entity types for `group`, `route`, `segment`, and `event`.
+- `uv run pytest`
+- `uv run ruff check scripts/import_archive_to_current.py`
+- `uv run mypy app tests scripts/import_archive_to_current.py`
+
+### Notes for the next session
+- The local app database now contains substantial real archived data and search has been rebuilt on top of it.
+- The remaining import gaps are the archive-only legacy areas that no longer map cleanly into the current app model.
+- A good next step is browsing the admin UI against the imported dataset to spot rendering, pagination, or query hot spots that only show up at real-data scale.
