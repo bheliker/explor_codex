@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Palette | explor_codex{% endblock %}
+
+{% block body %}
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Palette</p>
+        <h1>See the design tokens before they disappear into the UI.</h1>
+        <p class="voice-line">Color language, surface depth, and spacing in one quick pass.</p>
+        <p>
+          This preview renders the current CSS token set as labeled swatches so we can compare the
+          core palette without hunting through stylesheets.
+        </p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#palette-table">Jump to swatches</a>
+          <a class="nav-link" href="{{ url_for('core.landing') }}">Back to landing</a>
+          <a class="nav-link" href="{{ url_for('core.discover') }}">Open discover</a>
+        </div>
+      </div>
+      <div class="hero-stats">
+        <article class="hero-card">
+          <p class="hero-card-label">Color Tokens</p>
+          <p class="hero-card-value">{{ color_tokens|length }}</p>
+          <p class="hero-card-note">Renderable swatches from the live CSS variable set.</p>
+        </article>
+        <article class="hero-card">
+          <p class="hero-card-label">Utility Tokens</p>
+          <p class="hero-card-value">{{ non_color_tokens|length }}</p>
+          <p class="hero-card-note">Shadow and radius values listed alongside the palette.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid palette-layout">
+    <article class="panel stack">
+      <h2>What You Are Seeing</h2>
+      <p class="landing-copy">
+        Each row shows the token label, the literal CSS value, and a swatch rendered with that
+        value. Transparent tokens sit on a light checkerboard so the tint stays visible.
+      </p>
+      <div class="stack">
+        {% for token in non_color_tokens %}
+          <div class="palette-metric">
+            <span class="palette-metric-label">{{ token.label }}</span>
+            <code class="palette-code">{{ token.value }}</code>
+          </div>
+        {% endfor %}
+      </div>
+    </article>
+
+    <section class="panel">
+      <div class="summary">
+        <span class="pill">{{ color_tokens|length }} swatches</span>
+        <span class="pill">Live token values from <code>admin.css</code></span>
+      </div>
+      <div class="palette-table-wrap" id="palette-table">
+        <table class="palette-table">
+          <thead>
+            <tr>
+              <th scope="col">Label</th>
+              <th scope="col">Value</th>
+              <th scope="col">Preview</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for token in color_tokens %}
+              <tr>
+                <th scope="row"><code class="palette-code">{{ token.label }}</code></th>
+                <td><code class="palette-code">{{ token.value }}</code></td>
+                <td>
+                  <div class="palette-swatch-shell">
+                    <span class="palette-swatch" style="{{ token.style }}"></span>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+{% endblock %}

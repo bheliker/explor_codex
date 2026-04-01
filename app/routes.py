@@ -74,6 +74,34 @@ from app.services import (
 bp = Blueprint("core", __name__)
 ModelT = TypeVar("ModelT")
 
+COLOR_TOKENS: tuple[tuple[str, str], ...] = (
+    ("--bg", "#dfe7f1"),
+    ("--bg-deep", "#cfd9e7"),
+    ("--surface", "rgba(242, 247, 252, 0.86)"),
+    ("--surface-strong", "#f5f9fd"),
+    ("--surface-dark", "#2b3745"),
+    ("--ink", "#17212c"),
+    ("--heading", "#203247"),
+    ("--muted", "#58677a"),
+    ("--muted-soft", "#708198"),
+    ("--line", "rgba(32, 50, 71, 0.12)"),
+    ("--line-strong", "rgba(32, 50, 71, 0.24)"),
+    ("--accent", "#2c668f"),
+    ("--accent-strong", "#234c6b"),
+    ("--accent-soft", "rgba(44, 102, 143, 0.12)"),
+    ("--warm-accent", "#ff8900"),
+    ("--warm-accent-soft", "rgba(255, 137, 0, 0.12)"),
+    ("--signal", "#ebde79"),
+)
+
+NON_COLOR_TOKENS: tuple[tuple[str, str], ...] = (
+    ("--shadow-lg", "0 28px 60px rgba(33, 30, 26, 0.12)"),
+    ("--shadow-md", "0 18px 34px rgba(33, 30, 26, 0.08)"),
+    ("--radius-xl", "30px"),
+    ("--radius-lg", "24px"),
+    ("--radius-md", "18px"),
+)
+
 
 class AdminFormError(ValueError):
     pass
@@ -144,6 +172,28 @@ def discover() -> str:
         results=[_public_search_result_item(document) for document in documents],
         selected_types=parsed_types,
         total_documents=_count_records(SearchDocument),
+    )
+
+
+@bp.get("/palette")
+def palette() -> str:
+    return render_template(
+        "public/palette.html",
+        color_tokens=[
+            {
+                "label": label,
+                "style": f"background: {value};",
+                "value": value,
+            }
+            for label, value in COLOR_TOKENS
+        ],
+        non_color_tokens=[
+            {
+                "label": label,
+                "value": value,
+            }
+            for label, value in NON_COLOR_TOKENS
+        ],
     )
 
 
@@ -3006,7 +3056,9 @@ def _dashboard_link_item(link: GroupExternalUrl) -> dict[str, object]:
     owner = (
         f"Group {link.group_id}"
         if link.group_id is not None
-        else f"Route {link.route_id}" if link.route_id is not None else None
+        else f"Route {link.route_id}"
+        if link.route_id is not None
+        else None
     )
     return {
         "detail_url": url_for("core.admin_link_detail_route", link_id=link.id),
@@ -3335,13 +3387,9 @@ def _line_coordinates(geometry_text: str | None) -> list[tuple[float, float]] | 
         payload = json.loads(stripped)
     except json.JSONDecodeError:
         return None
-    geometry_payload = (
-        payload.get("geometry") if payload.get("type") == "Feature" else payload
-    )
+    geometry_payload = payload.get("geometry") if payload.get("type") == "Feature" else payload
     coordinates = (
-        geometry_payload.get("coordinates")
-        if isinstance(geometry_payload, dict)
-        else None
+        geometry_payload.get("coordinates") if isinstance(geometry_payload, dict) else None
     )
     if not isinstance(coordinates, list):
         return None
@@ -3383,7 +3431,7 @@ def _svg_path_from_points(
         scaled_y = height - padding - ((y_value - min_y) / y_span) * usable_height
         svg_points.append((scaled_x, scaled_y))
     path = " ".join(
-        f'{"M" if index == 0 else "L"} {x_value:.2f} {y_value:.2f}'
+        f"{'M' if index == 0 else 'L'} {x_value:.2f} {y_value:.2f}"
         for index, (x_value, y_value) in enumerate(svg_points)
     )
     return {
@@ -3702,10 +3750,7 @@ def _route_visual_sections(route: Route) -> list[dict[str, object]] | None:
             route.elevation_array,
             eyebrow="Elevation",
             title="Elevation profile",
-            body=(
-                "The profile keeps the climbing narrative close to the rest of the "
-                "route story."
-            ),
+            body=("The profile keeps the climbing narrative close to the rest of the route story."),
         ),
     ]
     return [section for section in sections if section is not None] or None
@@ -4004,7 +4049,7 @@ def _edit_related_field(
 ) -> dict[str, object]:
     suggestions = [
         {
-            "label": f'{cast(int, getattr(record, "id"))}: {title_getter(record)}',
+            "label": f"{cast(int, getattr(record, 'id'))}: {title_getter(record)}",
             "value": cast(int, getattr(record, "id")),
         }
         for record in _recent_records(model, limit=8)

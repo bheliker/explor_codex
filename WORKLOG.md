@@ -971,3 +971,30 @@ This file records session history for `explor_codex` so future work can resume w
 - The local app database now contains substantial real archived data and search has been rebuilt on top of it.
 - The remaining import gaps are the archive-only legacy areas that no longer map cleanly into the current app model.
 - A good next step is browsing the admin UI against the imported dataset to spot rendering, pagination, or query hot spots that only show up at real-data scale.
+
+## 2026-04-01 (Palette Preview)
+
+### Investigated
+- Reviewed the current public/admin UI structure and confirmed the design tokens already live in [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css).
+- Checked the base template, public route patterns, and route-test style before adding a new preview surface.
+
+### Changed
+- Added a public palette preview route at [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) that exposes the current color and non-color tokens to a template.
+- Added [templates/public/palette.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/public/palette.html) to render labeled swatches in a table plus the supporting non-color token list.
+- Extended [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css) with palette-table and swatch styles.
+- Added a top-level nav link in [templates/base.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/base.html) so the preview is easy to reach.
+- Added route coverage in [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py).
+
+### Decisions
+- Keep the preview as a public server-rendered page instead of a one-off static file so it stays close to the current design system.
+- Show transparent colors on a checkerboard field to make alpha-based tokens easier to compare.
+
+### Why
+- This gives a quick, repeatable way to inspect the active palette without digging through CSS.
+- Keeping the preview inside the app makes it easier to reuse during ongoing UI iteration.
+
+### Verification
+- `uv run ruff format .`
+- `uv run ruff check .`
+- `uv run mypy app tests`
+- `uv run pytest`

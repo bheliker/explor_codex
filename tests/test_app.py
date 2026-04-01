@@ -135,6 +135,17 @@ def test_public_discover_route_renders_results(
     assert "Log in to inspect" in html
 
 
+def test_palette_route_renders_token_table(client: FlaskClient, database: None) -> None:
+    response = client.get("/palette")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "See the design tokens before they disappear into the UI." in html
+    assert "--warm-accent" in html
+    assert "rgba(44, 102, 143, 0.12)" in html
+    assert "Shadow and radius values listed alongside the palette." in html
+
+
 def test_app_factory_enables_testing_config(app: Flask) -> None:
     assert app.testing is True
 
@@ -2258,9 +2269,7 @@ def test_activity_services_create_and_filter(app: Flask, database: None) -> None
         assert route_activities[0].full_track is not None
 
 
-def test_api_activity_endpoints(
-    app: Flask, admin_client: FlaskClient, database: None
-) -> None:
+def test_api_activity_endpoints(app: Flask, admin_client: FlaskClient, database: None) -> None:
     summary_polyline = '{"type":"LineString","coordinates":[[-122.42,37.78],[-122.39,37.8]]}'
     full_track = '{"type":"LineString","coordinates":[[-122.42,37.78,11],[-122.39,37.8,27]]}'
 
@@ -2339,9 +2348,7 @@ def test_api_activity_endpoints(
         "full_track": full_track,
     }
 
-    list_response = admin_client.get(
-        f"/api/activities?athlete_id={athlete_id}&route_id={route_id}"
-    )
+    list_response = admin_client.get(f"/api/activities?athlete_id={athlete_id}&route_id={route_id}")
     assert list_response.status_code == 200
     assert list_response.get_json() == {
         "items": [
