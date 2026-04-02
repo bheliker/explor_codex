@@ -3469,27 +3469,24 @@ def _leaflet_latlngs(geometry_text: str | None) -> list[list[list[float]]] | Non
     if segments is None:
         return None
     return [[[lat, lon] for lon, lat in segment] for segment in segments]
-    return [point for line in line_sets for point in line]
-
-
-def _leaflet_latlngs(geometry_text: str | None) -> list[list[list[float]]] | None:
-    line_sets = _line_coordinate_sets(geometry_text)
-    if line_sets is None:
-        return None
-    return [[[latitude, longitude] for longitude, latitude in line] for line in line_sets if line]
 
 
 def _svg_path_from_points(
-    points: Sequence[tuple[float, float]],
+    segments: Sequence[Sequence[tuple[float, float]]],
     *,
     width: int = 640,
     height: int = 280,
     padding: int = 20,
 ) -> dict[str, object] | None:
-    if len(points) < 2:
+    if not segments:
         return None
-    xs = [point[0] for point in points]
-    ys = [point[1] for point in points]
+
+    all_points = [p for s in segments for p in s]
+    if len(all_points) < 2:
+        return None
+
+    xs = [point[0] for point in all_points]
+    ys = [point[1] for point in all_points]
     min_x = min(xs)
     max_x = max(xs)
     min_y = min(ys)
@@ -3498,20 +3495,32 @@ def _svg_path_from_points(
     y_span = max(max_y - min_y, 1e-9)
     usable_width = width - (padding * 2)
     usable_height = height - (padding * 2)
-    svg_points = []
-    for x_value, y_value in points:
-        scaled_x = padding + ((x_value - min_x) / x_span) * usable_width
-        scaled_y = height - padding - ((y_value - min_y) / y_span) * usable_height
-        svg_points.append((scaled_x, scaled_y))
-    path = " ".join(
-        f"{'M' if index == 0 else 'L'} {x_value:.2f} {y_value:.2f}"
-        for index, (x_value, y_value) in enumerate(svg_points)
-    )
+
+    svg_segments = []
+    for segment in segments:
+        segment_points = []
+        for x_val, y_val in segment:
+            scaled_x = padding + ((x_val - min_x) / x_span) * usable_width
+            scaled_y = height - padding - ((y_val - min_y) / y_span) * usable_height
+            segment_points.append((scaled_x, scaled_y))
+        svg_segments.append(segment_points)
+
+    path_parts = []
+    for svg_points in svg_segments:
+        segment_path = " ".join(
+            f"{'M' if index == 0 else 'L'} {x:.2f} {y:.2f}"
+            for index, (x, y) in enumerate(svg_points)
+        )
+        path_parts.append(segment_path)
+
+    path = " ".join(path_parts)
+    flat_svg_points = [p for s in svg_segments for p in s]
+
     return {
         "height": height,
         "path": path,
-        "points": svg_points,
-        "start": {"x": f"{svg_points[0][0]:.2f}", "y": f"{svg_points[0][1]:.2f}"},
+        "points": flat_svg_points,
+        "start": {"x": f"{svg_segments[0][0][0]:.2f}", "y": f"{svg_segments[0][0][1]:.2f}"},
         "view_box": f"0 0 {width} {height}",
         "width": width,
     }
@@ -3550,7 +3559,7 @@ def _sample_points(
 def _elevation_profile(elevations: list[float] | None) -> dict[str, object] | None:
     if elevations is None or len(elevations) < 2:
         return None
-    points = [(float(index), float(value)) for index, value in enumerate(elevations)]
+    points = [[(float(index), float(value)) for index, value in enumerate(elevations)]]
     line = _svg_path_from_points(points, height=220, padding=18)
     if line is None:
         return None
