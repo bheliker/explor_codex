@@ -2883,6 +2883,42 @@ def test_admin_segment_detail_page_renders_full_record(
     assert "Canopy switchback" in html
 
 
+def test_to_storage_geometry_preserves_feature_collection_linework() -> None:
+    from app.geometry import to_storage_geometry
+
+    value = (
+        '{"type":"FeatureCollection","features":['
+        '{"type":"Feature","geometry":{"type":"LineString","coordinates":[[-122.1,37.1],[-122.2,37.2]]}},'
+        '{"type":"Feature","geometry":{"type":"LineString","coordinates":[[-122.3,37.3],[-122.4,37.4]]}}'
+        "]}"
+    )
+
+    stored = to_storage_geometry(value)
+
+    assert stored is not None
+    assert stored.startswith("MULTILINESTRING")
+    assert "-122.1 37.1" in stored
+    assert "-122.4 37.4" in stored
+
+
+def test_leaflet_latlngs_keep_multiline_parts_separate() -> None:
+    from app.routes import _leaflet_latlngs
+
+    value = (
+        '{"type":"MultiLineString","coordinates":['
+        '[[-122.1,37.1],[-122.2,37.2]],'
+        '[[-122.3,37.3],[-122.4,37.4]]'
+        "]}"
+    )
+
+    latlngs = _leaflet_latlngs(value)
+
+    assert latlngs == [
+        [[37.1, -122.1], [37.2, -122.2]],
+        [[37.3, -122.3], [37.4, -122.4]],
+    ]
+
+
 def test_admin_event_detail_page_renders_full_record(
     app: Flask, admin_client: FlaskClient, database: None
 ) -> None:

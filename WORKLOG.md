@@ -1237,3 +1237,38 @@ This file records session history for `explor_codex` so future work can resume w
 - `uv run pytest` (All 98 passed)
 - `uv run ruff check .`
 - `uv run mypy app tests`
+
+## 2026-04-01 (Geometry Cleanup Review Fixes)
+
+### Investigated
+- Reviewed the proposed `fix/geometry-and-code-cleanup` branch for functional regressions rather than style alone.
+- Confirmed three concrete issues in the geometry changes:
+  - the ORM widened line geometry handling without a matching Postgres migration
+  - `FeatureCollection` save behavior only preserved the first feature
+  - route-detail map rendering flattened multi-part geometry into a single stitched polyline
+
+### Changed
+- Updated [app/geometry.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/geometry.py) so `FeatureCollection` input now preserves all line-like features by merging them into a lineal geometry instead of dropping everything after the first feature.
+- Updated [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) so multi-part line geometry stays separated for Leaflet rendering rather than being flattened into one continuous line.
+- Updated [static/js/detail_visuals.js](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/js/detail_visuals.js) so map layers can render multi-part polylines correctly while still picking a meaningful default visible layer.
+- Added [migrations/versions/56c4b0d8a9c2_widen_line_geometry_columns.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/migrations/versions/56c4b0d8a9c2_widen_line_geometry_columns.py) so Postgres line-geometry columns actually match the broader geometry support claimed in code.
+- Added tests in [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) for:
+  - preserving all `FeatureCollection` linework during storage conversion
+  - keeping `MultiLineString` parts separate in Leaflet layer payloads
+
+### Decisions
+- Treat line-geometry widening as a schema change, not just an ORM-type tweak.
+- Preserve complete imported linework even when the input arrives as multiple features.
+- Render disjoint geometry as disjoint geometry, even if that means slightly more complex client payloads.
+
+### Why
+- Without the migration, the branch would claim support that Postgres could not actually store.
+- Dropping all but the first feature would be silent data loss during edits/imports.
+- Stitching separate lines together makes the map visually incorrect right where route geometry is meant to be the hero.
+
+### Verification
+- `DATABASE_URL=sqlite+pysqlite:////Users/bheliker/Documents/_Projects/explor/explor_codex/.codex-tmp/migration-dbs/geometry-cleanup-review.db UV_CACHE_DIR=/Users/bheliker/Documents/_Projects/explor/explor_codex/.codex-tmp/uv-cache uv run flask --app 'app:create_app()' db upgrade`
+- `uv run flask --app 'app:create_app()' db upgrade`
+- `uv run ruff check .`
+- `uv run mypy app tests`
+- `uv run pytest`

@@ -136,12 +136,30 @@ function initLeafletVisual(container) {
   let currentPolyline = null;
   let currentMarker = null;
 
+  function polylineParts(latlngs) {
+    if (!Array.isArray(latlngs) || latlngs.length === 0) {
+      return [];
+    }
+    if (Array.isArray(latlngs[0]) && typeof latlngs[0][0] === "number") {
+      return [latlngs];
+    }
+    return latlngs.filter(
+      (part) =>
+        Array.isArray(part) &&
+        part.length > 0 &&
+        Array.isArray(part[0]) &&
+        typeof part[0][0] === "number",
+    );
+  }
+
   function layerHasVisibleDistance(layer) {
-    if (!layer || !Array.isArray(layer.latlngs) || layer.latlngs.length < 2) {
+    const parts = polylineParts(layer?.latlngs);
+    const flatPoints = parts.flat();
+    if (flatPoints.length < 2) {
       return false;
     }
     const uniquePoints = new Set(
-      layer.latlngs.map((point) =>
+      flatPoints.map((point) =>
         Array.isArray(point) && point.length >= 2
           ? `${Number(point[0]).toFixed(5)},${Number(point[1]).toFixed(5)}`
           : "",
@@ -178,7 +196,7 @@ function initLeafletVisual(container) {
 
     const layer = config.layers[index];
     if (layerHasVisibleDistance(layer)) {
-      currentPolyline = L.polyline(layer.latlngs, {
+      currentPolyline = L.polyline(polylineParts(layer.latlngs), {
         color: index === 0 ? "#ff5a1f" : "#71b8ff",
         opacity: 0.96,
         weight: 6,

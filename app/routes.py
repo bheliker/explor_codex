@@ -3407,7 +3407,7 @@ def _media_previews(items: list[tuple[str, str | None]]) -> list[dict[str, str]]
     return previews or None
 
 
-def _line_coordinates(geometry_text: str | None) -> list[tuple[float, float]] | None:
+def _line_coordinates(geometry_text: str | None) -> list[list[tuple[float, float]]] | None:
     if geometry_text is None:
         return None
     stripped = geometry_text.strip()
@@ -3421,13 +3421,13 @@ def _line_coordinates(geometry_text: str | None) -> list[tuple[float, float]] | 
     if not isinstance(payload, dict):
         return None
 
-    def _extract_from_geom(geom: dict) -> list[tuple[float, float]]:
+    def _extract_from_geom(geom: dict) -> list[list[tuple[float, float]]]:
         g_type = geom.get("type")
         coords = geom.get("coordinates")
         if not isinstance(coords, list):
             return []
 
-        extracted: list[tuple[float, float]] = []
+        extracted: list[list[tuple[float, float]]] = []
         lines = (
             coords if g_type == "MultiLineString" else [coords] if g_type == "LineString" else []
         )
@@ -3435,37 +3435,48 @@ def _line_coordinates(geometry_text: str | None) -> list[tuple[float, float]] | 
         for line in lines:
             if not isinstance(line, list):
                 continue
+            line_points: list[tuple[float, float]] = []
             for c in line:
                 if isinstance(c, (list, tuple)) and len(c) >= 2:
                     try:
-                        extracted.append((float(c[0]), float(c[1])))
+                        line_points.append((float(c[0]), float(c[1])))
                     except (TypeError, ValueError):
                         continue
+            if line_points:
+                extracted.append(line_points)
         return extracted
 
-    points: list[tuple[float, float]] = []
+    all_segments: list[list[tuple[float, float]]] = []
     p_type = payload.get("type")
     if p_type == "FeatureCollection":
         features = payload.get("features")
         for feature in features if isinstance(features, list) else []:
             geom = feature.get("geometry") if isinstance(feature, dict) else None
             if isinstance(geom, dict):
-                points.extend(_extract_from_geom(geom))
+                all_segments.extend(_extract_from_geom(geom))
     elif p_type == "Feature":
         geom = payload.get("geometry")
         if isinstance(geom, dict):
-            points.extend(_extract_from_geom(geom))
+            all_segments.extend(_extract_from_geom(geom))
     else:
-        points.extend(_extract_from_geom(payload))
+        all_segments.extend(_extract_from_geom(payload))
 
-    return points or None
+    return all_segments or None
 
 
-def _leaflet_latlngs(geometry_text: str | None) -> list[list[float]] | None:
-    coordinates = _line_coordinates(geometry_text)
-    if coordinates is None:
+def _leaflet_latlngs(geometry_text: str | None) -> list[list[list[float]]] | None:
+    segments = _line_coordinates(geometry_text)
+    if segments is None:
         return None
-    return [[latitude, longitude] for longitude, latitude in coordinates]
+    return [[[lat, lon] for lon, lat in segment] for segment in segments]
+    return [point for line in line_sets for point in line]
+
+
+def _leaflet_latlngs(geometry_text: str | None) -> list[list[list[float]]] | None:
+    line_sets = _line_coordinate_sets(geometry_text)
+    if line_sets is None:
+        return None
+    return [[[latitude, longitude] for longitude, latitude in line] for line in line_sets if line]
 
 
 def _svg_path_from_points(
