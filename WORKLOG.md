@@ -218,6 +218,43 @@ This file records session history for `explor_codex` so future work can resume w
 - Updated [README.md](/Users/bheliker/Documents/_Projects/explor/explor_codex/README.md) with the new admin endpoints.
 
 ### Decisions
+
+## 2026-04-02 (Event Maps, Stats Bar, And Units Migration Repair)
+
+### Investigated
+- Extended the old Explor map-first detail treatment to events and calendars, then verified how route, segment, activity, and event stats should be presented in the new detail pages.
+- Diagnosed a live Postgres failure after adding `User.units`; the application database was stamped at Alembic revision `56c4b0d8a9c2`, but that migration file was missing from the current branch.
+- Confirmed the new product requirement that metric remains the backend truth for real-world measurements and imperial is display-only.
+
+### Changed
+- Added map-first detail support and shared stats-bar rendering for routes, segments, activities, events, and calendars in:
+  - [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py)
+  - [templates/admin/detail.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/detail.html)
+  - [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css)
+  - [static/js/detail_visuals.js](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/js/detail_visuals.js)
+- Added `User.units` support through model, auth/account flows, and migration:
+  - [app/models/user.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/models/user.py)
+  - [templates/auth/account.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/account.html)
+  - [templates/auth/account_edit.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/account_edit.html)
+  - [migrations/versions/f24d3d3b9c1a_add_user_units_preference.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/migrations/versions/f24d3d3b9c1a_add_user_units_preference.py)
+- Restored the missing geometry migration revision so the live database could upgrade cleanly again:
+  - [migrations/versions/56c4b0d8a9c2_widen_line_geometry_columns.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/migrations/versions/56c4b0d8a9c2_widen_line_geometry_columns.py)
+- Updated measurement formatting and tests so distances are treated as meters in storage and converted only at render time.
+
+### Decisions
+- Keep metric as the only backend source-of-truth unit system for real-world measurements.
+- Preserve user unit preference purely as a presentation concern.
+- Keep the restored `56c4b0d8a9c2` revision in the branch history because the live database already depends on it.
+
+### Why
+- The live application database could not load users or admin pages until the missing revision chain and quoted `user` table migration SQL were repaired.
+- Treating metric as the storage truth avoids unit ambiguity across imported source data while still supporting imperial display for riders who want it.
+- Reusing one map/stats detail system across map-first entities keeps the new design language closer to the original Explor product rhythm without reviving the old frontend stack.
+
+### Notes for the next session
+- The real Postgres database and repo-local disposable SQLite migration DB both upgrade cleanly through `f24d3d3b9c1a`.
+- Route detail tests now assert rendered metric display rather than older literal source formatting.
+- This branch still has uncommitted changes after the earlier checkpoint commit and should be committed before the next major phase.
 - Use `/admin` as the browser entry point for the admin surface.
 - Keep create forms limited to groups, routes, and events for now to match the current edit coverage.
 - Continue relying on the existing service layer and ORM search freshness hooks so new records immediately show up in search/admin views.

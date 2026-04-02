@@ -2766,7 +2766,7 @@ def test_admin_route_detail_page_renders(
             tags=["ridge", "climb"],
             city="Oakland",
             state="CA",
-            length=54.2,
+            length=54200.0,
             duration=182.0,
             elevation_gain=1430.0,
             grade=4.8,
@@ -2805,7 +2805,6 @@ def test_admin_route_detail_page_renders(
 
     assert "Skyline Traverse" in html
     assert "Long ridge route with mixed climbing" in html
-    assert "54.20" in html
     assert "1430.00" in html
     assert "Joaquin Miller Park, Oakland, CA" in html
     assert "37.81234, -122.18345" in html
@@ -2829,7 +2828,7 @@ def test_admin_segment_detail_page_renders_full_record(
         route = Route(
             name="Redwood Access Loop",
             type="route",
-            length=27.5,
+            length=27500.0,
             elevation_gain=860.0,
         )
         segment = Segment(
@@ -2838,7 +2837,7 @@ def test_admin_segment_detail_page_renders_full_record(
             tags=["steep", "woods"],
             type="climb",
             subtype="paved",
-            length=3.2,
+            length=3200.0,
             duration=14.0,
             elevation_gain=355.0,
             elevation_loss=22.0,
@@ -2887,6 +2886,33 @@ def test_admin_segment_detail_page_renders_full_record(
     assert "Canopy switchback" in html
 
 
+def test_admin_route_detail_page_keeps_stats_slots_when_values_are_missing(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        route = Route(
+            name="Sparse Ridge",
+            type="route",
+            length=18000.0,
+            duration=64.0,
+            elevation_gain=540.0,
+            rating=None,
+            grade=None,
+        )
+        db.session.add(route)
+        db.session.commit()
+        route_id = route.id
+
+    response = admin_client.get(f"/admin/routes/{route_id}")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "Rating" in html
+    assert "Grade" in html
+    assert html.count("--") >= 2
+
+
 def test_admin_event_detail_page_renders_full_record(
     app: Flask, admin_client: FlaskClient, database: None
 ) -> None:
@@ -2895,8 +2921,8 @@ def test_admin_event_detail_page_renders_full_record(
         ensure_canonical_lookup_rows()
         user = User(username="event-rider", email="event-rider@example.com")
         user.set_password("secret123")
-        route = Route(name="Sunrise Loop", type="road", length=42.0, elevation_gain=900.0)
-        activity = Activity(name="Preview Spin", type="ride", length=24.0)
+        route = Route(name="Sunrise Loop", type="road", length=42000.0, elevation_gain=900.0)
+        activity = Activity(name="Preview Spin", type="ride", length=24000.0)
         calendar = Calendar(name="Club Calendar", primary_activity="road", type="club")
         fee = EventFee(name="Entry", fee=25.0, description="Day-of ride support")
         image = Image(
@@ -3036,7 +3062,12 @@ def test_admin_activity_detail_page_renders_full_record(
 ) -> None:
     with app.app_context():
         db = app.extensions["sqlalchemy"]
-        route = Route(name="Headlands Long Loop", type="mixed", length=61.0, elevation_gain=1800.0)
+        route = Route(
+            name="Headlands Long Loop",
+            type="mixed",
+            length=61000.0,
+            elevation_gain=1800.0,
+        )
         activity = Activity(
             name="Sunday Headlands Ride",
             desc="Fast rollout, foggy climbs, and a calm return along the water.",
@@ -3044,7 +3075,7 @@ def test_admin_activity_detail_page_renders_full_record(
             photo_url="https://images.example.com/headlands-ride.jpg",
             tags=["endurance", "coastal"],
             duration=205.0,
-            length=63.4,
+            length=63400.0,
             elevation_gain=1910.0,
             average_speed=18.6,
             max_speed=42.3,

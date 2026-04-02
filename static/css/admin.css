@@ -331,6 +331,16 @@ h1 {
   overflow: hidden;
 }
 
+.stats-bar-compact {
+  gap: 1px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  padding: 1px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: none;
+  overflow: hidden;
+}
+
 .stats-bar-item {
   display: flex;
   gap: 14px;
@@ -338,6 +348,14 @@ h1 {
   padding: 18px 20px;
   background: linear-gradient(180deg, rgba(22, 34, 49, 0.97), rgba(36, 54, 74, 0.94));
   color: #f4ede4;
+}
+
+.stats-bar-compact .stats-bar-item {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(180deg, rgba(17, 27, 39, 0.92), rgba(31, 46, 63, 0.88));
 }
 
 .stats-bar-icon {
@@ -368,6 +386,10 @@ h1 {
   font-family: Georgia, "Times New Roman", serif;
   font-size: 1.35rem;
   line-height: 1.1;
+}
+
+.stats-bar-compact .stats-bar-value {
+  font-size: 1.1rem;
 }
 
 .grid > * {

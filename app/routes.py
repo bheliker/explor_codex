@@ -3399,7 +3399,7 @@ def _format_measurement_value(value: float) -> str:
 def _format_distance(distance_meters: float | None) -> str | None:
     if distance_meters is None:
         return None
-    distance_km = distance_meters / 1000 if abs(distance_meters) >= 1000 else distance_meters
+    distance_km = distance_meters / 1000
     if _current_unit_system() == "imperial":
         return f"{_format_measurement_value(distance_km / 1.609344)} mi"
     return f"{_format_measurement_value(distance_km)} km"
@@ -3451,9 +3451,12 @@ def _stat_item(
     value: str | None,
     *,
     eyebrow: str | None = None,
+    placeholder: str | None = None,
 ) -> dict[str, str] | None:
     if value is None:
-        return None
+        if placeholder is None:
+            return None
+        value = placeholder
     return {
         "eyebrow": eyebrow or label,
         "icon": icon,
@@ -3469,11 +3472,11 @@ def _stats_bar(items: list[dict[str, str] | None]) -> list[dict[str, str]] | Non
 def _route_stats_bar(route: Route) -> list[dict[str, str]] | None:
     return _stats_bar(
         [
-            _stat_item("Rating", "star", _format_rating(route.rating)),
+            _stat_item("Rating", "star", _format_rating(route.rating), placeholder="--"),
             _stat_item("Distance", "distance", _format_distance(route.length)),
             _stat_item("Duration", "clock", _format_duration(route.duration)),
             _stat_item("Elevation", "mountain", _format_elevation(route.elevation_gain)),
-            _stat_item("Grade", "chartup", _format_grade(route.grade)),
+            _stat_item("Grade", "chartup", _format_grade(route.grade), placeholder="--"),
         ]
     )
 
@@ -3481,11 +3484,11 @@ def _route_stats_bar(route: Route) -> list[dict[str, str]] | None:
 def _segment_stats_bar(segment: Segment) -> list[dict[str, str]] | None:
     return _stats_bar(
         [
-            _stat_item("Rating", "star", _format_rating(segment.rating)),
+            _stat_item("Rating", "star", _format_rating(segment.rating), placeholder="--"),
             _stat_item("Distance", "distance", _format_distance(segment.length)),
             _stat_item("Duration", "clock", _format_duration(segment.duration)),
             _stat_item("Elevation", "mountain", _format_elevation(segment.elevation_gain)),
-            _stat_item("Grade", "chartup", _format_grade(segment.grade)),
+            _stat_item("Grade", "chartup", _format_grade(segment.grade), placeholder="--"),
         ]
     )
 
