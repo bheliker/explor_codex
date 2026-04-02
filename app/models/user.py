@@ -23,6 +23,7 @@ class User(UserMixin, Base):
     firstname: Mapped[str | None] = mapped_column(db.String(64))
     lastname: Mapped[str | None] = mapped_column(db.String(64))
     account_type: Mapped[str | None] = mapped_column(db.String(64))
+    units: Mapped[str] = mapped_column(db.String(16), default="metric")
     preference_tags: Mapped[list[str] | None] = mapped_column(JSON)
     tags: Mapped[list[str] | None] = mapped_column(JSON)
     home_town: Mapped[str | None] = mapped_column(db.String(256))

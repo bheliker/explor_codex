@@ -315,6 +315,61 @@ h1 {
   align-items: start;
 }
 
+.stats-bar-shell {
+  margin: -20px auto 22px;
+  width: min(1120px, calc(100% - 48px));
+}
+
+.stats-bar {
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  padding: 1px;
+  border-radius: 24px;
+  background: rgba(22, 34, 49, 0.18);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.stats-bar-item {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 18px 20px;
+  background: linear-gradient(180deg, rgba(22, 34, 49, 0.97), rgba(36, 54, 74, 0.94));
+  color: #f4ede4;
+}
+
+.stats-bar-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ff8f2a;
+  flex: 0 0 auto;
+}
+
+.stats-bar-copy {
+  min-width: 0;
+}
+
+.stats-bar-label {
+  margin: 0;
+  color: rgba(244, 237, 228, 0.68);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+
+.stats-bar-value {
+  margin: 6px 0 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
 .grid > * {
   min-width: 0;
 }
@@ -1114,6 +1169,14 @@ textarea {
   background: #71b8ff;
 }
 
+.explor-map-marker-event .explor-map-marker-pin {
+  background: #ff8f2a;
+}
+
+.explor-map-marker-calendar .explor-map-marker-pin {
+  background: #203247;
+}
+
 .landing-section {
   margin-top: 24px;
 }
@@ -1185,6 +1248,7 @@ textarea {
   .grid,
   .dashboard-columns,
   .dashboard-stat-grid,
+  .stats-bar,
   .metric-strip,
   .landing-grid,
   .story-grid,

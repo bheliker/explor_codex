@@ -133,21 +133,30 @@ function initLeafletVisual(container) {
 
   L.tileLayer(EXPLOR_TILE_URL, { subdomains: EXPLOR_TILE_SUBDOMAINS }).addTo(map);
 
-  let currentPolyline = null;
-  let currentMarker = null;
+  let currentLayerGroup = null;
 
   function layerHasVisibleDistance(layer) {
-    if (!layer || !Array.isArray(layer.latlngs) || layer.latlngs.length < 2) {
+    const paths = Array.isArray(layer?.paths)
+      ? layer.paths
+      : Array.isArray(layer?.latlngs)
+        ? [layer.latlngs]
+        : [];
+    if (paths.length === 0) {
       return false;
     }
-    const uniquePoints = new Set(
-      layer.latlngs.map((point) =>
-        Array.isArray(point) && point.length >= 2
-          ? `${Number(point[0]).toFixed(5)},${Number(point[1]).toFixed(5)}`
-          : "",
-      ),
-    );
-    return uniquePoints.size > 1;
+    return paths.some((path) => {
+      if (!Array.isArray(path) || path.length < 2) {
+        return false;
+      }
+      const uniquePoints = new Set(
+        path.map((point) =>
+          Array.isArray(point) && point.length >= 2
+            ? `${Number(point[0]).toFixed(5)},${Number(point[1]).toFixed(5)}`
+            : "",
+        ),
+      );
+      return uniquePoints.size > 1;
+    });
   }
 
   function defaultLayerIndex() {
@@ -167,32 +176,60 @@ function initLeafletVisual(container) {
   }
 
   function showLayer(index) {
-    if (currentPolyline && map.hasLayer(currentPolyline)) {
-      map.removeLayer(currentPolyline);
+    if (currentLayerGroup && map.hasLayer(currentLayerGroup)) {
+      map.removeLayer(currentLayerGroup);
     }
-    if (currentMarker && map.hasLayer(currentMarker)) {
-      map.removeLayer(currentMarker);
-    }
-    currentPolyline = null;
-    currentMarker = null;
+    currentLayerGroup = L.featureGroup().addTo(map);
 
     const layer = config.layers[index];
-    if (layerHasVisibleDistance(layer)) {
-      currentPolyline = L.polyline(layer.latlngs, {
+    const paths = Array.isArray(layer?.paths)
+      ? layer.paths
+      : Array.isArray(layer?.latlngs)
+        ? [layer.latlngs]
+        : [];
+    paths.forEach((path) => {
+      if (!Array.isArray(path) || path.length < 2) {
+        return;
+      }
+      L.polyline(path, {
         color: index === 0 ? "#ff5a1f" : "#71b8ff",
         opacity: 0.96,
         weight: 6,
         lineCap: "round",
         lineJoin: "round",
-      }).addTo(map);
-      map.fitBounds(currentPolyline.getBounds(), { padding: [20, 20] });
+      }).addTo(currentLayerGroup);
+    });
+
+    const layerMarkers = Array.isArray(layer?.markers) ? layer.markers : [];
+    layerMarkers.forEach((marker) => {
+      if (!Array.isArray(marker?.latlng)) {
+        return;
+      }
+      L.marker(marker.latlng, {
+        icon: generateDivIcon(marker.entity_id, marker.entity_type),
+      }).addTo(currentLayerGroup);
+    });
+
+    if (
+      layerMarkers.length === 0 &&
+      config.marker &&
+      Array.isArray(config.marker.latlng)
+    ) {
+      L.marker(config.marker.latlng, {
+        icon: generateDivIcon(config.marker.entity_id, config.marker.entity_type),
+      }).addTo(currentLayerGroup);
     }
 
-    if (config.marker && Array.isArray(config.marker.latlng)) {
-      currentMarker = L.marker(config.marker.latlng, {
+    if (currentLayerGroup.getLayers().length > 0) {
+      const bounds = currentLayerGroup.getBounds();
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [20, 20] });
+      }
+    } else if (config.marker && Array.isArray(config.marker.latlng)) {
+      L.marker(config.marker.latlng, {
         icon: generateDivIcon(config.marker.entity_id, config.marker.entity_type),
-      }).addTo(map);
-      if (!currentPolyline) {
+      }).addTo(currentLayerGroup);
+      if (currentLayerGroup.getLayers().length === 1) {
         map.setView(config.marker.latlng, 11);
       }
     }
@@ -200,8 +237,11 @@ function initLeafletVisual(container) {
     setActiveButton(index);
     window.requestAnimationFrame(() => {
       map.invalidateSize();
-      if (currentPolyline) {
-        map.fitBounds(currentPolyline.getBounds(), { padding: [20, 20] });
+      if (currentLayerGroup && currentLayerGroup.getLayers().length > 0) {
+        const bounds = currentLayerGroup.getBounds();
+        if (bounds.isValid()) {
+          map.fitBounds(bounds, { padding: [20, 20] });
+        }
       }
     });
   }

@@ -305,6 +305,7 @@ def test_account_edit_flow_updates_profile(client: FlaskClient, app: Flask, data
             "email": "profile-updated@example.com",
             "firstname": "Profile",
             "lastname": "Updated",
+            "units": "imperial",
             "home_town": "Oakland",
             "home_state": "CA",
             "tags": "road, coffee",
@@ -326,6 +327,7 @@ def test_account_edit_flow_updates_profile(client: FlaskClient, app: Flask, data
         assert user.email == "profile-updated@example.com"
         assert user.firstname == "Profile"
         assert user.lastname == "Updated"
+        assert user.units == "imperial"
         assert user.tags == ["road", "coffee"]
 
 
@@ -2807,6 +2809,8 @@ def test_admin_route_detail_page_renders(
     assert "1430.00" in html
     assert "Joaquin Miller Park, Oakland, CA" in html
     assert "37.81234, -122.18345" in html
+    assert "54.2 km" in html
+    assert "1430 m" in html
     assert "Elevation profile" in html
     assert "Explor View" in html
     assert "Route view" in html
@@ -2940,9 +2944,55 @@ def test_admin_event_detail_page_renders_full_record(
     assert "https://example.com/events/summit-rally/register" in html
     assert "Club Calendar" in html
     assert "Entry" in html
+    assert "Event footprint" in html
+    assert "Event location" in html
+    assert "Linked route" in html
     assert "Sunrise Loop" in html
     assert "Preview Spin" in html
     assert "event-rider" in html
+
+
+def test_admin_calendar_detail_page_renders_map_first_record(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        group = Group(name="Calendar Club", shortname="calendar-club", home_town="Oakland")
+        route = Route(
+            name="Calendar Route",
+            type="road",
+            summary_polyline='{"type":"LineString","coordinates":[[-122.27,37.8],[-122.25,37.82],[-122.22,37.84]]}',
+        )
+        event = Event(
+            name="Calendar Rally",
+            type="event",
+            lat=37.81,
+            lon=-122.26,
+            town="Oakland",
+            state="CA",
+            route=route,
+        )
+        calendar = Calendar(
+            name="Spring Calendar",
+            description="A rolling set of East Bay events.",
+            primary_activity="cycling",
+            type="club",
+            group=group,
+        )
+        calendar.events.append(event)
+        db.session.add_all([group, route, event, calendar])
+        db.session.commit()
+        calendar_id = calendar.id
+
+    response = admin_client.get(f"/admin/calendars/{calendar_id}")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    assert "Spring Calendar" in html
+    assert "Calendar footprint" in html
+    assert "Event markers" in html
+    assert "Route network" in html
+    assert "Calendar Rally" in html
 
 
 def test_admin_point_of_interest_detail_page_renders_full_record(
