@@ -54,7 +54,7 @@ This file is the local instruction scratchpad for future Codex work in this repo
 - 
 
 ## Architecture notes
-
+- Use metric system as backend truth for all real world measurements, convert to "imperial" only as needed in frontend display.
 
 
 ## Working notes
