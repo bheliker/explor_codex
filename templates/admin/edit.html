@@ -1,71 +1,112 @@
-{% extends "base.html" %}
-
-{% block title %}{{ mode_title }} {{ page_title }} | explor_codex{% endblock %}
-
-{% block body %}
-  <section class="hero">
+{% extends "base.html" %} {% block title %}{{ mode_title }} {{ page_title }} |
+explor_codex{% endblock %} {% block body %}
+<section class="hero">
     <p class="eyebrow">{{ entity_type_label }} {{ mode_title }}</p>
     <h1>{{ mode_title }} {{ page_title }}</h1>
     <p>{{ intro_text }}</p>
-  </section>
+</section>
 
-  <section class="grid">
+<section class="grid">
     <aside class="panel">
-      <h2>Actions</h2>
-      <div class="action-list">
-        {% if entity_id %}
-          <div class="action-link">
-            <span><span class="action-link-label">Record</span><span class="action-link-value">ID {{ entity_id }}</span></span>
-          </div>
-        {% endif %}
-        {% if detail_url %}
-          <a class="action-link" href="{{ detail_url }}"><span><span class="action-link-label">Navigate</span><span class="action-link-value">Back to detail page</span></span><span>&rarr;</span></a>
-        {% endif %}
-        {% if dashboard_url %}
-          <a class="action-link" href="{{ dashboard_url }}"><span><span class="action-link-label">Navigate</span><span class="action-link-value">Back to dashboard</span></span><span>&rarr;</span></a>
-        {% endif %}
-        <a class="action-link" href="{{ url_for('core.admin_search_route') }}"><span><span class="action-link-label">Navigate</span><span class="action-link-value">Back to search</span></span><span>&rarr;</span></a>
-      </div>
+        <h2>Actions</h2>
+        <div class="action-list">
+            {% if entity_id %}
+            <div class="action-link">
+                <span
+                    ><span class="action-link-label">Record</span
+                    ><span class="action-link-value"
+                        >ID {{ entity_id }}</span
+                    ></span
+                >
+            </div>
+            {% endif %} {% if detail_url %}
+            <a class="action-link" href="{{ detail_url }}"
+                ><span
+                    ><span class="action-link-label">Navigate</span
+                    ><span class="action-link-value"
+                        >Back to detail page</span
+                    ></span
+                ><span>&rarr;</span></a
+            >
+            {% endif %} {% if dashboard_url %}
+            <a class="action-link" href="{{ dashboard_url }}"
+                ><span
+                    ><span class="action-link-label">Navigate</span
+                    ><span class="action-link-value"
+                        >Back to dashboard</span
+                    ></span
+                ><span>&rarr;</span></a
+            >
+            {% endif %}
+            <a
+                class="action-link"
+                href="{{ url_for('core.admin_search_route') }}"
+                ><span
+                    ><span class="action-link-label">Navigate</span
+                    ><span class="action-link-value">Back to search</span></span
+                ><span>&rarr;</span></a
+            >
+        </div>
     </aside>
 
     <form class="panel stack" method="post">
-      <h2>Fields</h2>
-      {% for field in fields %}
-        {% if field.kind == "checkbox" %}
-          <div class="checkboxes" style="grid-template-columns: 1fr;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <h2>Fields</h2>
+        {% for field in fields %} {% if field.kind == "checkbox" %}
+        <div class="checkboxes" style="grid-template-columns: 1fr">
             <label class="choice-chip">
-              <input type="checkbox" name="{{ field.name }}" value="true" {% if field.checked %}checked{% endif %}>
-              {{ field.label }}
+                <input
+                    type="checkbox"
+                    name="{{ field.name }}"
+                    value="true"
+                    {%
+                    if
+                    field.checked
+                    %}checked{%
+                    endif
+                    %}
+                />
+                {{ field.label }}
             </label>
-          </div>
+        </div>
         {% elif field.kind == "textarea" %}
-          <label class="field-label">
+        <label class="field-label">
             {{ field.label }}
-            <textarea name="{{ field.name }}" rows="{{ field.rows or 5 }}">{{ field.value }}</textarea>
-          </label>
+            <textarea name="{{ field.name }}" rows="{{ field.rows or 5 }}">
+{{ field.value }}</textarea
+            >
+        </label>
         {% else %}
-          <label class="field-label">
+        <label class="field-label">
             {{ field.label }}
             <input
-              type="{{ field.kind or 'text' }}"
-              name="{{ field.name }}"
-              value="{{ field.value }}"
-              {% if field.suggestions %}list="{{ field.name }}-options"{% endif %}
-            >
+                type="{{ field.kind or 'text' }}"
+                name="{{ field.name }}"
+                value="{{ field.value }}"
+                {%
+                if
+                field.suggestions
+                %}list="{{ field.name }}-options"
+                {%
+                endif
+                %}
+            />
             {% if field.suggestions %}
-              <datalist id="{{ field.name }}-options">
+            <datalist id="{{ field.name }}-options">
                 {% for suggestion in field.suggestions %}
-                  <option value="{{ suggestion.value }}">{{ suggestion.label }}</option>
+                <option value="{{ suggestion.value }}">
+                    {{ suggestion.label }}
+                </option>
                 {% endfor %}
-              </datalist>
+            </datalist>
+            {% endif %} {% if field.help_text %}
+            <div class="field-help">{{ field.help_text }}</div>
             {% endif %}
-            {% if field.help_text %}
-              <div class="field-help">{{ field.help_text }}</div>
-            {% endif %}
-          </label>
-        {% endif %}
-      {% endfor %}
-      <button class="button button-primary" type="submit">{{ submit_label }}</button>
+        </label>
+        {% endif %} {% endfor %}
+        <button class="button button-primary" type="submit">
+            {{ submit_label }}
+        </button>
     </form>
-  </section>
+</section>
 {% endblock %}

@@ -1,48 +1,72 @@
-{% extends "base.html" %}
-
-{% block title %}Login | explor_codex{% endblock %}
-
-{% block body %}
-  <section class="hero">
+{% extends "base.html" %} {% block title %}Login | explor_codex{% endblock %} {%
+block body %}
+<section class="hero">
     <div class="hero-grid">
-      <div>
-        <p class="eyebrow">Auth</p>
-        <h1>Log in</h1>
-        <p>Use your username or email to enter the rebuilt admin and account flows.</p>
-      </div>
-      <div class="hero-stats">
-        <article class="hero-card">
-          <p class="hero-card-label">Access</p>
-          <p class="hero-card-value">Account</p>
-          <p class="hero-card-note">The same shared design language now covers public and signed-in flows.</p>
-        </article>
-      </div>
+        <div>
+            <p class="eyebrow">Auth</p>
+            <h1>Log in</h1>
+            <p>
+                Use your username or email to enter the rebuilt admin and
+                account flows.
+            </p>
+        </div>
+        <div class="hero-stats">
+            <article class="hero-card">
+                <p class="hero-card-label">Access</p>
+                <p class="hero-card-value">Account</p>
+                <p class="hero-card-note">
+                    The same shared design language now covers public and
+                    signed-in flows.
+                </p>
+            </article>
+        </div>
     </div>
-  </section>
+</section>
 
-  <section class="grid">
+<section class="grid">
     <aside class="panel content-rail">
-      <h2>Next</h2>
-      <div class="action-list">
-        <a class="action-link" href="{{ url_for('auth.password_reset_request') }}"><span><span class="action-link-label">Recovery</span><span class="action-link-value">Forgot your password?</span></span><span>&rarr;</span></a>
-        {% if signup_enabled %}
-          <a class="action-link" href="{{ url_for('auth.signup') }}"><span><span class="action-link-label">Onboarding</span><span class="action-link-value">Need an account? Sign up</span></span><span>&rarr;</span></a>
-        {% endif %}
-      </div>
+        <h2>Next</h2>
+        <div class="action-list">
+            <a
+                class="action-link"
+                href="{{ url_for('auth.password_reset_request') }}"
+                ><span
+                    ><span class="action-link-label">Recovery</span
+                    ><span class="action-link-value"
+                        >Forgot your password?</span
+                    ></span
+                ><span>&rarr;</span></a
+            >
+            {% if signup_enabled %}
+            <a class="action-link" href="{{ url_for('auth.signup') }}"
+                ><span
+                    ><span class="action-link-label">Onboarding</span
+                    ><span class="action-link-value"
+                        >Need an account? Sign up</span
+                    ></span
+                ><span>&rarr;</span></a
+            >
+            {% endif %}
+        </div>
     </aside>
 
     <form class="panel stack" method="post">
-      <h2>Credentials</h2>
-      <input type="hidden" name="next" value="{{ next_url or '' }}">
-      <label class="field-label">
-        Username or email
-        <input type="text" name="identity" autocomplete="username">
-      </label>
-      <label class="field-label">
-        Password
-        <input type="password" name="password" autocomplete="current-password">
-      </label>
-      <button class="button button-primary" type="submit">Log In</button>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <h2>Credentials</h2>
+        <input type="hidden" name="next" value="{{ next_url or '' }}" />
+        <label class="field-label">
+            Username or email
+            <input type="text" name="identity" autocomplete="username" />
+        </label>
+        <label class="field-label">
+            Password
+            <input
+                type="password"
+                name="password"
+                autocomplete="current-password"
+            />
+        </label>
+        <button class="button button-primary" type="submit">Log In</button>
     </form>
-  </section>
+</section>
 {% endblock %}

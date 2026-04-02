@@ -30,11 +30,11 @@ class GeometryType(TypeDecorator[object]):
 
 
 def linestring_type() -> GeometryType:
-    return GeometryType("LINESTRING")
+    return GeometryType("GEOMETRY")
 
 
 def linestring_z_type() -> GeometryType:
-    return GeometryType("LINESTRINGZ")
+    return GeometryType("GEOMETRY")
 
 
 def point_type() -> GeometryType:
@@ -115,12 +115,19 @@ def point_coordinates(value: str | None) -> tuple[float, float] | None:
 
 def _geojson_text_to_wkt(value: str) -> str:
     payload = json.loads(value)
+    if payload.get("type") == "FeatureCollection":
+        features = payload.get("features", [])
+        if not features:
+            raise ValueError("FeatureCollection is empty")
+        payload = features[0]
+
     geometry_payload = payload["geometry"] if payload.get("type") == "Feature" else payload
     geometry = shape(geometry_payload)
-    if geometry.geom_type != "LineString":
-        raise ValueError("Only LineString geometry is supported")
+    allowed_types = ("LineString", "MultiLineString")
+    if geometry.geom_type not in allowed_types:
+        raise ValueError(f"Only {', '.join(allowed_types)} geometry is supported")
     if geometry.is_empty:
-        raise ValueError("LineString coordinates are required")
+        raise ValueError(f"{geometry.geom_type} coordinates are required")
     return to_wkt(geometry, rounding_precision=-1)
 
 
@@ -137,8 +144,9 @@ def _geojson_text_to_point_wkt(value: str) -> str:
 
 def _wkt_to_geojson_text(value: str) -> str:
     geometry = load_wkt(value)
-    if geometry.geom_type != "LineString":
-        raise ValueError("Only LINESTRING WKT is supported")
+    allowed_types = ("LineString", "MultiLineString")
+    if geometry.geom_type not in allowed_types:
+        raise ValueError(f"Only {', '.join(allowed_types)} WKT is supported")
     payload = json.loads(to_geojson(geometry))
     return json.dumps(_normalize_numbers(payload), separators=(",", ":"))
 

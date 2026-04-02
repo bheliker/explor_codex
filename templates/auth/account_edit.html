@@ -1,92 +1,153 @@
-{% extends "base.html" %}
-
-{% block title %}Edit Account | explor_codex{% endblock %}
-
-{% block body %}
-  <section class="hero">
+{% extends "base.html" %} {% block title %}Edit Account | explor_codex{%
+endblock %} {% block body %}
+<section class="hero">
     <div class="hero-grid">
-      <div>
-        <p class="eyebrow">Account</p>
-        <h1>Edit your account</h1>
-        <p>Update your profile details, home location, and password.</p>
-      </div>
-      <div class="hero-stats">
-        <article class="hero-card">
-          <p class="hero-card-label">Profile</p>
-          <p class="hero-card-value">Edit</p>
-          <p class="hero-card-note">The same form language now spans admin and self-serve flows.</p>
-        </article>
-      </div>
+        <div>
+            <p class="eyebrow">Account</p>
+            <h1>Edit your account</h1>
+            <p>Update your profile details, home location, and password.</p>
+        </div>
+        <div class="hero-stats">
+            <article class="hero-card">
+                <p class="hero-card-label">Profile</p>
+                <p class="hero-card-value">Edit</p>
+                <p class="hero-card-note">
+                    The same form language now spans admin and self-serve flows.
+                </p>
+            </article>
+        </div>
     </div>
-  </section>
+</section>
 
-  <section class="grid">
+<section class="grid">
     <aside class="panel content-rail">
-      <h2>Actions</h2>
-      <div class="action-list">
-        <a class="action-link" href="{{ url_for('auth.account') }}"><span><span class="action-link-label">Navigate</span><span class="action-link-value">Back to account</span></span><span>&rarr;</span></a>
-      </div>
+        <h2>Actions</h2>
+        <div class="action-list">
+            <a class="action-link" href="{{ url_for('auth.account') }}"
+                ><span
+                    ><span class="action-link-label">Navigate</span
+                    ><span class="action-link-value"
+                        >Back to account</span
+                    ></span
+                ><span>&rarr;</span></a
+            >
+        </div>
     </aside>
 
     <form class="panel stack" method="post">
-      <h2>Profile</h2>
-      <label class="field-label">
-        Username
-        <input type="text" name="username" value="{{ current_user.username }}">
-      </label>
-      <label class="field-label">
-        Email
-        <input type="email" name="email" value="{{ current_user.email }}">
-      </label>
-      <label class="field-label">
-        First name
-        <input type="text" name="firstname" value="{{ current_user.firstname or '' }}">
-      </label>
-      <label class="field-label">
-        Last name
-        <input type="text" name="lastname" value="{{ current_user.lastname or '' }}">
-      </label>
-      <label class="field-label">
-        Home town
-        <input type="text" name="home_town" value="{{ current_user.home_town or '' }}">
-      </label>
-      <label class="field-label">
-        Home state
-        <input type="text" name="home_state" value="{{ current_user.home_state or '' }}">
-      </label>
-      <label class="field-label">
-        Home country
-        <input type="text" name="home_country" value="{{ current_user.home_country or '' }}">
-      </label>
-      <label class="field-label">
-        Home gym
-        <input type="text" name="home_gym" value="{{ current_user.home_gym or '' }}">
-      </label>
-      <label class="field-label">
-        Home latlng
-        <input type="text" name="home_latlng" value="{{ current_user.home_latlng or '' }}">
-      </label>
-      <label class="field-label">
-        Geometry
-        <input type="text" name="geoll" value="{{ current_user.geoll or '' }}">
-      </label>
-      <label class="field-label">
-        Tags (comma separated)
-        <input type="text" name="tags" value="{{ (current_user.tags or [])|join(', ') }}">
-      </label>
-      <label class="field-label">
-        Preference tags (comma separated)
-        <input type="text" name="preference_tags" value="{{ (current_user.preference_tags or [])|join(', ') }}">
-      </label>
-      <label class="field-label">
-        New password
-        <input type="password" name="password" autocomplete="new-password">
-      </label>
-      <label class="field-label">
-        Confirm new password
-        <input type="password" name="password_confirm" autocomplete="new-password">
-      </label>
-      <button class="button button-primary" type="submit">Save Account</button>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <h2>Profile</h2>
+        <label class="field-label">
+            Username
+            <input
+                type="text"
+                name="username"
+                value="{{ current_user.username }}"
+            />
+        </label>
+        <label class="field-label">
+            Email
+            <input type="email" name="email" value="{{ current_user.email }}" />
+        </label>
+        <label class="field-label">
+            First name
+            <input
+                type="text"
+                name="firstname"
+                value="{{ current_user.firstname or '' }}"
+            />
+        </label>
+        <label class="field-label">
+            Last name
+            <input
+                type="text"
+                name="lastname"
+                value="{{ current_user.lastname or '' }}"
+            />
+        </label>
+        <label class="field-label">
+            Home town
+            <input
+                type="text"
+                name="home_town"
+                value="{{ current_user.home_town or '' }}"
+            />
+        </label>
+        <label class="field-label">
+            Home state
+            <input
+                type="text"
+                name="home_state"
+                value="{{ current_user.home_state or '' }}"
+            />
+        </label>
+        <label class="field-label">
+            Home country
+            <input
+                type="text"
+                name="home_country"
+                value="{{ current_user.home_country or '' }}"
+            />
+        </label>
+        <label class="field-label">
+            Home gym
+            <input
+                type="text"
+                name="home_gym"
+                value="{{ current_user.home_gym or '' }}"
+            />
+        </label>
+        <label class="field-label">
+            Home latlng
+            <input
+                type="text"
+                name="home_latlng"
+                value="{{ current_user.home_latlng or '' }}"
+            />
+        </label>
+        <label class="field-label">
+            Geometry
+            <input
+                type="text"
+                name="geoll"
+                value="{{ current_user.geoll or '' }}"
+            />
+        </label>
+        <label class="field-label">
+            Tags (comma separated)
+            <input
+                type="text"
+                name="tags"
+                value="{{ (current_user.tags or [])|join(', ') }}"
+            />
+        </label>
+        <label class="field-label">
+            Preference tags (comma separated)
+            <input
+                type="text"
+                name="preference_tags"
+                value="{{ (current_user.preference_tags or [])|join(', ') }}"
+            />
+        </label>
+        <label class="field-label">
+            New password
+            <input
+                type="password"
+                name="password"
+                autocomplete="new-password"
+            />
+        </label>
+        <label class="field-label">
+            Confirm new password
+            <input
+                type="password"
+                name="password_confirm"
+                autocomplete="new-password"
+            />
+        </label>
+        <button class="button button-primary" type="submit">
+            Save Account
+        </button>
     </form>
-  </section>
+</section>
 {% endblock %}

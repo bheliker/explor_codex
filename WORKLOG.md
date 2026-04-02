@@ -1210,3 +1210,30 @@ This file records session history for `explor_codex` so future work can resume w
 - `uv run pytest`
 - `uv run ruff check .`
 - `uv run mypy app tests`
+
+## 2026-04-01 (Geometry Robustness and Security Hardening)
+
+### Investigated
+- Audited GeoJSON parsing for routes and segments; identified that complex types like `MultiLineString` and `FeatureCollection` (common in imports) were failing to render on maps.
+- Identified a lack of CSRF protection on administrative and account-related forms.
+- Found several inconsistent API function signatures and naming in `app/routes.py`.
+
+### Changed
+- Added `flask-wtf` and enabled `CSRFProtect` across the application.
+- Updated all POST-method templates to include CSRF tokens.
+- Refactored `_line_coordinates` in `app/routes.py` into a more resilient recursive extractor for GeoJSON coordinates.
+- Generalized `app/geometry.py` storage types to `GEOMETRY` to better support varied GeoJSON inputs.
+- Hardened `AdminFormError` handling in edit routes for better user feedback on bad inputs.
+
+### Decisions
+- Chose to exempt `/api/` routes from CSRF for now as they appear to be used for stateless or JSON-native interactions where token management might not be fully established in the client.
+- Opted for `GEOMETRY` as a more flexible catch-all type for imported spatial data while keeping `POINT` for trailheads.
+
+### Why
+- Robust geometry parsing is critical for the "hero" route map experience.
+- CSRF protection is a baseline requirement for any platform handling user authentication and administrative actions.
+
+### Verification
+- `uv run pytest` (All 98 passed)
+- `uv run ruff check .`
+- `uv run mypy app tests`
