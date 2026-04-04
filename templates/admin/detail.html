@@ -28,7 +28,9 @@
       </div>
       <div class="hero-stats">
         <article class="hero-card">
+<!-- 
           <p class="hero-card-label">Record</p>
+ -->
           {% if stats_bar %}
             <div class="stats-bar stats-bar-compact">
               {% for stat in stats_bar %}
@@ -66,6 +68,22 @@
                   </div>
                 </article>
               {% endfor %}
+        {% if tags %}
+          <article class="stats-bar-item">
+<!-- 
+            <p class="hero-card-label">Tags</p>
+ -->
+<!-- 
+            <p class="hero-card-value">{{ tags|length }}</p>
+ -->
+            <div class="tag-list">
+              {% for tag in tags[:4] %}
+                <span class="tag">{{ tag }}</span>
+              {% endfor %}
+            </div>
+          </article>
+        {% endif %}
+
             </div>
           {% else %}
             <p class="hero-card-value">ID {{ entity_id }}</p>
@@ -80,8 +98,12 @@
         </article>
         {% if tags %}
           <article class="hero-card">
+<!-- 
             <p class="hero-card-label">Tags</p>
+ -->
+<!-- 
             <p class="hero-card-value">{{ tags|length }}</p>
+ -->
             <div class="tag-list">
               {% for tag in tags[:4] %}
                 <span class="tag">{{ tag }}</span>
@@ -226,7 +248,7 @@
 
       {% if story_sections %}
             <section class="panel">
-              <h2>Story</h2>
+              <h2>Details</h2>
               <div class="story-grid detail-story-grid">
                 {% for section in story_sections %}
                   <article class="collection-card detail-story-card">
