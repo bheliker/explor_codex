@@ -246,6 +246,7 @@ h1 {
   font-size: clamp(2.6rem, 6vw, 4.8rem);
   line-height: 0.94;
   letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
 }
 
 .panel h1,
@@ -271,6 +272,10 @@ h1 {
   gap: 18px;
   grid-template-columns: minmax(0, 1.6fr) minmax(260px, 0.9fr);
   align-items: end;
+}
+
+.hero-grid > * {
+  min-width: 0;
 }
 
 .hero-card {
@@ -311,7 +316,7 @@ h1 {
 .grid {
   display: grid;
   gap: 20px;
-  grid-template-columns: minmax(290px, 0.92fr) minmax(0, 1.5fr);
+  grid-template-columns: minmax(260px, 0.92fr) minmax(0, 1.5fr);
   align-items: start;
 }
 
@@ -958,11 +963,15 @@ textarea {
 }
 
 .visual-header {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
   gap: 16px;
   align-items: flex-start;
+  grid-template-columns: minmax(0, 1fr) auto;
   margin-bottom: 18px;
+}
+
+.visual-header > * {
+  min-width: 0;
 }
 
 .visual-header-copy {
@@ -997,6 +1006,7 @@ textarea {
 }
 
 .visual-card {
+  min-width: 0;
   padding: 20px;
   border: 1px solid var(--line);
   border-radius: 26px;

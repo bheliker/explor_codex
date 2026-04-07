@@ -20,7 +20,13 @@
     <div class="hero-grid">
       <div>
         <p class="eyebrow">{{ entity_type_label }}</p>
-        <h1>{{ page_title }}</h1>
+        <h1 title="{{ page_title }}">
+          {% if page_title|length > 20 %}
+            {{ page_title[:20] ~ "..." }}
+          {% else %}
+            {{ page_title }}
+          {% endif %}
+        </h1>
         <p class="voice-line">A record should tell you why it matters before it tells you everything.</p>
         {% if subtitle %}
           <p>{{ subtitle }}</p>
