@@ -16,6 +16,7 @@ def create_user(
     firstname: str | None = None,
     lastname: str | None = None,
     account_type: str | None = None,
+    units: str = "metric",
     preference_tags: list[str] | None = None,
     tags: list[str] | None = None,
     home_town: str | None = None,
@@ -39,6 +40,7 @@ def create_user(
         firstname=_normalize_optional(firstname),
         lastname=_normalize_optional(lastname),
         account_type=_normalize_optional(account_type),
+        units=_normalize_units(units),
         preference_tags=preference_tags,
         tags=tags,
         home_town=_normalize_optional(home_town),
@@ -65,6 +67,7 @@ def update_user(
     firstname: str | None = None,
     lastname: str | None = None,
     account_type: str | None = None,
+    units: str = "metric",
     preference_tags: list[str] | None = None,
     tags: list[str] | None = None,
     home_town: str | None = None,
@@ -86,6 +89,7 @@ def update_user(
     user.firstname = _normalize_optional(firstname)
     user.lastname = _normalize_optional(lastname)
     user.account_type = _normalize_optional(account_type)
+    user.units = _normalize_units(units)
     user.preference_tags = preference_tags
     user.tags = tags
     user.home_town = _normalize_optional(home_town)
@@ -151,6 +155,13 @@ def _normalize_optional(value: str | None) -> str | None:
         return None
     normalized = value.strip()
     return normalized or None
+
+
+def _normalize_units(value: str | None) -> str:
+    normalized = (value or "metric").strip().lower()
+    if normalized not in {"metric", "imperial"}:
+        raise ValueError("Units must be either metric or imperial.")
+    return normalized
 
 
 def _validate_unique_username_email(

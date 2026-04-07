@@ -54,6 +54,10 @@
           <div class="detail-row-value">{{ current_user.lastname or "—" }}</div>
         </article>
         <article class="detail-row">
+          <div class="detail-row-label">Units</div>
+          <div class="detail-row-value">{{ current_user.units|title }}</div>
+        </article>
+        <article class="detail-row">
           <div class="detail-row-label">Active</div>
           <div class="detail-row-value">{{ "yes" if current_user.active else "no" }}</div>
         </article>

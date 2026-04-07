@@ -47,6 +47,13 @@
         <input type="text" name="lastname" value="{{ current_user.lastname or '' }}">
       </label>
       <label class="field-label">
+        Preferred units
+        <select name="units">
+          <option value="metric" {% if current_user.units == "metric" %}selected{% endif %}>Metric (km / m)</option>
+          <option value="imperial" {% if current_user.units == "imperial" %}selected{% endif %}>Imperial (mi / ft)</option>
+        </select>
+      </label>
+      <label class="field-label">
         Home town
         <input type="text" name="home_town" value="{{ current_user.home_town or '' }}">
       </label>

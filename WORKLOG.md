@@ -218,6 +218,43 @@ This file records session history for `explor_codex` so future work can resume w
 - Updated [README.md](/Users/bheliker/Documents/_Projects/explor/explor_codex/README.md) with the new admin endpoints.
 
 ### Decisions
+
+## 2026-04-02 (Event Maps, Stats Bar, And Units Migration Repair)
+
+### Investigated
+- Extended the old Explor map-first detail treatment to events and calendars, then verified how route, segment, activity, and event stats should be presented in the new detail pages.
+- Diagnosed a live Postgres failure after adding `User.units`; the application database was stamped at Alembic revision `56c4b0d8a9c2`, but that migration file was missing from the current branch.
+- Confirmed the new product requirement that metric remains the backend truth for real-world measurements and imperial is display-only.
+
+### Changed
+- Added map-first detail support and shared stats-bar rendering for routes, segments, activities, events, and calendars in:
+  - [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py)
+  - [templates/admin/detail.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/detail.html)
+  - [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css)
+  - [static/js/detail_visuals.js](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/js/detail_visuals.js)
+- Added `User.units` support through model, auth/account flows, and migration:
+  - [app/models/user.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/models/user.py)
+  - [templates/auth/account.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/account.html)
+  - [templates/auth/account_edit.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/account_edit.html)
+  - [migrations/versions/f24d3d3b9c1a_add_user_units_preference.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/migrations/versions/f24d3d3b9c1a_add_user_units_preference.py)
+- Restored the missing geometry migration revision so the live database could upgrade cleanly again:
+  - [migrations/versions/56c4b0d8a9c2_widen_line_geometry_columns.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/migrations/versions/56c4b0d8a9c2_widen_line_geometry_columns.py)
+- Updated measurement formatting and tests so distances are treated as meters in storage and converted only at render time.
+
+### Decisions
+- Keep metric as the only backend source-of-truth unit system for real-world measurements.
+- Preserve user unit preference purely as a presentation concern.
+- Keep the restored `56c4b0d8a9c2` revision in the branch history because the live database already depends on it.
+
+### Why
+- The live application database could not load users or admin pages until the missing revision chain and quoted `user` table migration SQL were repaired.
+- Treating metric as the storage truth avoids unit ambiguity across imported source data while still supporting imperial display for riders who want it.
+- Reusing one map/stats detail system across map-first entities keeps the new design language closer to the original Explor product rhythm without reviving the old frontend stack.
+
+### Notes for the next session
+- The real Postgres database and repo-local disposable SQLite migration DB both upgrade cleanly through `f24d3d3b9c1a`.
+- Route detail tests now assert rendered metric display rather than older literal source formatting.
+- This branch still has uncommitted changes after the earlier checkpoint commit and should be committed before the next major phase.
 - Use `/admin` as the browser entry point for the admin surface.
 - Keep create forms limited to groups, routes, and events for now to match the current edit coverage.
 - Continue relying on the existing service layer and ORM search freshness hooks so new records immediately show up in search/admin views.
@@ -1210,3 +1247,59 @@ This file records session history for `explor_codex` so future work can resume w
 - `uv run pytest`
 - `uv run ruff check .`
 - `uv run mypy app tests`
+
+## 2026-04-02 (Event Maps, Calendar Maps, And Stats Bar)
+
+### Investigated
+- Reviewed the original `explor_alpha` route detail page and its `statsBar` treatment to recover the icon-led rhythm around rating, distance, duration, elevation, and grade.
+- Traced the old `user_units(...)` helper and confirmed the older app used a real `current_user.units` preference rather than inferring units from tags.
+- Audited the current detail surfaces and confirmed events had no geographic visual section yet, while calendars lacked a detail route entirely.
+
+### Changed
+- Added an explicit `User.units` preference with migration support in:
+  - [app/models/user.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/models/user.py)
+  - [app/services/users.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/services/users.py)
+  - [migrations/versions/f24d3d3b9c1a_add_user_units_preference.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/migrations/versions/f24d3d3b9c1a_add_user_units_preference.py)
+- Updated account and admin user flows so metric vs imperial preferences can be viewed and edited:
+  - [app/auth.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/auth.py)
+  - [templates/auth/account.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/account.html)
+  - [templates/auth/account_edit.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/account_edit.html)
+  - [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py)
+- Added shared stats-bar helpers and rendering so route, segment, activity, and event detail pages now show the old-style icon-led metric strip with unit-aware values.
+- Generalized the Leaflet detail renderer in [static/js/detail_visuals.js](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/js/detail_visuals.js) so a map layer can now render:
+  - multiple polylines
+  - marker collections
+  - mixed marker-plus-route layers
+- Added map-first event and calendar detail surfaces in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py), including:
+  - event footprint layers for event point + linked route/activity context
+  - calendar footprint layers for event markers + route network context
+  - a new calendar collection/detail route path
+- Updated [templates/admin/detail.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/detail.html) and [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css) to render the stats bar and keep the geographic treatment visually consistent with the route pages.
+- Added regression coverage in [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) for:
+  - account units persistence
+  - route stats-bar rendering
+  - event geographic detail rendering
+  - calendar map-first detail rendering
+
+### Decisions
+- Reintroduced unit preference as a first-class user setting instead of encoding it indirectly in `preference_tags`.
+- Kept the geographic treatment inside the existing server-rendered detail flow by extending the shared Leaflet payload model instead of creating separate one-off map implementations for events and calendars.
+- Used a heuristic for distance display so the current mixed fixture/data reality remains readable:
+  - large values are treated as meters and converted
+  - smaller values are treated as already being in kilometer-scale units
+
+### Why
+- The old product voice came not only from copy and color, but from how quickly a record surfaced the metrics riders actually scan first.
+- Events and calendars are central coordination surfaces in Explor; they need the same spatial clarity as routes for the experience to feel coherent again.
+- Explicit user unit preference is the cleanest way to make metric display trustworthy across the app.
+
+### Verification
+- Migration verification:
+  - `UV_CACHE_DIR=/Users/bheliker/Documents/_Projects/explor/explor_codex/.codex-tmp/uv-cache DATABASE_URL=sqlite+pysqlite:////Users/bheliker/Documents/_Projects/explor/explor_codex/.codex-tmp/migration-dbs/event_map_statsbar.db uv run flask --app 'app:create_app()' db upgrade`
+- `uv run ruff check .`
+- `uv run mypy app tests`
+- `uv run pytest`
+
+### Notes for the next session
+- The next strongest continuation is public-facing event/calendar discovery so these richer spatial surfaces are reachable outside admin.
+- If we want to get even closer to the original experience, the next layer is richer calendar/event map interactions such as marker summaries, day-based filtering, and route/event combined browse modes.

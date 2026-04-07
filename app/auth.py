@@ -175,6 +175,7 @@ def password_reset(token: str) -> ResponseReturnValue:
                 firstname=user.firstname,
                 lastname=user.lastname,
                 account_type=user.account_type,
+                units=user.units,
                 preference_tags=user.preference_tags,
                 tags=user.tags,
                 home_town=user.home_town,
@@ -218,6 +219,7 @@ def account_edit() -> ResponseReturnValue:
                     firstname=request.form.get("firstname", type=str),
                     lastname=request.form.get("lastname", type=str),
                     account_type=current_user.account_type,
+                    units=request.form.get("units", "metric", type=str),
                     preference_tags=_csv_list_value(
                         request.form.get("preference_tags", "", type=str)
                     ),

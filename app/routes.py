@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Any, Callable, Sequence, TypeVar, cast
 
@@ -271,6 +271,13 @@ def admin_dashboard_route() -> str:
                 "title": "Recent Routes",
             },
             {
+                "items": [
+                    _dashboard_calendar_item(calendar) for calendar in _recent_records(Calendar)
+                ],
+                "new_url": None,
+                "title": "Recent Calendars",
+            },
+            {
                 "items": [_dashboard_segment_item(segment) for segment in _recent_records(Segment)],
                 "new_url": url_for("core.admin_segment_new_route"),
                 "title": "Recent Segments",
@@ -297,6 +304,7 @@ def admin_dashboard_route() -> str:
             {"count": _count_records(User), "label": "users"},
             {"count": _count_records(Group), "label": "groups"},
             {"count": _count_records(Route), "label": "routes"},
+            {"count": _count_records(Calendar), "label": "calendars"},
             {"count": _count_records(Segment), "label": "segments"},
             {"count": _count_records(Event), "label": "events"},
             {"count": _count_records(PointOfInterest), "label": "pois"},
@@ -328,6 +336,7 @@ def admin_user_detail_route(user_id: int) -> str:
                 ("First name", user.firstname),
                 ("Last name", user.lastname),
                 ("Account type", user.account_type),
+                ("Units", user.units),
                 ("Active", "yes" if user.active else "no"),
                 ("Site admin", "yes" if user.site_admin else "no"),
                 ("Home town", user.home_town),
@@ -369,6 +378,7 @@ def admin_user_edit_route(user_id: int) -> str | Any:
                     firstname=_form_optional_str("firstname"),
                     lastname=_form_optional_str("lastname"),
                     account_type=_form_optional_str("account_type"),
+                    units=_form_optional_str("units") or "metric",
                     preference_tags=_form_csv_list("preference_tags"),
                     tags=_form_csv_list("tags"),
                     home_town=_form_optional_str("home_town"),
@@ -398,6 +408,7 @@ def admin_user_edit_route(user_id: int) -> str | Any:
             _edit_text_field("firstname", "First name", user.firstname),
             _edit_text_field("lastname", "Last name", user.lastname),
             _edit_text_field("account_type", "Account type", user.account_type),
+            _edit_text_field("units", "Units (metric or imperial)", user.units),
             _edit_checkbox_field("active", "Active", user.active),
             _edit_checkbox_field("site_admin", "Site admin", user.site_admin),
             _edit_text_field("home_town", "Home town", user.home_town),
@@ -445,6 +456,7 @@ def admin_user_new_route() -> str | Any:
                     firstname=_form_optional_str("firstname"),
                     lastname=_form_optional_str("lastname"),
                     account_type=_form_optional_str("account_type"),
+                    units=_form_optional_str("units") or "metric",
                     preference_tags=_form_csv_list("preference_tags"),
                     tags=_form_csv_list("tags"),
                     home_town=_form_optional_str("home_town"),
@@ -474,6 +486,7 @@ def admin_user_new_route() -> str | Any:
             _edit_text_field("firstname", "First name", None),
             _edit_text_field("lastname", "Last name", None),
             _edit_text_field("account_type", "Account type", None),
+            _edit_text_field("units", "Units (metric or imperial)", "metric"),
             _edit_checkbox_field("active", "Active", True),
             _edit_checkbox_field("site_admin", "Site admin", False),
             _edit_text_field("home_town", "Home town", None),
@@ -491,6 +504,61 @@ def admin_user_new_route() -> str | Any:
         mode_title="Create",
         page_title="User",
         submit_label="Create User",
+    )
+
+
+@bp.get("/admin/calendars")
+def admin_calendar_list_route() -> str:
+    calendars = list(db.session.scalars(select(Calendar).order_by(Calendar.id)))
+    return render_template(
+        "admin/collection.html",
+        page_title="Calendars",
+        intro_text="Browse calendar records as spatial programs and event containers.",
+        new_url=None,
+        records=[_dashboard_calendar_item(calendar) for calendar in calendars],
+    )
+
+
+@bp.get("/admin/calendars/<int:calendar_id>")
+def admin_calendar_detail_route(calendar_id: int) -> str:
+    calendar = _get_or_404(Calendar, calendar_id)
+    return render_template(
+        "admin/detail.html",
+        detail_rows=_detail_rows(
+            [
+                ("Description", calendar.description),
+                ("Primary activity", calendar.primary_activity),
+                ("Type", calendar.type),
+                ("Subtype", calendar.subtype),
+                ("Private", calendar.private),
+                ("Owner ID", calendar.owner_id),
+                ("Group ID", calendar.group_id, _admin_detail_url("group", calendar.group_id)),
+                ("URL", calendar.url, calendar.url),
+                ("Notes", calendar.notes),
+                ("Created", calendar.date_created),
+                ("Updated", calendar.date_updated),
+                ("Events", len(calendar.events)),
+            ]
+        ),
+        entity_id=calendar.id,
+        entity_type_label="Calendar",
+        edit_url=None,
+        location=calendar.group.name if calendar.group is not None else None,
+        media_previews=_media_previews(
+            [
+                ("Photo", calendar.photo_url),
+                ("Logo", calendar.logo),
+                ("Profile photo", calendar.profile_photo),
+            ]
+        ),
+        page_title=calendar.name or "Calendar",
+        recent_links=_recent_activity_links(exclude=("calendar", calendar.id)),
+        related_sections=_calendar_related_sections(calendar),
+        story_sections=_calendar_story_sections(calendar),
+        subtitle=calendar.subtype or calendar.type or calendar.primary_activity,
+        tags=calendar.tags,
+        visual_sections=_calendar_visual_sections(calendar),
+        stats_bar=_calendar_stats_bar(calendar),
     )
 
 
@@ -1203,6 +1271,7 @@ def admin_route_detail_route(route_id: int) -> str:
         story_sections=_route_story_sections(route),
         subtitle=route.subtype or route.type,
         tags=route.tags,
+        stats_bar=_route_stats_bar(route),
         visual_sections=_route_visual_sections(route),
     )
 
@@ -1415,6 +1484,7 @@ def admin_segment_detail_route(segment_id: int) -> str:
         story_sections=_segment_story_sections(segment),
         subtitle=segment.subtype or segment.type,
         tags=segment.tags,
+        stats_bar=_segment_stats_bar(segment),
         visual_sections=_segment_visual_sections(segment),
     )
 
@@ -1622,9 +1692,11 @@ def admin_event_detail_route(event_id: int) -> str:
         page_title=event.name or "Event",
         recent_links=_recent_activity_links(exclude=("event", event.id)),
         related_sections=_event_related_sections(event),
+        stats_bar=_event_stats_bar(event),
         story_sections=_event_story_sections(event),
         subtitle=event.subtype or event.type or event.primary_activity,
         tags=event.tags,
+        visual_sections=_event_visual_sections(event),
     )
 
 
@@ -1983,6 +2055,7 @@ def admin_activity_detail_route(activity_id: int) -> str:
         page_title=activity.name or "Activity",
         recent_links=_recent_activity_links(exclude=("activity", activity.id)),
         related_sections=_activity_related_sections(activity),
+        stats_bar=_activity_stats_bar(activity),
         story_sections=_activity_story_sections(activity),
         subtitle=activity.subtype or activity.type,
         tags=activity.tags,
@@ -3120,6 +3193,16 @@ def _dashboard_event_item(event: Event) -> dict[str, object]:
     }
 
 
+def _dashboard_calendar_item(calendar: Calendar) -> dict[str, object]:
+    return {
+        "detail_url": url_for("core.admin_calendar_detail_route", calendar_id=calendar.id),
+        "id": calendar.id,
+        "location": calendar.group.name if calendar.group is not None else None,
+        "subtitle": calendar.subtype or calendar.type or calendar.primary_activity,
+        "title": calendar.name or "Calendar",
+    }
+
+
 def _dashboard_poi_item(point: PointOfInterest) -> dict[str, object]:
     return {
         "detail_url": url_for("core.admin_point_of_interest_detail_route", point_id=point.id),
@@ -3298,19 +3381,211 @@ def _coordinate_pair(latitude: float | None, longitude: float | None) -> str | N
     return f"{latitude:.5f}, {longitude:.5f}"
 
 
+def _current_unit_system() -> str:
+    if current_user.is_authenticated:
+        units = getattr(current_user, "units", None)
+        if units in {"metric", "imperial"}:
+            return cast(str, units)
+    return "metric"
+
+
+def _format_measurement_value(value: float) -> str:
+    rounded = round(value, 1)
+    if abs(rounded - round(rounded)) < 1e-9:
+        return f"{int(round(rounded))}"
+    return f"{rounded:.1f}"
+
+
+def _format_distance(distance_meters: float | None) -> str | None:
+    if distance_meters is None:
+        return None
+    distance_km = distance_meters / 1000
+    if _current_unit_system() == "imperial":
+        return f"{_format_measurement_value(distance_km / 1.609344)} mi"
+    return f"{_format_measurement_value(distance_km)} km"
+
+
+def _format_elevation(elevation_meters: float | None) -> str | None:
+    if elevation_meters is None:
+        return None
+    if _current_unit_system() == "imperial":
+        return f"{_format_measurement_value(elevation_meters * 3.28084)} ft"
+    return f"{_format_measurement_value(elevation_meters)} m"
+
+
+def _format_duration(duration_minutes: float | None) -> str | None:
+    if duration_minutes is None:
+        return None
+    total_minutes = max(int(round(duration_minutes)), 0)
+    hours, minutes = divmod(total_minutes, 60)
+    if hours and minutes:
+        return f"{hours}h {minutes}m"
+    if hours:
+        return f"{hours}h"
+    return f"{minutes}m"
+
+
+def _format_grade(grade: float | None) -> str | None:
+    if grade is None:
+        return None
+    return f"{_format_measurement_value(grade)}%"
+
+
+def _format_rating(rating: float | None) -> str | None:
+    if rating is None:
+        return None
+    return _format_measurement_value(rating)
+
+
+def _is_future_datetime(value: datetime | None) -> bool:
+    if value is None:
+        return False
+    if value.tzinfo is None:
+        return value >= datetime.now(timezone.utc).replace(tzinfo=None)
+    return value >= datetime.now(timezone.utc)
+
+
+def _stat_item(
+    label: str,
+    icon: str,
+    value: str | None,
+    *,
+    eyebrow: str | None = None,
+    placeholder: str | None = None,
+) -> dict[str, str] | None:
+    if value is None:
+        if placeholder is None:
+            return None
+        value = placeholder
+    return {
+        "eyebrow": eyebrow or label,
+        "icon": icon,
+        "label": label,
+        "value": value,
+    }
+
+
+def _stats_bar(items: list[dict[str, str] | None]) -> list[dict[str, str]] | None:
+    return [item for item in items if item is not None] or None
+
+
+def _route_stats_bar(route: Route) -> list[dict[str, str]] | None:
+    return _stats_bar(
+        [
+            _stat_item("Rating", "star", _format_rating(route.rating), placeholder="--"),
+            _stat_item("Distance", "distance", _format_distance(route.length)),
+            _stat_item("Duration", "clock", _format_duration(route.duration)),
+            _stat_item("Elevation", "mountain", _format_elevation(route.elevation_gain)),
+            _stat_item("Grade", "chartup", _format_grade(route.grade), placeholder="--"),
+        ]
+    )
+
+
+def _segment_stats_bar(segment: Segment) -> list[dict[str, str]] | None:
+    return _stats_bar(
+        [
+            _stat_item("Rating", "star", _format_rating(segment.rating), placeholder="--"),
+            _stat_item("Distance", "distance", _format_distance(segment.length)),
+            _stat_item("Duration", "clock", _format_duration(segment.duration)),
+            _stat_item("Elevation", "mountain", _format_elevation(segment.elevation_gain)),
+            _stat_item("Grade", "chartup", _format_grade(segment.grade), placeholder="--"),
+        ]
+    )
+
+
+def _activity_stats_bar(activity: Activity) -> list[dict[str, str]] | None:
+    return _stats_bar(
+        [
+            _stat_item("Distance", "distance", _format_distance(activity.length)),
+            _stat_item("Duration", "clock", _format_duration(activity.duration)),
+            _stat_item(
+                "Elevation",
+                "mountain",
+                _format_elevation(activity.total_elevation_gain or activity.elevation_gain),
+            ),
+        ]
+    )
+
+
+def _event_stats_bar(event: Event) -> list[dict[str, str]] | None:
+    route = event.route
+    activity = event.activity
+    linked_route = route or activity.route if activity is not None else route
+    return _stats_bar(
+        [
+            _stat_item(
+                "Rating",
+                "star",
+                _format_rating(linked_route.rating) if linked_route is not None else None,
+            ),
+            _stat_item(
+                "Distance",
+                "distance",
+                _format_distance(
+                    linked_route.length
+                    if linked_route is not None
+                    else activity.length if activity is not None else None
+                ),
+            ),
+            _stat_item(
+                "Duration",
+                "clock",
+                _format_duration(
+                    event.duration
+                    if event.duration is not None
+                    else linked_route.duration
+                    if linked_route is not None
+                    else activity.duration if activity is not None else None
+                ),
+            ),
+            _stat_item(
+                "Elevation",
+                "mountain",
+                _format_elevation(
+                    linked_route.elevation_gain
+                    if linked_route is not None
+                    else activity.total_elevation_gain
+                    if activity is not None and activity.total_elevation_gain is not None
+                    else activity.elevation_gain if activity is not None else None
+                ),
+            ),
+            _stat_item(
+                "Grade",
+                "chartup",
+                _format_grade(linked_route.grade) if linked_route is not None else None,
+            ),
+        ]
+    )
+
+
+def _calendar_stats_bar(calendar: Calendar) -> list[dict[str, str]] | None:
+    upcoming_count = sum(1 for event in calendar.events if _is_future_datetime(event.date_start))
+    return _stats_bar(
+        [
+            _stat_item("Events", "calendar", _display_value(len(calendar.events))),
+            _stat_item("Upcoming", "clock", _display_value(upcoming_count)),
+            _stat_item(
+                "Group",
+                "distance",
+                calendar.group.name if calendar.group is not None else None,
+            ),
+        ]
+    )
+
+
 def _format_route_meta(route: Route) -> str | None:
     return _join_location(
         route.subtype or route.type,
-        _display_value(route.length),
-        _display_value(route.elevation_gain),
+        _format_distance(route.length),
+        _format_elevation(route.elevation_gain),
     )
 
 
 def _format_segment_meta(segment: Segment) -> str | None:
     return _join_location(
         segment.subtype or segment.type,
-        _display_value(segment.length),
-        _display_value(segment.elevation_gain),
+        _format_distance(segment.length),
+        _format_elevation(segment.elevation_gain),
     )
 
 
@@ -3528,6 +3803,61 @@ def _line_layer(
     }
 
 
+def _marker_entry(
+    entity_id: int,
+    entity_type: str | None,
+    latitude: float | None,
+    longitude: float | None,
+    *,
+    title: str | None = None,
+) -> dict[str, object] | None:
+    if latitude is None or longitude is None:
+        return None
+    return {
+        "entity_id": entity_id,
+        "entity_type": entity_type or "route",
+        "latlng": [latitude, longitude],
+        "title": title,
+    }
+
+
+def _marker_layer(
+    *,
+    label: str,
+    markers: Sequence[dict[str, object] | None],
+) -> dict[str, object] | None:
+    visible_markers = [marker for marker in markers if marker is not None]
+    if not visible_markers:
+        return None
+    return {
+        "label": label,
+        "markers": visible_markers,
+    }
+
+
+def _paths_layer(
+    *,
+    label: str,
+    geometries: Sequence[str | None],
+    markers: Sequence[dict[str, object] | None] | None = None,
+) -> dict[str, object] | None:
+    paths = [
+        latlngs
+        for geometry in geometries
+        for latlngs in [_leaflet_latlngs(geometry)]
+        if latlngs is not None
+    ]
+    layer_markers = [marker for marker in (markers or []) if marker is not None]
+    if not paths and not layer_markers:
+        return None
+    payload: dict[str, object] = {"label": label}
+    if paths:
+        payload["paths"] = paths
+    if layer_markers:
+        payload["markers"] = layer_markers
+    return payload
+
+
 def _line_visual(
     geometry_text: str | None,
     *,
@@ -3567,6 +3897,25 @@ def _multi_line_visual(
         "eyebrow": eyebrow,
         "kind": "map",
         "layers": line_layers,
+        "title": title,
+    }
+
+
+def _layered_map_visual(
+    *,
+    eyebrow: str,
+    title: str,
+    body: str,
+    layers: Sequence[dict[str, object] | None],
+) -> dict[str, object] | None:
+    valid_layers = [layer for layer in layers if layer is not None]
+    if not valid_layers:
+        return None
+    return {
+        "body": body,
+        "eyebrow": eyebrow,
+        "kind": "map",
+        "layers": valid_layers,
         "title": title,
     }
 
@@ -3613,6 +3962,7 @@ def _admin_detail_url(entity_type: str, entity_id: int | None) -> str | None:
     endpoint_map = {
         "user": "core.admin_user_detail_route",
         "group": "core.admin_group_detail_route",
+        "calendar": "core.admin_calendar_detail_route",
         "route": "core.admin_route_detail_route",
         "segment": "core.admin_segment_detail_route",
         "event": "core.admin_event_detail_route",
@@ -3627,6 +3977,8 @@ def _admin_detail_url(entity_type: str, entity_id: int | None) -> str | None:
         return url_for(endpoint, user_id=entity_id)
     if entity_type == "group":
         return url_for(endpoint, group_id=entity_id)
+    if entity_type == "calendar":
+        return url_for(endpoint, calendar_id=entity_id)
     if entity_type == "route":
         return url_for(endpoint, route_id=entity_id)
     if entity_type == "segment":
@@ -3938,6 +4290,150 @@ def _activity_visual_sections(activity: Activity) -> list[dict[str, object]] | N
     return [section for section in sections if section is not None] or None
 
 
+def _event_visual_sections(event: Event) -> list[dict[str, object]] | None:
+    linked_route = event.route or (event.activity.route if event.activity is not None else None)
+    sections = [
+        _layered_map_visual(
+            eyebrow="Map",
+            title="Event footprint",
+            body=(
+                "Events should feel situated in the same spatial language as routes, with the "
+                "location and linked ride context visible together."
+            ),
+            layers=[
+                _marker_layer(
+                    label="Event location",
+                    markers=[
+                        _marker_entry(
+                            event.id,
+                            event.type or "event",
+                            event.lat,
+                            event.lon,
+                            title=event.name,
+                        )
+                    ],
+                ),
+                _paths_layer(
+                    label="Linked route",
+                    geometries=[
+                        linked_route.summary_polyline if linked_route is not None else None,
+                        linked_route.full_track if linked_route is not None else None,
+                    ],
+                    markers=[
+                        _marker_entry(
+                            event.id,
+                            event.type or "event",
+                            event.lat,
+                            event.lon,
+                            title=event.name,
+                        ),
+                        _marker_entry(
+                            linked_route.id,
+                            linked_route.type,
+                            linked_route.start_latitude,
+                            linked_route.start_longitude,
+                            title=linked_route.name,
+                        )
+                        if linked_route is not None
+                        else None,
+                    ],
+                ),
+                _paths_layer(
+                    label="Linked activity",
+                    geometries=[
+                        event.activity.summary_polyline if event.activity is not None else None,
+                        event.activity.full_track if event.activity is not None else None,
+                    ],
+                    markers=[
+                        _marker_entry(
+                            event.id,
+                            event.type or "event",
+                            event.lat,
+                            event.lon,
+                            title=event.name,
+                        ),
+                        _marker_entry(
+                            event.activity.id,
+                            event.activity.type,
+                            event.activity.start_latitude,
+                            event.activity.start_longitude,
+                            title=event.activity.name,
+                        )
+                        if event.activity is not None
+                        else None,
+                    ],
+                ),
+            ],
+        )
+    ]
+    return [section for section in sections if section is not None] or None
+
+
+def _calendar_visual_sections(calendar: Calendar) -> list[dict[str, object]] | None:
+    event_markers = [
+        _marker_entry(
+            event.id,
+            event.type or "event",
+            event.lat,
+            event.lon,
+            title=event.name,
+        )
+        for event in calendar.events
+    ]
+    route_geometries: list[str | None] = []
+    for event in calendar.events:
+        if event.route is not None:
+            route_geometries.extend([event.route.summary_polyline, event.route.full_track])
+        if event.activity is not None:
+            route_geometries.extend([event.activity.summary_polyline, event.activity.full_track])
+
+    sections = [
+        _layered_map_visual(
+            eyebrow="Map",
+            title="Calendar footprint",
+            body=(
+                "Calendars should read as spatial programs, not just lists: the upcoming points "
+                "and linked route network live together on the map."
+            ),
+            layers=[
+                _marker_layer(label="Event markers", markers=event_markers),
+                _paths_layer(
+                    label="Route network",
+                    geometries=route_geometries,
+                    markers=event_markers,
+                ),
+            ],
+        )
+    ]
+    return [section for section in sections if section is not None] or None
+
+
+def _calendar_story_sections(calendar: Calendar) -> list[dict[str, object]] | None:
+    sections = [
+        _story_section(
+            "What this calendar holds",
+            eyebrow="Calendar notes",
+            body=calendar.description
+            or (
+                "This calendar anchors a set of events even if a fuller curator note has not "
+                "been written yet."
+            ),
+        ),
+        _story_section(
+            "Program shape",
+            eyebrow="Coverage",
+            items=[
+                ("Primary activity", calendar.primary_activity),
+                ("Type", calendar.type),
+                ("Subtype", calendar.subtype),
+                ("Linked group", calendar.group.name if calendar.group is not None else None),
+                ("Events", len(calendar.events)),
+            ],
+        ),
+    ]
+    return [section for section in sections if section is not None] or None
+
+
 def _event_story_sections(event: Event) -> list[dict[str, object]] | None:
     sections = [
         _story_section(
@@ -4066,7 +4562,9 @@ def _event_related_sections(event: Event) -> list[dict[str, object]] | None:
                     {
                         "eyebrow": "Calendar",
                         "external": False,
-                        "href": None,
+                        "href": url_for(
+                            "core.admin_calendar_detail_route", calendar_id=calendar.id
+                        ),
                         "meta": _join_location(
                             calendar.primary_activity,
                             calendar.type,
@@ -4107,6 +4605,58 @@ def _event_related_sections(event: Event) -> list[dict[str, object]] | None:
                 if participant.user is not None
             ],
         ),
+    ]
+    return [section for section in sections if section is not None] or None
+
+
+def _calendar_related_sections(calendar: Calendar) -> list[dict[str, object]] | None:
+    sections = [
+        _related_section(
+            "Linked group and events",
+            eyebrow="Program",
+            empty_copy="This calendar does not have linked records yet.",
+            items=[
+                *(
+                    [
+                        {
+                            "eyebrow": "Group",
+                            "external": False,
+                            "href": url_for(
+                                "core.admin_group_detail_route", group_id=calendar.group.id
+                            ),
+                            "meta": _join_location(
+                                calendar.group.primary_activity,
+                                _join_location(
+                                    calendar.group.home_town,
+                                    calendar.group.home_state,
+                                    calendar.group.home_country,
+                                ),
+                            ),
+                            "title": calendar.group.name or f"Group {calendar.group.id}",
+                        }
+                    ]
+                    if calendar.group is not None
+                    else []
+                ),
+                *[
+                    {
+                        "eyebrow": "Event",
+                        "external": False,
+                        "href": url_for("core.admin_event_detail_route", event_id=event.id),
+                        "meta": _join_location(
+                            _display_value(event.date_start),
+                            _join_location(event.town, event.state, event.country),
+                        ),
+                        "title": event.name or f"Event {event.id}",
+                    }
+                    for event in sorted(
+                        calendar.events,
+                        key=lambda event: event.date_start
+                        or datetime.min.replace(tzinfo=timezone.utc),
+                    )
+                ],
+            ],
+        )
     ]
     return [section for section in sections if section is not None] or None
 
