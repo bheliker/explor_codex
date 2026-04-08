@@ -251,6 +251,33 @@ This file records session history for `explor_codex` so future work can resume w
 - The next likely browse refinements are marker clustering, deeper side-panel previews, and map-driven highlighting for hovered list items.
 - If full-database search needs to go beyond field matching, the existing `search_document` index is a strong candidate for powering the browse text query.
 
+## 2026-04-08 (Browse Panel Cleanup)
+
+### Investigated
+- Reviewed the public browse control panel after the larger route and segment browser feature work landed.
+- Identified that the left-side browse controls had too many always-visible actions competing at once, especially around search mode, filters, and area jumping.
+
+### Changed
+- Simplified the main browse controls in [templates/public/entity_browser.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/public/entity_browser.html) into a primary search row with a smaller Nearby / Full database mode toggle.
+- Moved lower-frequency controls behind a `More filters` reveal so sort, club, terrain, area jump, and map reset stay available without dominating the panel.
+- Added a `Clear` action and conditional area-match rendering in [static/js/collection_browser.js](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/js/collection_browser.js).
+- Tightened the browse-panel presentation in [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css).
+- Updated page assertions in [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) to match the refined control surface.
+
+### Decisions
+- Keep the most common browse actions visible at all times:
+  - search
+  - browse mode
+  - favorites
+  - event-linked toggle
+- Treat more specific narrowing and map-jump controls as progressive disclosure.
+
+### Why
+- These pages are the main navigation surface, so reducing panel clutter improves scannability and makes the map/list behavior easier to understand.
+
+### Notes for the next session
+- The next UI pass could further simplify result cards or add hover-linked highlighting between list items and map markers.
+
 ## 2026-04-02 (Event Maps, Stats Bar, And Units Migration Repair)
 
 ### Investigated

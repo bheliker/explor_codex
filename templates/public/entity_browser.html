@@ -55,28 +55,34 @@
         <div>
           <p class="landing-eyebrow">Browse {{ collection_label }}</p>
           <h2>Map-first discovery</h2>
+          <p class="browser-controls-note">Search when you know what you want, then open filters only when you need to narrow further.</p>
         </div>
-        <div class="browser-view-toggle">
-          <button
-            class="browser-toggle"
-            type="button"
-            :class="{ 'is-active': view === 'grid' }"
-            @click="view = 'grid'"
-          >
-            Grid
-          </button>
-          <button
-            class="browser-toggle"
-            type="button"
-            :class="{ 'is-active': view === 'list' }"
-            @click="view = 'list'"
-          >
-            List
+        <div class="browser-controls-actions">
+          <div class="browser-view-toggle">
+            <button
+              class="browser-toggle"
+              type="button"
+              :class="{ 'is-active': view === 'grid' }"
+              @click="view = 'grid'"
+            >
+              Grid
+            </button>
+            <button
+              class="browser-toggle"
+              type="button"
+              :class="{ 'is-active': view === 'list' }"
+              @click="view = 'list'"
+            >
+              List
+            </button>
+          </div>
+          <button class="nav-link" type="button" @click="showFilters = !showFilters" :aria-expanded="showFilters ? 'true' : 'false'">
+            <span x-text="showFilters ? 'Hide filters' : 'More filters'"></span>
           </button>
         </div>
       </div>
 
-      <div class="browser-form-grid">
+      <div class="browser-search-shell">
         <label class="field-label">
           Search
           <input
@@ -87,72 +93,65 @@
             placeholder="Search {{ collection_label|lower }}, places, tags, or terrain"
           >
         </label>
-        <label class="field-label">
-          Sort
-          <select x-model="sortKey" @change="offset = 0; fetchItems()">
-            <option value="closest">Closest to me</option>
-            <option value="length">Length</option>
-            <option value="elevation">Elevation gain</option>
-            <option value="duration">Duration</option>
-          </select>
-        </label>
-        <label class="field-label">
-          Club
-          <select x-model="clubId" @change="offset = 0; fetchItems()">
-            <option value="">All clubs</option>
-            <template x-for="club in filterOptions.clubs || []" :key="`club-${club.id}`">
-              <option :value="String(club.id)" x-text="`${club.label} (${club.count})`"></option>
-            </template>
-          </select>
-        </label>
-      </div>
-
-      <div class="browser-form-grid browser-form-grid-secondary">
-        <label class="field-label">
-          Terrain
-          <select x-model="terrain" @change="offset = 0; fetchItems()">
-            <option value="">All terrain</option>
-            <template x-for="terrainOption in filterOptions.terrains || []" :key="`terrain-${terrainOption.value}`">
-              <option :value="terrainOption.value" x-text="`${terrainOption.label} (${terrainOption.count})`"></option>
-            </template>
-          </select>
-        </label>
-        <label class="field-label">
-          Event linkage
-          <select x-model="eventfulOnly" @change="offset = 0; fetchItems()">
-            <option value="false">All {{ collection_label|lower }}</option>
-            <option value="true">With events</option>
-          </select>
-        </label>
-        <label class="field-label">
-          Map loading
-          <div class="browser-inline-status">
-            <span class="pill" x-show="loading">Refreshing map results</span>
-            <span class="pill" x-show="!loading && !query">Tile map + server query active</span>
-            <span class="pill" x-show="!loading && query">Text search is querying the full database</span>
+        <div class="browser-search-actions">
+          <div class="browser-view-toggle">
+            <button class="browser-toggle" type="button" :class="{ 'is-active': mapOnly }" @click="searchMapArea()">
+              Nearby
+            </button>
+            <button class="browser-toggle" type="button" :class="{ 'is-active': !mapOnly }" @click="searchFullDatabase()">
+              Full database
+            </button>
           </div>
-        </label>
+          <button class="choice-chip browser-chip-button" type="button" @click="favoritesOnly = !favoritesOnly; offset = 0; fetchItems()" :class="{ 'is-active': favoritesOnly }">
+            Favorites first
+          </button>
+          <button class="choice-chip browser-chip-button" type="button" @click="eventfulOnly = eventfulOnly === 'true' ? 'false' : 'true'; offset = 0; fetchItems()" :class="{ 'is-active': eventfulOnly === 'true' }">
+            With events
+          </button>
+          <button class="nav-link" type="button" x-show="hasActiveFilters()" @click="clearFilters()">
+            Clear
+          </button>
+        </div>
       </div>
 
-      <div class="browser-chip-row">
-        <button class="choice-chip browser-chip-button" type="button" @click="favoritesOnly = !favoritesOnly; offset = 0; fetchItems()" :class="{ 'is-active': favoritesOnly }">
-          Favorites first
-        </button>
-        <button class="choice-chip browser-chip-button" type="button" @click="mapOnly = !mapOnly; offset = 0; fetchItems()" :class="{ 'is-active': mapOnly }">
-          Map area only
-        </button>
-        <button class="choice-chip browser-chip-button" type="button" @click="searchFullDatabase()">
-          Search full database
-        </button>
-        <button class="choice-chip browser-chip-button" type="button" @click="searchMapArea()">
-          Search map area
-        </button>
-        <button class="choice-chip browser-chip-button" type="button" @click="resetViewport()">
-          Reset map
-        </button>
+      <div class="browser-results-bar browser-results-bar-compact">
+        <span class="pill" x-text="modeLabel()"></span>
+        <span class="pill" x-text="totalLabel()">Showing up to {{ visible_limit }} of {{ total_available }} total {{ collection_label|lower }}</span>
+        <span class="pill" x-show="mapOnly" x-text="viewportLabel()"></span>
       </div>
 
-      <div class="browser-form-grid browser-form-grid-secondary">
+      <div class="browser-filters-shell" x-show="showFilters" x-cloak>
+        <div class="browser-form-grid browser-form-grid-secondary">
+          <label class="field-label">
+            Sort
+            <select x-model="sortKey" @change="offset = 0; fetchItems()">
+              <option value="closest">Closest to me</option>
+              <option value="length">Length</option>
+              <option value="elevation">Elevation gain</option>
+              <option value="duration">Duration</option>
+            </select>
+          </label>
+          <label class="field-label">
+            Club
+            <select x-model="clubId" @change="offset = 0; fetchItems()">
+              <option value="">All clubs</option>
+              <template x-for="club in filterOptions.clubs || []" :key="`club-${club.id}`">
+                <option :value="String(club.id)" x-text="`${club.label} (${club.count})`"></option>
+              </template>
+            </select>
+          </label>
+          <label class="field-label">
+            Terrain
+            <select x-model="terrain" @change="offset = 0; fetchItems()">
+              <option value="">All terrain</option>
+              <template x-for="terrainOption in filterOptions.terrains || []" :key="`terrain-${terrainOption.value}`">
+                <option :value="terrainOption.value" x-text="`${terrainOption.label} (${terrainOption.count})`"></option>
+              </template>
+            </select>
+          </label>
+        </div>
+
+        <div class="browser-form-grid browser-form-grid-secondary browser-area-search-shell">
         <label class="field-label">
           Area Search
           <input
@@ -164,14 +163,17 @@
           >
         </label>
         <div class="field-label browser-area-actions">
-          <span>Area actions</span>
+          <span>Map actions</span>
           <div class="browser-inline-status">
             <button class="nav-link" type="button" @click="jumpToFirstAreaResult()" :disabled="!(areaResults.length)">
               Jump to first match
             </button>
+            <button class="nav-link" type="button" @click="resetViewport()">
+              Reset map
+            </button>
           </div>
         </div>
-        <div class="field-label browser-area-results">
+        <div class="field-label browser-area-results" x-show="areaQuery.length >= 2">
           <span>Matches</span>
           <div class="browser-area-chip-row">
             <template x-for="area in areaResults" :key="area.label">
@@ -179,14 +181,15 @@
                 <span x-text="`${area.label} (${area.count})`"></span>
               </button>
             </template>
+            <span class="pill" x-show="areaQuery.length >= 2 && areaResults.length === 0 && !loading">No area matches yet</span>
           </div>
         </div>
+      </div>
       </div>
 
       <div class="browser-results-bar">
         <span class="pill" x-text="resultsLabel()"></span>
         <span class="pill" x-text="focusLabel()"></span>
-        <span class="pill" x-text="totalLabel()">Showing up to {{ visible_limit }} of {{ total_available }} total {{ collection_label|lower }}</span>
       </div>
 
       <div class="browser-pagination-row">

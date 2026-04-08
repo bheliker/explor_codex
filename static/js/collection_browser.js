@@ -25,6 +25,7 @@ function collectionBrowser(config) {
     query: "",
     ready: false,
     selectedItemId: null,
+    showFilters: false,
     sortKey: "closest",
     suppressMapMoveFetch: false,
     terrain: "",
@@ -82,6 +83,12 @@ function collectionBrowser(config) {
         this.map.setView([this.focus.lat, this.focus.lng], 10);
       }
 
+      window.requestAnimationFrame(() => {
+        if (this.map) {
+          this.map.invalidateSize(false);
+        }
+      });
+
       this.map.on("moveend zoomend", () => {
         if (this.suppressMapMoveFetch) {
           this.suppressMapMoveFetch = false;
@@ -110,6 +117,27 @@ function collectionBrowser(config) {
 
     totalLabel() {
       return `${this.items.length} of ${this.totalMatching} matching ${this.collectionLabel.toLowerCase()} loaded`;
+    },
+
+    modeLabel() {
+      if (this.loading) {
+        return "Refreshing results";
+      }
+      if (this.query.trim()) {
+        return "Full-database text search";
+      }
+      return this.mapOnly ? "Map area search" : "Full-database browse";
+    },
+
+    hasActiveFilters() {
+      return Boolean(
+        this.query.trim() ||
+          this.clubId ||
+          this.terrain ||
+          this.eventfulOnly === "true" ||
+          this.favoritesOnly ||
+          !this.mapOnly,
+      );
     },
 
     canPageBack() {
@@ -175,6 +203,17 @@ function collectionBrowser(config) {
     },
 
     searchMapArea() {
+      this.mapOnly = true;
+      this.offset = 0;
+      this.fetchItems();
+    },
+
+    clearFilters() {
+      this.query = "";
+      this.clubId = "";
+      this.terrain = "";
+      this.eventfulOnly = "false";
+      this.favoritesOnly = false;
       this.mapOnly = true;
       this.offset = 0;
       this.fetchItems();

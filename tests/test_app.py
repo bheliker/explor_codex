@@ -169,9 +169,9 @@ def test_public_routes_route_renders_browser_page(
     html = response.get_data(as_text=True)
     assert "Browse routes with the map and list moving together." in html
     assert "Mt. Tam North Loop" in html
-    assert "Search map area" in html
-    assert "Search full database" in html
-    assert "Area Search" in html
+    assert "Nearby" in html
+    assert "Full database" in html
+    assert "More filters" in html
     assert "/segments" in html
     assert "Showing up to 30 of" in html
 
