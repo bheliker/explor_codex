@@ -1,3 +1,7 @@
+/* ========================================================================== */
+/* Design Tokens                                                               */
+/* Change these variables first when adjusting palette, radii, or shadow tone. */
+/* ========================================================================== */
 :root {
   --bg: #dfe7f1;
   --bg-deep: #cfd9e7;
@@ -23,6 +27,7 @@
   --radius-md: 18px;
 }
 
+/* Base document defaults. */
 * {
   box-sizing: border-box;
 }
@@ -56,6 +61,7 @@ textarea {
   font: inherit;
 }
 
+/* Ambient background + shared page shell. */
 .page-glow {
   position: fixed;
   width: 24rem;
@@ -87,6 +93,9 @@ textarea {
   padding: 26px 20px 60px;
 }
 
+/* ========================================================================== */
+/* Global navigation and shared controls                                       */
+/* ========================================================================== */
 .topbar {
   display: flex;
   flex-wrap: wrap;
@@ -208,6 +217,10 @@ textarea {
   color: #7d2020;
 }
 
+/* ========================================================================== */
+/* Hero surfaces                                                               */
+/* If product voice changes, start with `.hero`, `.eyebrow`, and `h1`.        */
+/* ========================================================================== */
 .hero {
   position: relative;
   overflow: hidden;
@@ -402,6 +415,7 @@ h1 {
   min-width: 0;
 }
 
+/* Shared panel/card shell used across public and admin pages. */
 .panel {
   padding: 24px;
   border: 1px solid rgba(255, 255, 255, 0.56);

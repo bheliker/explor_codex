@@ -3,6 +3,7 @@
 {% block title %}{{ collection_label }} | explor_codex{% endblock %}
 
 {% block extra_head %}
+  {# Leaflet assets only load on browser pages that need the interactive map. #}
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -12,6 +13,9 @@
 {% endblock %}
 
 {% block body %}
+  <!-- Browser hero begins.
+       `hero_*`, `summary_stats`, and `collection_*` are route-supplied so this template can be reused
+       for routes, segments, and future browse surfaces without changing the structure. -->
   <section class="hero browser-hero">
     <div class="hero-grid browser-hero-grid">
       <div>
@@ -43,13 +47,18 @@
       </div>
     </div>
   </section>
+  <!-- Browser hero ends. -->
 
+  <!-- Interactive browser shell begins.
+       Alpine is seeded from `window.__collectionBrowserData[collection_key]` in the scripts block. -->
   <section
     id="{{ collection_key }}-browse"
     class="browser-shell"
     x-data="collectionBrowser(window.__collectionBrowserData['{{ collection_key }}'])"
     x-init="init()"
   >
+    <!-- Control rail begins.
+         Keep search, filters, and pagination here; reserve the right side for the map. -->
     <div class="browser-panel browser-controls">
       <div class="browser-controls-head">
         <div>
@@ -82,6 +91,8 @@
         </div>
       </div>
 
+      <!-- Search controls begin.
+           `mapOnly` toggles between viewport-limited browsing and full-database querying. -->
       <div class="browser-search-shell">
         <label class="field-label">
           Search
@@ -113,13 +124,18 @@
           </button>
         </div>
       </div>
+      <!-- Search controls end. -->
 
+      <!-- Compact status row begins. -->
       <div class="browser-results-bar browser-results-bar-compact">
         <span class="pill" x-text="modeLabel()"></span>
         <span class="pill" x-text="totalLabel()">Showing up to {{ visible_limit }} of {{ total_available }} total {{ collection_label|lower }}</span>
         <span class="pill" x-show="mapOnly" x-text="viewportLabel()"></span>
       </div>
+      <!-- Compact status row ends. -->
 
+      <!-- Expandable filter stack begins.
+           Most select options are fed from `filterOptions` returned by the browser API. -->
       <div class="browser-filters-shell" x-show="showFilters" x-cloak>
         <div class="browser-form-grid browser-form-grid-secondary">
           <label class="field-label">
@@ -151,47 +167,54 @@
           </label>
         </div>
 
+        <!-- Area search sub-block begins.
+             This is the easiest place to modify "jump map to a place" behavior. -->
         <div class="browser-form-grid browser-form-grid-secondary browser-area-search-shell">
-        <label class="field-label">
-          Area Search
-          <input
-            type="search"
-            x-model.trim="areaQuery"
-            @input="scheduleAreaSearch()"
-            @keydown.enter.prevent="jumpToFirstAreaResult()"
-            placeholder="Move to another city or state"
-          >
-        </label>
-        <div class="field-label browser-area-actions">
-          <span>Map actions</span>
-          <div class="browser-inline-status">
-            <button class="nav-link" type="button" @click="jumpToFirstAreaResult()" :disabled="!(areaResults.length)">
-              Jump to first match
-            </button>
-            <button class="nav-link" type="button" @click="resetViewport()">
-              Reset map
-            </button>
-          </div>
-        </div>
-        <div class="field-label browser-area-results" x-show="areaQuery.length >= 2">
-          <span>Matches</span>
-          <div class="browser-area-chip-row">
-            <template x-for="area in areaResults" :key="area.label">
-              <button class="choice-chip browser-chip-button browser-area-chip" type="button" @click="jumpToArea(area)">
-                <span x-text="`${area.label} (${area.count})`"></span>
+          <label class="field-label">
+            Area Search
+            <input
+              type="search"
+              x-model.trim="areaQuery"
+              @input="scheduleAreaSearch()"
+              @keydown.enter.prevent="jumpToFirstAreaResult()"
+              placeholder="Move to another city or state"
+            >
+          </label>
+          <div class="field-label browser-area-actions">
+            <span>Map actions</span>
+            <div class="browser-inline-status">
+              <button class="nav-link" type="button" @click="jumpToFirstAreaResult()" :disabled="!(areaResults.length)">
+                Jump to first match
               </button>
-            </template>
-            <span class="pill" x-show="areaQuery.length >= 2 && areaResults.length === 0 && !loading">No area matches yet</span>
+              <button class="nav-link" type="button" @click="resetViewport()">
+                Reset map
+              </button>
+            </div>
+          </div>
+          <div class="field-label browser-area-results" x-show="areaQuery.length >= 2">
+            <span>Matches</span>
+            <div class="browser-area-chip-row">
+              <template x-for="area in areaResults" :key="area.label">
+                <button class="choice-chip browser-chip-button browser-area-chip" type="button" @click="jumpToArea(area)">
+                  <span x-text="`${area.label} (${area.count})`"></span>
+                </button>
+              </template>
+              <span class="pill" x-show="areaQuery.length >= 2 && areaResults.length === 0 && !loading">No area matches yet</span>
+            </div>
           </div>
         </div>
+        <!-- Area search sub-block ends. -->
       </div>
-      </div>
+      <!-- Expandable filter stack ends. -->
 
+      <!-- Secondary status row begins. -->
       <div class="browser-results-bar">
         <span class="pill" x-text="resultsLabel()"></span>
         <span class="pill" x-text="focusLabel()"></span>
       </div>
+      <!-- Secondary status row ends. -->
 
+      <!-- Pagination controls begin. -->
       <div class="browser-pagination-row">
         <button class="nav-link" type="button" @click="previousPage()" :disabled="!canPageBack()">
           <span x-text="`Previous ${limit}`"></span>
@@ -203,7 +226,10 @@
           <span x-text="`Next ${limit}`"></span>
         </button>
       </div>
+      <!-- Pagination controls end. -->
 
+      <!-- Result list begins.
+           Server HTML provides the first render; Alpine swaps in live results once ready. -->
       <div class="browser-results" :class="view">
         <div class="browser-fallback-grid" x-show="!ready">
           {% for item in server_items %}
@@ -291,8 +317,12 @@
           </template>
         </div>
       </div>
+      <!-- Result list ends. -->
     </div>
+    <!-- Control rail ends. -->
 
+    <!-- Map panel begins.
+         Sticky sizing and tile styling are controlled in CSS and `collection_browser.js`. -->
     <aside class="browser-panel browser-map-panel">
       <div class="browser-map-head">
         <div>
@@ -311,10 +341,16 @@
         <div class="browser-leaflet-map" x-ref="map"></div>
       </div>
     </aside>
+    <!-- Map panel ends. -->
   </section>
+  <!-- Interactive browser shell ends. -->
 {% endblock %}
 
 {% block scripts %}
+  {# Page script setup:
+     1. Load Leaflet
+     2. Seed page data
+     3. Boot the shared browser controller #}
   <script
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
