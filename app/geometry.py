@@ -6,7 +6,7 @@ from typing import Any
 from geoalchemy2 import Geometry
 from geoalchemy2.elements import WKBElement
 from shapely import to_geojson, to_wkt
-from shapely.geometry import shape
+from shapely.geometry import MultiLineString, shape
 from shapely.wkt import loads as load_wkt
 from sqlalchemy import Text, func, select
 from sqlalchemy.engine.interfaces import Dialect
@@ -30,11 +30,11 @@ class GeometryType(TypeDecorator[object]):
 
 
 def linestring_type() -> GeometryType:
-    return GeometryType("LINESTRING")
+    return GeometryType("GEOMETRY")
 
 
 def linestring_z_type() -> GeometryType:
-    return GeometryType("LINESTRINGZ")
+    return GeometryType("GEOMETRYZ")
 
 
 def point_type() -> GeometryType:
@@ -115,12 +115,7 @@ def point_coordinates(value: str | None) -> tuple[float, float] | None:
 
 def _geojson_text_to_wkt(value: str) -> str:
     payload = json.loads(value)
-    geometry_payload = payload["geometry"] if payload.get("type") == "Feature" else payload
-    geometry = shape(geometry_payload)
-    if geometry.geom_type != "LineString":
-        raise ValueError("Only LineString geometry is supported")
-    if geometry.is_empty:
-        raise ValueError("LineString coordinates are required")
+    geometry = _lineal_geometry_from_payload(payload)
     return to_wkt(geometry, rounding_precision=-1)
 
 
@@ -137,8 +132,9 @@ def _geojson_text_to_point_wkt(value: str) -> str:
 
 def _wkt_to_geojson_text(value: str) -> str:
     geometry = load_wkt(value)
-    if geometry.geom_type != "LineString":
-        raise ValueError("Only LINESTRING WKT is supported")
+    allowed_types = ("LineString", "MultiLineString")
+    if geometry.geom_type not in allowed_types:
+        raise ValueError(f"Only {', '.join(allowed_types)} WKT is supported")
     payload = json.loads(to_geojson(geometry))
     return json.dumps(_normalize_numbers(payload), separators=(",", ":"))
 
@@ -159,3 +155,42 @@ def _normalize_numbers(value: Any) -> Any:
     if isinstance(value, float) and value.is_integer():
         return int(value)
     return value
+
+
+def _lineal_geometry_from_payload(payload: Any) -> Any:
+    payload_type = payload.get("type") if isinstance(payload, dict) else None
+    if payload_type == "FeatureCollection":
+        features = payload.get("features", [])
+        if not isinstance(features, list) or not features:
+            raise ValueError("FeatureCollection is empty")
+        line_geometries: list[Any] = []
+        for feature in features:
+            line_geometries.extend(_line_components(_lineal_geometry_from_payload(feature)))
+        return _merge_line_components(line_geometries)
+
+    geometry_payload = payload["geometry"] if payload_type == "Feature" else payload
+    geometry = shape(geometry_payload)
+    allowed_types = ("LineString", "MultiLineString")
+    if geometry.geom_type not in allowed_types:
+        raise ValueError(f"Only {', '.join(allowed_types)} geometry is supported")
+    if geometry.is_empty:
+        raise ValueError(f"{geometry.geom_type} coordinates are required")
+    return geometry
+
+
+def _line_components(geometry: Any) -> list[Any]:
+    if geometry.geom_type == "LineString":
+        return [geometry]
+    if geometry.geom_type == "MultiLineString":
+        return list(geometry.geoms)
+    raise ValueError(
+        f"Only LineString and MultiLineString geometry is supported, got {geometry.geom_type}"
+    )
+
+
+def _merge_line_components(geometries: list[Any]) -> Any:
+    if not geometries:
+        raise ValueError("FeatureCollection is empty")
+    if len(geometries) == 1:
+        return geometries[0]
+    return MultiLineString(geometries)

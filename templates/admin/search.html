@@ -3,6 +3,8 @@
 {% block title %}Search Console | explor_codex{% endblock %}
 
 {% block body %}
+  <!-- Search hero begins.
+       These summary cards are route-driven and safe to tune without touching result markup. -->
   <section class="hero">
     <div class="hero-grid">
       <div>
@@ -34,8 +36,11 @@
       </div>
     </div>
   </section>
+  <!-- Search hero ends. -->
 
   <section class="grid">
+    <!-- Query form begins.
+         Add/remove filters by changing route parsing and the `entity_types` list together. -->
     <form class="panel stack" method="get" action="{{ url_for('core.admin_search_route') }}">
       <h2>Query</h2>
       <label class="field-label">
@@ -69,7 +74,10 @@
       </div>
       <button class="button button-primary" type="submit">Search</button>
     </form>
+    <!-- Query form ends. -->
 
+    <!-- Result surface begins.
+         Result metadata is normalized in route helpers, so display-field changes usually start there. -->
     <section class="panel">
       <div class="summary">
         <span class="pill">{{ total_documents }} indexed documents</span>
@@ -120,5 +128,6 @@
         <div class="empty">Start with a name, place, description fragment, or tag.</div>
       {% endif %}
     </section>
+    <!-- Result surface ends. -->
   </section>
 {% endblock %}

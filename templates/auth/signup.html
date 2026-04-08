@@ -29,6 +29,7 @@
     </aside>
 
     <form class="panel stack" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <h2>Profile</h2>
       <label class="field-label">
         Username

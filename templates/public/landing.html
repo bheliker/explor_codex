@@ -3,6 +3,11 @@
 {% block title %}explor_codex | Landing{% endblock %}
 
 {% block body %}
+  <!-- Landing hero begins.
+       Route variables:
+       - `stats` controls the small count cards
+       - auth state controls CTA variations
+       Most copy changes can happen here without touching shared layout CSS. -->
   <section class="hero">
     <div class="hero-grid">
       <div>
@@ -37,7 +42,10 @@
       </div>
     </div>
   </section>
+  <!-- Landing hero ends. -->
 
+  <!-- Feature card section begins.
+       Add/remove cards by changing `feature_cards` in the route, not by duplicating markup. -->
   <section class="landing-section panel">
     <h2>Start Simple</h2>
     <div class="landing-grid collection-grid">
@@ -50,7 +58,10 @@
       {% endfor %}
     </div>
   </section>
+  <!-- Feature card section ends. -->
 
+  <!-- Media strip begins.
+       Swap imagery/captions here; sizing/overlay behavior live in CSS. -->
   <section class="landing-section media-strip">
     <article class="media-frame">
       <img src="{{ url_for('static', filename='images/discovery.jpg') }}" alt="Discovery concept ride imagery">
@@ -81,7 +92,9 @@
       </div>
     </article>
   </section>
+  <!-- Media strip ends. -->
 
+  <!-- Closing narrative / CTA section begins. -->
   <section class="landing-section story-grid">
     <article class="panel">
       <h2>Go Further</h2>
@@ -120,4 +133,5 @@
       </div>
     </article>
   </section>
+  <!-- Closing narrative / CTA section ends. -->
 {% endblock %}

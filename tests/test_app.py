@@ -135,6 +135,298 @@ def test_public_discover_route_renders_results(
     assert "Log in to inspect" in html
 
 
+def test_public_routes_route_renders_browser_page(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        group = Group(name="Marin Dirt Collective", shortname="marin-dirt-collective")
+        route = Route(
+            name="Mt. Tam North Loop",
+            desc="Big mixed-terrain route with ocean views and fire-road climbing.",
+            tags=["favorite", "gravel"],
+            type="ride",
+            subtype="mixed terrain",
+            length=68400.0,
+            elevation_gain=1580.0,
+            duration=245.0,
+            city="Mill Valley",
+            state="CA",
+            country="USA",
+            start_latitude=37.906,
+            start_longitude=-122.596,
+            end_latitude=37.929,
+            end_longitude=-122.629,
+        )
+        route.groups.append(group)
+        event = Event(name="Saturday Tam Rollout", route=route)
+        db.session.add_all([group, route, event])
+        db.session.commit()
+
+    response = client.get("/routes")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Browse routes with the map and list moving together." in html
+    assert "Mt. Tam North Loop" in html
+    assert "Nearby" in html
+    assert "Full database" in html
+    assert "More filters" in html
+    assert "/segments" in html
+    assert "Showing up to 30 of" in html
+
+
+def test_public_segments_route_renders_browser_page(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        route = Route(name="Skyline Route")
+        segment = Segment(
+            name="West Ridge Kick",
+            desc="Short but decisive climb that shapes the rest of the day.",
+            tags=["featured", "climb"],
+            type="climb",
+            subtype="ridge",
+            length=4200.0,
+            elevation_gain=410.0,
+            duration=28.0,
+            start_latitude=37.401,
+            start_longitude=-122.201,
+            end_latitude=37.418,
+            end_longitude=-122.188,
+        )
+        segment.routes.append(route)
+        db.session.add_all([route, segment])
+        db.session.commit()
+
+    response = client.get("/segments")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Browse segments like the defining efforts they are." in html
+    assert "West Ridge Kick" in html
+    assert "Map-first discovery" in html
+    assert "Routes" in html
+
+
+def test_public_routes_route_caps_payload_to_thirty_records(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        for index in range(35):
+            db.session.add(
+                Route(
+                    name=f"Route {index}",
+                    start_latitude=37.0 + index / 1000,
+                    start_longitude=-122.0 - index / 1000,
+                )
+            )
+        db.session.commit()
+
+    response = client.get("/routes")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Showing up to 30 of 35 total routes" in html
+    assert "Route 34" in html
+    assert "Route 5" in html
+    assert "Route 4" not in html
+    assert "Route 0" not in html
+
+
+def test_public_route_browser_api_filters_by_viewport_club_event_and_terrain(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        target_group = Group(name="Target Club", shortname="target-club")
+        other_group = Group(name="Other Club", shortname="other-club")
+        target_route = Route(
+            name="Marin Gravel Ribbon",
+            tags=["favorite", "gravel"],
+            type="ride",
+            subtype="gravel",
+            start_latitude=37.90,
+            start_longitude=-122.60,
+            end_latitude=37.94,
+            end_longitude=-122.56,
+            summary_polyline='{"type":"LineString","coordinates":[[-122.60,37.90],[-122.56,37.94]]}',
+        )
+        target_route.groups.append(target_group)
+        other_route = Route(
+            name="Road Spin",
+            tags=["road"],
+            type="ride",
+            subtype="road",
+            start_latitude=37.70,
+            start_longitude=-122.40,
+            end_latitude=37.72,
+            end_longitude=-122.36,
+            summary_polyline='{"type":"LineString","coordinates":[[-122.40,37.70],[-122.36,37.72]]}',
+        )
+        other_route.groups.append(other_group)
+        db.session.add_all(
+            [
+                target_group,
+                other_group,
+                target_route,
+                other_route,
+                Event(name="Club Rollout", route=target_route),
+            ]
+        )
+        db.session.commit()
+        group_id = target_group.id
+
+    response = client.get(
+        f"/api/browser/routes?club_id={group_id}&eventful_only=true&terrain=gravel"
+        "&min_lat=37.85&max_lat=37.96&min_lng=-122.65&max_lng=-122.50&limit=20"
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["total_matching"] == 1
+    assert [item["title"] for item in payload["items"]] == ["Marin Gravel Ribbon"]
+
+
+def test_public_segment_browser_api_filters_by_viewport_club_event_and_terrain(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        group = Group(name="Segment Club", shortname="segment-club")
+        route = Route(name="Cliff Road")
+        route.groups.append(group)
+        event = Event(name="Cliff Day", route=route)
+        target_segment = Segment(
+            name="West Ridge Wall",
+            tags=["featured", "climb"],
+            type="climb",
+            subtype="ridge",
+            start_latitude=37.50,
+            start_longitude=-122.30,
+            end_latitude=37.52,
+            end_longitude=-122.28,
+            summary_polyline='{"type":"LineString","coordinates":[[-122.30,37.50],[-122.28,37.52]]}',
+        )
+        target_segment.routes.append(route)
+        other_segment = Segment(
+            name="Valley Drag",
+            tags=["flat"],
+            type="road",
+            subtype="valley",
+            start_latitude=36.90,
+            start_longitude=-121.90,
+            end_latitude=36.92,
+            end_longitude=-121.88,
+            summary_polyline='{"type":"LineString","coordinates":[[-121.90,36.90],[-121.88,36.92]]}',
+        )
+        db.session.add_all([group, route, event, target_segment, other_segment])
+        db.session.commit()
+        group_id = group.id
+
+    response = client.get(
+        f"/api/browser/segments?club_id={group_id}&eventful_only=true&terrain=ridge"
+        "&min_lat=37.45&max_lat=37.55&min_lng=-122.35&max_lng=-122.20&limit=20"
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["total_matching"] == 1
+    assert [item["title"] for item in payload["items"]] == ["West Ridge Wall"]
+
+
+def test_public_route_browser_api_supports_offset_pagination(
+    app: Flask,
+    client: FlaskClient,
+    database: None,
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        for index in range(6):
+            db.session.add(
+                Route(
+                    name=f"Paged Route {index}",
+                    start_latitude=37.70 + index / 1000,
+                    start_longitude=-122.40 - index / 1000,
+                    summary_polyline=(
+                        '{"type":"LineString","coordinates":[[-122.40,37.70],[-122.39,37.71]]}'
+                    ),
+                )
+            )
+        db.session.commit()
+
+    response = client.get("/api/browser/routes?limit=2&offset=2&sort=length")
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["limit"] == 2
+    assert payload["offset"] == 2
+    assert len(payload["items"]) == 2
+
+
+def test_public_browser_area_search_returns_matching_locations(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        db.session.add(
+            Route(
+                name="Capital Loop",
+                city="Sacramento",
+                state="CA",
+                country="USA",
+                start_latitude=38.57,
+                start_longitude=-121.49,
+                end_latitude=38.59,
+                end_longitude=-121.45,
+            )
+        )
+        db.session.add(
+            Event(
+                name="Cap City Ride",
+                town="Sacramento",
+                state="CA",
+                country="USA",
+                lat=38.58,
+                lon=-121.48,
+            )
+        )
+        db.session.commit()
+
+    response = client.get("/api/browser/areas?q=sacra")
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["items"]
+    assert payload["items"][0]["label"] == "Sacramento, CA, USA"
+
+
+def test_public_routes_route_hides_zero_club_and_event_counts(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        db.session.add(
+            Route(
+                name="Solo Route",
+                start_latitude=37.8,
+                start_longitude=-122.4,
+                end_latitude=37.81,
+                end_longitude=-122.39,
+            )
+        )
+        db.session.commit()
+
+    response = client.get("/routes")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "0 clubs" not in html
+    assert "0 events" not in html
+
+
 def test_palette_route_renders_token_table(client: FlaskClient, database: None) -> None:
     response = client.get("/palette")
 
@@ -156,6 +448,52 @@ def test_app_registers_sqlalchemy_extension(app: Flask) -> None:
 
 def test_test_config_uses_in_memory_sqlite() -> None:
     assert TestConfig.SQLALCHEMY_DATABASE_URI == "sqlite+pysqlite:///:memory:"
+
+
+def test_test_config_disables_csrf() -> None:
+    assert TestConfig.WTF_CSRF_ENABLED is False
+
+
+def test_auth_forms_render_csrf_tokens(client: FlaskClient, database: None) -> None:
+    login_response = client.get("/auth/login")
+    signup_response = client.get("/auth/signup")
+
+    assert login_response.status_code == 200
+    assert signup_response.status_code == 200
+    assert 'name="csrf_token"' in login_response.get_data(as_text=True)
+    assert 'name="csrf_token"' in signup_response.get_data(as_text=True)
+
+
+def test_admin_edit_form_and_logout_render_csrf_tokens(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        group = Group(name="CSRF Club", shortname="csrf-club")
+        db.session.add(group)
+        db.session.commit()
+        group_id = group.id
+
+    edit_response = admin_client.get(f"/admin/groups/{group_id}/edit")
+    dashboard_response = admin_client.get("/admin")
+
+    assert edit_response.status_code == 200
+    assert dashboard_response.status_code == 200
+    assert 'name="csrf_token"' in edit_response.get_data(as_text=True)
+    assert 'name="csrf_token"' in dashboard_response.get_data(as_text=True)
+
+
+def test_json_api_routes_remain_usable_when_csrf_is_enabled(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
+    app.config["WTF_CSRF_ENABLED"] = True
+
+    response = admin_client.post("/api/search/reindex", json={})
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload is not None
+    assert "indexed" in payload
 
 
 def test_config_normalizes_legacy_postgres_url() -> None:
@@ -2886,7 +3224,7 @@ def test_admin_segment_detail_page_renders_full_record(
     assert "Canopy switchback" in html
 
 
-def test_admin_route_detail_page_keeps_stats_slots_when_values_are_missing(
+def test_admin_route_detail_page_skips_blank_stats_when_values_are_missing(
     app: Flask, admin_client: FlaskClient, database: None
 ) -> None:
     with app.app_context():
@@ -2908,9 +3246,61 @@ def test_admin_route_detail_page_keeps_stats_slots_when_values_are_missing(
     assert response.status_code == 200
     html = response.get_data(as_text=True)
 
-    assert "Rating" in html
-    assert "Grade" in html
-    assert html.count("--") >= 2
+    assert "Rating" not in html
+    assert "Grade" not in html
+    assert "Distance" in html
+    assert "Duration" in html
+    assert "Elevation" in html
+
+
+def test_to_storage_geometry_preserves_feature_collection_linework() -> None:
+    from app.geometry import to_storage_geometry
+
+    value = (
+        '{"type":"FeatureCollection","features":['
+        '{"type":"Feature","geometry":{"type":"LineString","coordinates":[[-122.1,37.1],[-122.2,37.2]]}},'
+        '{"type":"Feature","geometry":{"type":"LineString","coordinates":[[-122.3,37.3],[-122.4,37.4]]}}'
+        "]}"
+    )
+
+    stored = to_storage_geometry(value)
+
+    assert stored is not None
+    assert stored.startswith("MULTILINESTRING")
+    assert "-122.1 37.1" in stored
+    assert "-122.4 37.4" in stored
+
+
+def test_leaflet_latlngs_keep_multiline_parts_separate() -> None:
+    from app.routes import _leaflet_latlngs
+
+    value = (
+        '{"type":"MultiLineString","coordinates":['
+        "[[-122.1,37.1],[-122.2,37.2]],"
+        "[[-122.3,37.3],[-122.4,37.4]]"
+        "]}"
+    )
+
+    latlngs = _leaflet_latlngs(value)
+
+    assert latlngs == [
+        [[37.1, -122.1], [37.2, -122.2]],
+        [[37.3, -122.3], [37.4, -122.4]],
+    ]
+
+
+def test_browser_line_geometry_keeps_multiline_shape() -> None:
+    from app.routes import _browser_line_geometry
+
+    geometry = _browser_line_geometry(
+        '{"type":"MultiLineString","coordinates":['
+        "[[-122.1,37.1],[-122.2,37.2]],"
+        "[[-122.3,37.3],[-122.4,37.4]]"
+        "]}",
+    )
+
+    assert geometry is not None
+    assert geometry["type"] == "MultiLineString"
 
 
 def test_admin_event_detail_page_renders_full_record(

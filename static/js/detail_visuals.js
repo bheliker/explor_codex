@@ -133,30 +133,39 @@ function initLeafletVisual(container) {
 
   L.tileLayer(EXPLOR_TILE_URL, { subdomains: EXPLOR_TILE_SUBDOMAINS }).addTo(map);
 
-  let currentLayerGroup = null;
+  let currentPolyline = null;
+  let currentMarker = null;
+
+  function polylineParts(latlngs) {
+    if (!Array.isArray(latlngs) || latlngs.length === 0) {
+      return [];
+    }
+    if (Array.isArray(latlngs[0]) && typeof latlngs[0][0] === "number") {
+      return [latlngs];
+    }
+    return latlngs.filter(
+      (part) =>
+        Array.isArray(part) &&
+        part.length > 0 &&
+        Array.isArray(part[0]) &&
+        typeof part[0][0] === "number",
+    );
+  }
 
   function layerHasVisibleDistance(layer) {
-    const paths = Array.isArray(layer?.paths)
-      ? layer.paths
-      : Array.isArray(layer?.latlngs)
-        ? [layer.latlngs]
-        : [];
-    if (paths.length === 0) {
+    const parts = polylineParts(layer?.latlngs);
+    const flatPoints = parts.flat();
+    if (flatPoints.length < 2) {
       return false;
     }
-    return paths.some((path) => {
-      if (!Array.isArray(path) || path.length < 2) {
-        return false;
-      }
-      const uniquePoints = new Set(
-        path.map((point) =>
-          Array.isArray(point) && point.length >= 2
-            ? `${Number(point[0]).toFixed(5)},${Number(point[1]).toFixed(5)}`
-            : "",
-        ),
-      );
-      return uniquePoints.size > 1;
-    });
+    const uniquePoints = new Set(
+      flatPoints.map((point) =>
+        Array.isArray(point) && point.length >= 2
+          ? `${Number(point[0]).toFixed(5)},${Number(point[1]).toFixed(5)}`
+          : "",
+      ),
+    );
+    return uniquePoints.size > 1;
   }
 
   function defaultLayerIndex() {
@@ -176,60 +185,32 @@ function initLeafletVisual(container) {
   }
 
   function showLayer(index) {
-    if (currentLayerGroup && map.hasLayer(currentLayerGroup)) {
-      map.removeLayer(currentLayerGroup);
+    if (currentPolyline && map.hasLayer(currentPolyline)) {
+      map.removeLayer(currentPolyline);
     }
-    currentLayerGroup = L.featureGroup().addTo(map);
+    if (currentMarker && map.hasLayer(currentMarker)) {
+      map.removeLayer(currentMarker);
+    }
+    currentPolyline = null;
+    currentMarker = null;
 
     const layer = config.layers[index];
-    const paths = Array.isArray(layer?.paths)
-      ? layer.paths
-      : Array.isArray(layer?.latlngs)
-        ? [layer.latlngs]
-        : [];
-    paths.forEach((path) => {
-      if (!Array.isArray(path) || path.length < 2) {
-        return;
-      }
-      L.polyline(path, {
+    if (layerHasVisibleDistance(layer)) {
+      currentPolyline = L.polyline(polylineParts(layer.latlngs), {
         color: index === 0 ? "#ff5a1f" : "#71b8ff",
         opacity: 0.96,
         weight: 6,
         lineCap: "round",
         lineJoin: "round",
-      }).addTo(currentLayerGroup);
-    });
-
-    const layerMarkers = Array.isArray(layer?.markers) ? layer.markers : [];
-    layerMarkers.forEach((marker) => {
-      if (!Array.isArray(marker?.latlng)) {
-        return;
-      }
-      L.marker(marker.latlng, {
-        icon: generateDivIcon(marker.entity_id, marker.entity_type),
-      }).addTo(currentLayerGroup);
-    });
-
-    if (
-      layerMarkers.length === 0 &&
-      config.marker &&
-      Array.isArray(config.marker.latlng)
-    ) {
-      L.marker(config.marker.latlng, {
-        icon: generateDivIcon(config.marker.entity_id, config.marker.entity_type),
-      }).addTo(currentLayerGroup);
+      }).addTo(map);
+      map.fitBounds(currentPolyline.getBounds(), { padding: [20, 20] });
     }
 
-    if (currentLayerGroup.getLayers().length > 0) {
-      const bounds = currentLayerGroup.getBounds();
-      if (bounds.isValid()) {
-        map.fitBounds(bounds, { padding: [20, 20] });
-      }
-    } else if (config.marker && Array.isArray(config.marker.latlng)) {
-      L.marker(config.marker.latlng, {
+    if (config.marker && Array.isArray(config.marker.latlng)) {
+      currentMarker = L.marker(config.marker.latlng, {
         icon: generateDivIcon(config.marker.entity_id, config.marker.entity_type),
-      }).addTo(currentLayerGroup);
-      if (currentLayerGroup.getLayers().length === 1) {
+      }).addTo(map);
+      if (!currentPolyline) {
         map.setView(config.marker.latlng, 11);
       }
     }
@@ -237,11 +218,8 @@ function initLeafletVisual(container) {
     setActiveButton(index);
     window.requestAnimationFrame(() => {
       map.invalidateSize();
-      if (currentLayerGroup && currentLayerGroup.getLayers().length > 0) {
-        const bounds = currentLayerGroup.getBounds();
-        if (bounds.isValid()) {
-          map.fitBounds(bounds, { padding: [20, 20] });
-        }
+      if (currentPolyline) {
+        map.fitBounds(currentPolyline.getBounds(), { padding: [20, 20] });
       }
     });
   }

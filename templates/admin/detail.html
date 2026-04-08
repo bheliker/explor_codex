@@ -4,6 +4,7 @@
 
 {% block extra_head %}
   {{ super() }}
+  {# Leaflet is only needed when the route provides visual map/profile sections. #}
   {% if visual_sections %}
     <link
       rel="stylesheet"
@@ -15,7 +16,14 @@
 {% endblock %}
 
 {% block body %}
+  {# Page-level Alpine state:
+     - `showMoreDetails` expands the raw detail inventory
+     - `showAllTags` expands the summary tag list
+     - `activeVisual` switches between map/profile modules #}
   <div x-data="{ showMoreDetails: false, showAllTags: false, activeVisual: 0 }">
+  <!-- Detail hero begins.
+       `page_title`, `subtitle`, `stats_bar`, `tags`, and `visual_sections` all come from route helpers.
+       The visible title is shortened for layout stability; the full title remains in the tooltip. -->
   <section class="hero">
     <div class="hero-grid">
       <div>
@@ -34,9 +42,8 @@
       </div>
       <div class="hero-stats">
         <article class="hero-card">
-<!-- 
-          <p class="hero-card-label">Record</p>
- -->
+          <!-- Primary summary card begins.
+               This favors the stat strip when available; fallback copy appears for sparse records. -->
           {% if stats_bar %}
             <div class="stats-bar stats-bar-compact">
               {% for stat in stats_bar %}
@@ -74,21 +81,15 @@
                   </div>
                 </article>
               {% endfor %}
-        {% if tags %}
-          <article class="stats-bar-item">
-<!-- 
-            <p class="hero-card-label">Tags</p>
- -->
-<!-- 
-            <p class="hero-card-value">{{ tags|length }}</p>
- -->
-            <div class="tag-list">
-              {% for tag in tags[:4] %}
-                <span class="tag">{{ tag }}</span>
-              {% endfor %}
-            </div>
-          </article>
-        {% endif %}
+              {% if tags %}
+                <article class="stats-bar-item">
+                  <div class="tag-list">
+                    {% for tag in tags[:4] %}
+                      <span class="tag">{{ tag }}</span>
+                    {% endfor %}
+                  </div>
+                </article>
+              {% endif %}
 
             </div>
           {% else %}
@@ -101,27 +102,27 @@
               {% endif %}
             </p>
           {% endif %}
+          <!-- Primary summary card ends. -->
         </article>
         {% if tags %}
           <article class="hero-card">
-<!-- 
-            <p class="hero-card-label">Tags</p>
- -->
-<!-- 
-            <p class="hero-card-value">{{ tags|length }}</p>
- -->
+            <!-- Compact tag preview begins.
+                 Keep this short in the hero; the full list stays in the summary rail below. -->
             <div class="tag-list">
               {% for tag in tags[:4] %}
                 <span class="tag">{{ tag }}</span>
               {% endfor %}
             </div>
+            <!-- Compact tag preview ends. -->
           </article>
         {% endif %}
       </div>
     </div>
   </section>
+  <!-- Detail hero ends. -->
 
   <section class="grid">
+    <!-- Left summary rail begins. -->
     <aside class="content-rail detail-layout">
       <section class="detail-summary-card">
         <p class="section-heading">Summary</p>
@@ -184,9 +185,13 @@
         </section>
       {% endif %}
     </aside>
+    <!-- Left summary rail ends. -->
 
+    <!-- Main detail column begins. -->
     <section class="content-rail">
       {% if visual_sections %}
+        <!-- Explor View begins.
+             Add new map/elevation/story modules by extending `visual_sections` in the route layer. -->
         <section class="panel">
           <div class="visual-header">
             <div>
@@ -250,9 +255,12 @@
             {% endfor %}
           </div>
         </section>
+        <!-- Explor View ends. -->
       {% endif %}
 
       {% if story_sections %}
+            <!-- Story section begins.
+                 Use this block for curated narrative groupings built from route helper data. -->
             <section class="panel">
               <h2>Details</h2>
               <div class="story-grid detail-story-grid">
@@ -277,8 +285,11 @@
             {% endfor %}
           </div>
         </section>
+        <!-- Story section ends. -->
       {% endif %}
 
+      <!-- Raw detail inventory begins.
+           Keep this complete even if story sections become more editorial. -->
       <section class="panel">
         {% set highlight_rows = detail_rows[:4] if detail_rows else [] %}
         {% set remaining_rows = detail_rows[4:] if detail_rows and detail_rows|length > 4 else [] %}
@@ -317,8 +328,11 @@
           <div class="empty">No additional detail fields are available yet.</div>
         {% endif %}
       </section>
+      <!-- Raw detail inventory ends. -->
 
       {% if related_sections %}
+        <!-- Connected records begin.
+             Add new relation groups in the route helper instead of duplicating panel markup. -->
         <section class="panel">
           <h2>Connected Records</h2>
           <div class="content-rail">
@@ -349,14 +363,17 @@
             {% endfor %}
           </div>
         </section>
+        <!-- Connected records ends. -->
       {% endif %}
     </section>
+    <!-- Main detail column ends. -->
   </section>
   </div>
 {% endblock %}
 
 {% block scripts %}
   {{ super() }}
+  {# Detail-page map/profile boot sequence lives in `static/js/detail_visuals.js`. #}
   {% if visual_sections %}
     <script
       src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"

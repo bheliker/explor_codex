@@ -3,13 +3,17 @@
 {% block title %}{{ mode_title }} {{ page_title }} | explor_codex{% endblock %}
 
 {% block body %}
+  <!-- Edit hero begins.
+       `mode_title`, `page_title`, and `intro_text` come from the route and are the primary copy knobs. -->
   <section class="hero">
     <p class="eyebrow">{{ entity_type_label }} {{ mode_title }}</p>
     <h1>{{ mode_title }} {{ page_title }}</h1>
     <p>{{ intro_text }}</p>
   </section>
+  <!-- Edit hero ends. -->
 
   <section class="grid">
+    <!-- Context rail begins. -->
     <aside class="panel">
       <h2>Actions</h2>
       <div class="action-list">
@@ -27,8 +31,12 @@
         <a class="action-link" href="{{ url_for('core.admin_search_route') }}"><span><span class="action-link-label">Navigate</span><span class="action-link-value">Back to search</span></span><span>&rarr;</span></a>
       </div>
     </aside>
+    <!-- Context rail ends. -->
 
+    <!-- Main form begins.
+         Field rendering is schema-driven from `fields`; prefer changing field definitions in route helpers first. -->
     <form class="panel stack" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <h2>Fields</h2>
       {% for field in fields %}
         {% if field.kind == "checkbox" %}
@@ -67,5 +75,6 @@
       {% endfor %}
       <button class="button button-primary" type="submit">{{ submit_label }}</button>
     </form>
+    <!-- Main form ends. -->
   </section>
 {% endblock %}
