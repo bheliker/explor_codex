@@ -36,6 +36,7 @@
     <!-- Main form begins.
          Field rendering is schema-driven from `fields`; prefer changing field definitions in route helpers first. -->
     <form class="panel stack" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <h2>Fields</h2>
       {% for field in fields %}
         {% if field.kind == "checkbox" %}

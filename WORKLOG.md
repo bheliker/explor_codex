@@ -333,6 +333,42 @@ This file records session history for `explor_codex` so future work can resume w
 ### Notes for the next session
 - If we want the rest of `fix/geometry-and-code-cleanup`, it should be split into smaller, reviewable slices rather than merged whole.
 
+## 2026-04-08 (Selective CSRF And Auth Hardening)
+
+### Investigated
+- Reviewed the older mixed branch again, this time isolating the CSRF/auth-related work from the geometry and formatting churn.
+- Confirmed the highest-value pieces were:
+  - app-wide CSRF protection
+  - hidden CSRF tokens in real HTML forms
+  - test config compatibility
+  - explicit API exemptions for JSON endpoints
+  - broader `AdminFormError` handling in admin user forms
+
+### Changed
+- Added `flask-wtf` to [pyproject.toml](/Users/bheliker/Documents/_Projects/explor/explor_codex/pyproject.toml) and initialized `CSRFProtect` in [app/extensions.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/extensions.py).
+- Disabled CSRF in [app/config.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/config.py) only for `TestConfig`.
+- Added an app-level CSRF error handler and exempted JSON API POST routes in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py).
+- Broadened admin user create/edit error handling in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) so `AdminFormError` flashes cleanly there too.
+- Added hidden CSRF tokens to the real HTML POST forms in:
+  - [templates/base.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/base.html)
+  - [templates/admin/edit.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/edit.html)
+  - [templates/auth/login.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/login.html)
+  - [templates/auth/signup.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/signup.html)
+  - [templates/auth/account_edit.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/account_edit.html)
+  - [templates/auth/password_reset.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/password_reset.html)
+  - [templates/auth/password_reset_request.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/auth/password_reset_request.html)
+- Added tests in [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) covering form token rendering, test-config CSRF disablement, and exempt JSON API behavior under enabled CSRF.
+
+### Decisions
+- Keep the auth/template portion narrowly focused on functional hardening and avoid bringing over the old branch’s broad formatting-only template churn.
+- Continue treating JSON APIs separately from HTML forms by exempting the machine-oriented POST endpoints.
+
+### Why
+- This brings the meaningful security and reliability improvements forward without risking unnecessary UI regressions from unrelated template rewrites.
+
+### Notes for the next session
+- If we later want stricter API auth/CSRF policy, that should be handled as an explicit API security pass rather than bundled into unrelated UI work.
+
 ## 2026-04-02 (Event Maps, Stats Bar, And Units Migration Repair)
 
 ### Investigated

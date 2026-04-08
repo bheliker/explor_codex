@@ -7,12 +7,13 @@ from typing import Any, Callable, Sequence, TypeVar, cast
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, logout_user  # type: ignore[import-untyped]
+from flask_wtf.csrf import CSRFError  # type: ignore[import-untyped]
 from sqlalchemy import String, func, or_, select
 from sqlalchemy import cast as sql_cast
 from sqlalchemy.orm import load_only, selectinload
 
 from app.bootstrap import ensure_canonical_lookup_rows
-from app.extensions import db, login_manager
+from app.extensions import csrf, db, login_manager
 from app.geometry import point_coordinates
 from app.models import (
     Activity,
@@ -77,6 +78,14 @@ from app.services import (
 )
 
 bp = Blueprint("core", __name__)
+
+
+@bp.app_errorhandler(CSRFError)
+def handle_csrf_error(_: CSRFError) -> Any:
+    flash("Your session may have expired. Please try again.", "error")
+    return redirect(request.url)
+
+
 ModelT = TypeVar("ModelT")
 
 COLOR_TOKENS: tuple[tuple[str, str], ...] = (
@@ -483,7 +492,7 @@ def admin_user_edit_route(user_id: int) -> str | Any:
                     active=_form_bool("active"),
                     site_admin=_form_bool("site_admin"),
                 )
-            except ValueError as exc:
+            except (AdminFormError, ValueError) as exc:
                 flash(str(exc), "error")
             else:
                 flash("User saved.", "success")
@@ -561,7 +570,7 @@ def admin_user_new_route() -> str | Any:
                     active=_form_bool("active"),
                     site_admin=_form_bool("site_admin"),
                 )
-            except ValueError as exc:
+            except (AdminFormError, ValueError) as exc:
                 flash(str(exc), "error")
             else:
                 flash("User created.", "success")
@@ -2331,11 +2340,13 @@ def admin_activity_new_route() -> str | Any:
 
 
 @bp.post("/api/bootstrap/lookup-rows")
+@csrf.exempt
 def bootstrap_lookup_rows() -> tuple[dict[str, list[str]], int]:
     return ensure_canonical_lookup_rows(), HTTPStatus.OK
 
 
 @bp.post("/api/search/reindex")
+@csrf.exempt
 def rebuild_search_index_route() -> tuple[dict[str, int], int]:
     return {"indexed": rebuild_search_documents()}, HTTPStatus.OK
 
@@ -2354,6 +2365,7 @@ def search_route() -> tuple[dict[str, object], int]:
 
 
 @bp.post("/api/groups")
+@csrf.exempt
 def create_group_route() -> tuple[dict[str, object], int]:
     payload = _json_payload()
     group = create_group(
@@ -2382,6 +2394,7 @@ def create_group_route() -> tuple[dict[str, object], int]:
 
 
 @bp.post("/api/groups/<int:group_id>/memberships")
+@csrf.exempt
 def create_group_membership_route(group_id: int) -> tuple[dict[str, object], int]:
     payload = _json_payload()
     group = _get_or_404(Group, group_id)
@@ -2395,6 +2408,7 @@ def create_group_membership_route(group_id: int) -> tuple[dict[str, object], int
 
 
 @bp.post("/api/groups/<int:group_id>/links")
+@csrf.exempt
 def create_group_link_route(group_id: int) -> tuple[dict[str, object], int]:
     payload = _json_payload()
     group = _get_or_404(Group, group_id)
@@ -2409,6 +2423,7 @@ def create_group_link_route(group_id: int) -> tuple[dict[str, object], int]:
 
 
 @bp.post("/api/groups/<int:group_id>/dues")
+@csrf.exempt
 def create_group_dues_route(group_id: int) -> tuple[dict[str, object], int]:
     payload = _json_payload()
     group = _get_or_404(Group, group_id)
@@ -2430,6 +2445,7 @@ def list_group_routes_route(group_id: int) -> tuple[dict[str, object], int]:
 
 
 @bp.post("/api/groups/<int:group_id>/routes")
+@csrf.exempt
 def attach_group_route_route(group_id: int) -> tuple[dict[str, object], int]:
     payload = _json_payload()
     group = _get_or_404(Group, group_id)
@@ -2442,6 +2458,7 @@ def attach_group_route_route(group_id: int) -> tuple[dict[str, object], int]:
 
 
 @bp.post("/api/events")
+@csrf.exempt
 def create_event_route() -> tuple[dict[str, object], int]:
     payload = _json_payload()
     owner = (
@@ -2483,6 +2500,7 @@ def create_event_route() -> tuple[dict[str, object], int]:
 
 
 @bp.post("/api/events/<int:event_id>/calendar-links")
+@csrf.exempt
 def attach_calendar_route(event_id: int) -> tuple[dict[str, object], int]:
     payload = _json_payload()
     event = _get_or_404(Event, event_id)
@@ -2495,6 +2513,7 @@ def attach_calendar_route(event_id: int) -> tuple[dict[str, object], int]:
 
 
 @bp.post("/api/events/<int:event_id>/rsvps")
+@csrf.exempt
 def set_rsvp_route(event_id: int) -> tuple[dict[str, object], int]:
     payload = _json_payload()
     event = _get_or_404(Event, event_id)
@@ -2504,6 +2523,7 @@ def set_rsvp_route(event_id: int) -> tuple[dict[str, object], int]:
 
 
 @bp.post("/api/events/<int:event_id>/fees")
+@csrf.exempt
 def create_event_fee_route(event_id: int) -> tuple[dict[str, object], int]:
     payload = _json_payload()
     event = _get_or_404(Event, event_id)
@@ -2525,6 +2545,7 @@ def list_event_images_route(event_id: int) -> tuple[dict[str, object], int]:
 
 
 @bp.post("/api/events/<int:event_id>/images")
+@csrf.exempt
 def attach_event_image_route(event_id: int) -> tuple[dict[str, object], int]:
     payload = _json_payload()
     event = _get_or_404(Event, event_id)
@@ -2553,6 +2574,7 @@ def list_point_of_interest_images_route(point_id: int) -> tuple[dict[str, object
 
 
 @bp.post("/api/points-of-interest/<int:point_id>/images")
+@csrf.exempt
 def attach_point_of_interest_image_route(point_id: int) -> tuple[dict[str, object], int]:
     payload = _json_payload()
     point = _get_or_404(PointOfInterest, point_id)
@@ -2565,6 +2587,7 @@ def attach_point_of_interest_image_route(point_id: int) -> tuple[dict[str, objec
 
 
 @bp.post("/api/points-of-interest")
+@csrf.exempt
 def create_point_of_interest_route() -> tuple[dict[str, object], int]:
     payload = _json_payload()
     owner = (
@@ -2599,6 +2622,7 @@ def list_routes_route() -> tuple[dict[str, object], int]:
 
 
 @bp.post("/api/routes")
+@csrf.exempt
 def create_route_route() -> tuple[dict[str, object], int]:
     payload = _json_payload()
     creator = (
@@ -2642,6 +2666,7 @@ def list_route_links_route(route_id: int) -> tuple[dict[str, object], int]:
 
 
 @bp.post("/api/routes/<int:route_id>/links")
+@csrf.exempt
 def create_route_link_route(route_id: int) -> tuple[dict[str, object], int]:
     payload = _json_payload()
     route = _get_or_404(Route, route_id)
@@ -2656,6 +2681,7 @@ def create_route_link_route(route_id: int) -> tuple[dict[str, object], int]:
 
 
 @bp.post("/api/routes/<int:route_id>/segments")
+@csrf.exempt
 def attach_segment_to_route_route(route_id: int) -> tuple[dict[str, object], int]:
     payload = _json_payload()
     route = _get_or_404(Route, route_id)
@@ -2674,6 +2700,7 @@ def list_segments_route() -> tuple[dict[str, object], int]:
 
 
 @bp.post("/api/segments")
+@csrf.exempt
 def create_segment_route() -> tuple[dict[str, object], int]:
     payload = _json_payload()
     segment = create_segment(
@@ -2721,6 +2748,7 @@ def list_activities_route() -> tuple[dict[str, object], int]:
 
 
 @bp.post("/api/activities")
+@csrf.exempt
 def create_activity_route() -> tuple[dict[str, object], int]:
     payload = _json_payload()
     athlete = (
@@ -2792,6 +2820,7 @@ def list_images_route() -> tuple[dict[str, object], int]:
 
 
 @bp.post("/api/images")
+@csrf.exempt
 def create_image_route() -> tuple[dict[str, object], int]:
     payload = _json_payload()
     image = create_image(

@@ -32,6 +32,7 @@
     </aside>
 
     <form class="panel stack" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <h2>Credentials</h2>
       <input type="hidden" name="next" value="{{ next_url or '' }}">
       <label class="field-label">

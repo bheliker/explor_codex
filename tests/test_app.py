@@ -450,6 +450,52 @@ def test_test_config_uses_in_memory_sqlite() -> None:
     assert TestConfig.SQLALCHEMY_DATABASE_URI == "sqlite+pysqlite:///:memory:"
 
 
+def test_test_config_disables_csrf() -> None:
+    assert TestConfig.WTF_CSRF_ENABLED is False
+
+
+def test_auth_forms_render_csrf_tokens(client: FlaskClient, database: None) -> None:
+    login_response = client.get("/auth/login")
+    signup_response = client.get("/auth/signup")
+
+    assert login_response.status_code == 200
+    assert signup_response.status_code == 200
+    assert 'name="csrf_token"' in login_response.get_data(as_text=True)
+    assert 'name="csrf_token"' in signup_response.get_data(as_text=True)
+
+
+def test_admin_edit_form_and_logout_render_csrf_tokens(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        group = Group(name="CSRF Club", shortname="csrf-club")
+        db.session.add(group)
+        db.session.commit()
+        group_id = group.id
+
+    edit_response = admin_client.get(f"/admin/groups/{group_id}/edit")
+    dashboard_response = admin_client.get("/admin")
+
+    assert edit_response.status_code == 200
+    assert dashboard_response.status_code == 200
+    assert 'name="csrf_token"' in edit_response.get_data(as_text=True)
+    assert 'name="csrf_token"' in dashboard_response.get_data(as_text=True)
+
+
+def test_json_api_routes_remain_usable_when_csrf_is_enabled(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
+    app.config["WTF_CSRF_ENABLED"] = True
+
+    response = admin_client.post("/api/search/reindex", json={})
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload is not None
+    assert "indexed" in payload
+
+
 def test_config_normalizes_legacy_postgres_url() -> None:
     assert Config.SQLALCHEMY_DATABASE_URI.startswith("postgresql+psycopg://")
 
