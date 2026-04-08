@@ -401,16 +401,30 @@ function collectionBrowser(config) {
 
       this.items.forEach((item) => {
         if (item.geometry?.coordinates?.length) {
-          const latlngs = item.geometry.coordinates.map((coordinate) => [
-            coordinate[1],
-            coordinate[0],
-          ]);
-          if (latlngs.length > 1) {
-            L.polyline(latlngs, {
+          const lineParts =
+            item.geometry.type === "MultiLineString"
+              ? item.geometry.coordinates
+                  .map((line) =>
+                    Array.isArray(line)
+                      ? line.map((coordinate) => [coordinate[1], coordinate[0]])
+                      : [],
+                  )
+                  .filter((line) => line.length > 1)
+              : [
+                  item.geometry.coordinates.map((coordinate) => [
+                    coordinate[1],
+                    coordinate[0],
+                  ]),
+                ].filter((line) => line.length > 1);
+          if (lineParts.length) {
+            L.polyline(
+              item.geometry.type === "MultiLineString" ? lineParts : lineParts[0],
+              {
               color: item.favorite ? "#ff9f43" : "#71b8ff",
               opacity: 0.9,
               weight: item.favorite ? 5 : 4,
-            }).addTo(this.lineLayer);
+              },
+            ).addTo(this.lineLayer);
           }
         }
 

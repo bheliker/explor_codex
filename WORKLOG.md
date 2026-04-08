@@ -258,6 +258,34 @@ This file records session history for `explor_codex` so future work can resume w
 - Identified that the left-side browse controls had too many always-visible actions competing at once, especially around search mode, filters, and area jumping.
 
 ### Changed
+
+## 2026-04-08 (HTML And CSS Readability Pass)
+
+### Investigated
+- Reviewed the shared template and stylesheet entry points to find the highest-leverage places for future human editing.
+- Focused on files that multiple surfaces inherit from or reuse directly:
+  - [templates/base.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/base.html)
+  - [templates/admin/detail.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/admin/detail.html)
+  - [templates/public/entity_browser.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/public/entity_browser.html)
+  - [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css)
+
+### Changed
+- Added structural comments to shared templates so major page regions now have clear begin/end markers.
+- Added concise notes explaining where route-provided variables feed the templates and where future edits should happen first.
+- Added section comments to the shared stylesheet so design-token, navigation, hero, and panel/layout areas are easier to locate and modify.
+- Cleaned up a few stale inline comment remnants in the detail template while keeping behavior intact.
+
+### Decisions
+- Prefer section-level comments over line-by-line commentary so files stay readable instead of becoming noisier.
+- Document shared seams first rather than every leaf template, because most future edits should start from the shared shell, shared detail view, browser template, and shared CSS.
+
+### Why
+- The project is now visually richer and more componentized, which makes source readability more important for future manual editing.
+- Clear “change it here” notes reduce the amount of reverse engineering needed when adjusting copy, layout, design tokens, or route-fed variables.
+
+### Notes for the next session
+- If we continue this pass, the next best files to annotate are the auth templates and any page-specific JavaScript controllers.
+- Shared template comments should stay brief and structural; avoid turning templates into prose documents.
 - Simplified the main browse controls in [templates/public/entity_browser.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/public/entity_browser.html) into a primary search row with a smaller Nearby / Full database mode toggle.
 - Moved lower-frequency controls behind a `More filters` reveal so sort, club, terrain, area jump, and map reset stay available without dominating the panel.
 - Added a `Clear` action and conditional area-match rendering in [static/js/collection_browser.js](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/js/collection_browser.js).
@@ -277,6 +305,33 @@ This file records session history for `explor_codex` so future work can resume w
 
 ### Notes for the next session
 - The next UI pass could further simplify result cards or add hover-linked highlighting between list items and map markers.
+
+## 2026-04-08 (Selective Geometry Fix Transplant)
+
+### Investigated
+- Audited the older `fix/geometry-and-code-cleanup` branch to see whether its work had already landed on the current browser branch.
+- Confirmed the branch mixed useful geometry fixes with unrelated CSRF, template, and auth churn, so it was not a good candidate for a direct merge.
+- Compared the geometry-specific commits against the current code and identified the missing pieces:
+  - multiline/feature-collection storage conversion
+  - multiline detail map rendering
+  - shared route helper support for multi-part linework
+
+### Changed
+- Updated [app/geometry.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/geometry.py) so stored line geometry accepts `LineString`, `MultiLineString`, and `FeatureCollection` linework, and widened the ORM geometry type wrappers to `GEOMETRY` / `GEOMETRYZ`.
+- Updated [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) so shared geometry helpers preserve separate line parts for Leaflet rendering and SVG path generation.
+- Extended the public browser geometry handling in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) and [static/js/collection_browser.js](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/js/collection_browser.js) so multiline route or segment summaries still render on the browse map.
+- Updated [static/js/detail_visuals.js](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/js/detail_visuals.js) so detail-map visuals render multiline paths correctly without collapsing them into one flat sequence.
+- Added regression tests in [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) for feature-collection storage conversion, multiline Leaflet lat/lng conversion, and browser geometry passthrough.
+
+### Decisions
+- Do not merge `fix/geometry-and-code-cleanup` directly.
+- Instead, manually transplant the geometry-only fixes into the active branch and leave the unrelated CSRF/template sweep for a separate decision.
+
+### Why
+- This keeps the current branch aligned with the newer route/segment browser work while still capturing the substantive geometry correctness fixes from the older side branch.
+
+### Notes for the next session
+- If we want the rest of `fix/geometry-and-code-cleanup`, it should be split into smaller, reviewable slices rather than merged whole.
 
 ## 2026-04-02 (Event Maps, Stats Bar, And Units Migration Repair)
 

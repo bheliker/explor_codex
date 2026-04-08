@@ -4217,7 +4217,8 @@ def _browser_line_geometry(geometry_text: str | None) -> dict[str, object] | Non
         geometry = json.loads(geometry_text)
     except json.JSONDecodeError:
         return None
-    if geometry.get("type") != "LineString":
+    geometry_type = geometry.get("type")
+    if geometry_type not in {"LineString", "MultiLineString"}:
         return None
     coordinates = geometry.get("coordinates")
     if not isinstance(coordinates, list) or not coordinates:
@@ -4243,9 +4244,16 @@ def _record_center(
     geometry = _browser_line_geometry(geometry_text)
     if geometry is None:
         return None
-    coordinates = cast(list[list[float]], geometry["coordinates"])
-    mid_index = len(coordinates) // 2
-    midpoint = coordinates[mid_index]
+    coordinates = geometry["coordinates"]
+    if geometry.get("type") == "MultiLineString":
+        line_parts = cast(list[list[list[float]]], coordinates)
+        flattened = [point for line in line_parts for point in line]
+    else:
+        flattened = cast(list[list[float]], coordinates)
+    if not flattened:
+        return None
+    mid_index = len(flattened) // 2
+    midpoint = flattened[mid_index]
     return {"lat": midpoint[1], "lng": midpoint[0]}
 
 
@@ -4552,7 +4560,7 @@ def _media_previews(items: list[tuple[str, str | None]]) -> list[dict[str, str]]
     return previews or None
 
 
-def _line_coordinates(geometry_text: str | None) -> list[tuple[float, float]] | None:
+def _line_coordinates(geometry_text: str | None) -> list[list[tuple[float, float]]] | None:
     if geometry_text is None:
         return None
     stripped = geometry_text.strip()
@@ -4560,45 +4568,79 @@ def _line_coordinates(geometry_text: str | None) -> list[tuple[float, float]] | 
         return None
     try:
         payload = json.loads(stripped)
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, TypeError):
         return None
-    geometry_payload = payload.get("geometry") if payload.get("type") == "Feature" else payload
-    coordinates = (
-        geometry_payload.get("coordinates") if isinstance(geometry_payload, dict) else None
-    )
-    if not isinstance(coordinates, list):
+
+    if not isinstance(payload, dict):
         return None
-    points: list[tuple[float, float]] = []
-    for coordinate in coordinates:
-        if not isinstance(coordinate, (list, tuple)) or len(coordinate) < 2:
-            continue
-        try:
-            longitude = float(coordinate[0])
-            latitude = float(coordinate[1])
-        except (TypeError, ValueError):
-            continue
-        points.append((longitude, latitude))
-    return points or None
+
+    def _extract_from_geometry(geometry: dict[str, Any]) -> list[list[tuple[float, float]]]:
+        geometry_type = geometry.get("type")
+        coordinates = geometry.get("coordinates")
+        if not isinstance(coordinates, list):
+            return []
+
+        extracted: list[list[tuple[float, float]]] = []
+        lines = (
+            coordinates
+            if geometry_type == "MultiLineString"
+            else [coordinates]
+            if geometry_type == "LineString"
+            else []
+        )
+        for line in lines:
+            if not isinstance(line, list):
+                continue
+            line_points: list[tuple[float, float]] = []
+            for coordinate in line:
+                if not isinstance(coordinate, (list, tuple)) or len(coordinate) < 2:
+                    continue
+                try:
+                    line_points.append((float(coordinate[0]), float(coordinate[1])))
+                except (TypeError, ValueError):
+                    continue
+            if line_points:
+                extracted.append(line_points)
+        return extracted
+
+    segments: list[list[tuple[float, float]]] = []
+    payload_type = payload.get("type")
+    if payload_type == "FeatureCollection":
+        features = payload.get("features")
+        for feature in features if isinstance(features, list) else []:
+            geometry = feature.get("geometry") if isinstance(feature, dict) else None
+            if isinstance(geometry, dict):
+                segments.extend(_extract_from_geometry(geometry))
+    elif payload_type == "Feature":
+        geometry = payload.get("geometry")
+        if isinstance(geometry, dict):
+            segments.extend(_extract_from_geometry(geometry))
+    else:
+        segments.extend(_extract_from_geometry(payload))
+    return segments or None
 
 
-def _leaflet_latlngs(geometry_text: str | None) -> list[list[float]] | None:
-    coordinates = _line_coordinates(geometry_text)
-    if coordinates is None:
+def _leaflet_latlngs(geometry_text: str | None) -> list[list[list[float]]] | None:
+    segments = _line_coordinates(geometry_text)
+    if segments is None:
         return None
-    return [[latitude, longitude] for longitude, latitude in coordinates]
+    return [[[latitude, longitude] for longitude, latitude in segment] for segment in segments]
 
 
 def _svg_path_from_points(
-    points: Sequence[tuple[float, float]],
+    segments: Sequence[Sequence[tuple[float, float]]],
     *,
     width: int = 640,
     height: int = 280,
     padding: int = 20,
 ) -> dict[str, object] | None:
-    if len(points) < 2:
+    if not segments:
         return None
-    xs = [point[0] for point in points]
-    ys = [point[1] for point in points]
+    all_points = [point for segment in segments for point in segment]
+    if len(all_points) < 2:
+        return None
+    xs = [point[0] for point in all_points]
+    ys = [point[1] for point in all_points]
     min_x = min(xs)
     max_x = max(xs)
     min_y = min(ys)
@@ -4607,20 +4649,28 @@ def _svg_path_from_points(
     y_span = max(max_y - min_y, 1e-9)
     usable_width = width - (padding * 2)
     usable_height = height - (padding * 2)
-    svg_points = []
-    for x_value, y_value in points:
-        scaled_x = padding + ((x_value - min_x) / x_span) * usable_width
-        scaled_y = height - padding - ((y_value - min_y) / y_span) * usable_height
-        svg_points.append((scaled_x, scaled_y))
+    svg_segments: list[list[tuple[float, float]]] = []
+    for segment in segments:
+        svg_points: list[tuple[float, float]] = []
+        for x_value, y_value in segment:
+            scaled_x = padding + ((x_value - min_x) / x_span) * usable_width
+            scaled_y = height - padding - ((y_value - min_y) / y_span) * usable_height
+            svg_points.append((scaled_x, scaled_y))
+        if svg_points:
+            svg_segments.append(svg_points)
     path = " ".join(
-        f"{'M' if index == 0 else 'L'} {x_value:.2f} {y_value:.2f}"
-        for index, (x_value, y_value) in enumerate(svg_points)
+        " ".join(
+            f"{'M' if index == 0 else 'L'} {x_value:.2f} {y_value:.2f}"
+            for index, (x_value, y_value) in enumerate(svg_points)
+        )
+        for svg_points in svg_segments
     )
+    flat_svg_points = [point for segment in svg_segments for point in segment]
     return {
         "height": height,
         "path": path,
-        "points": svg_points,
-        "start": {"x": f"{svg_points[0][0]:.2f}", "y": f"{svg_points[0][1]:.2f}"},
+        "points": flat_svg_points,
+        "start": {"x": f"{svg_segments[0][0][0]:.2f}", "y": f"{svg_segments[0][0][1]:.2f}"},
         "view_box": f"0 0 {width} {height}",
         "width": width,
     }
@@ -4659,7 +4709,7 @@ def _sample_points(
 def _elevation_profile(elevations: list[float] | None) -> dict[str, object] | None:
     if elevations is None or len(elevations) < 2:
         return None
-    points = [(float(index), float(value)) for index, value in enumerate(elevations)]
+    points = [[(float(index), float(value)) for index, value in enumerate(elevations)]]
     line = _svg_path_from_points(points, height=220, padding=18)
     if line is None:
         return None

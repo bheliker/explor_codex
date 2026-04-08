@@ -3207,6 +3207,56 @@ def test_admin_route_detail_page_skips_blank_stats_when_values_are_missing(
     assert "Elevation" in html
 
 
+def test_to_storage_geometry_preserves_feature_collection_linework() -> None:
+    from app.geometry import to_storage_geometry
+
+    value = (
+        '{"type":"FeatureCollection","features":['
+        '{"type":"Feature","geometry":{"type":"LineString","coordinates":[[-122.1,37.1],[-122.2,37.2]]}},'
+        '{"type":"Feature","geometry":{"type":"LineString","coordinates":[[-122.3,37.3],[-122.4,37.4]]}}'
+        "]}"
+    )
+
+    stored = to_storage_geometry(value)
+
+    assert stored is not None
+    assert stored.startswith("MULTILINESTRING")
+    assert "-122.1 37.1" in stored
+    assert "-122.4 37.4" in stored
+
+
+def test_leaflet_latlngs_keep_multiline_parts_separate() -> None:
+    from app.routes import _leaflet_latlngs
+
+    value = (
+        '{"type":"MultiLineString","coordinates":['
+        "[[-122.1,37.1],[-122.2,37.2]],"
+        "[[-122.3,37.3],[-122.4,37.4]]"
+        "]}"
+    )
+
+    latlngs = _leaflet_latlngs(value)
+
+    assert latlngs == [
+        [[37.1, -122.1], [37.2, -122.2]],
+        [[37.3, -122.3], [37.4, -122.4]],
+    ]
+
+
+def test_browser_line_geometry_keeps_multiline_shape() -> None:
+    from app.routes import _browser_line_geometry
+
+    geometry = _browser_line_geometry(
+        '{"type":"MultiLineString","coordinates":['
+        "[[-122.1,37.1],[-122.2,37.2]],"
+        "[[-122.3,37.3],[-122.4,37.4]]"
+        "]}",
+    )
+
+    assert geometry is not None
+    assert geometry["type"] == "MultiLineString"
+
+
 def test_admin_event_detail_page_renders_full_record(
     app: Flask, admin_client: FlaskClient, database: None
 ) -> None:
