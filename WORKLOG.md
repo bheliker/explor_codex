@@ -1303,3 +1303,198 @@ This file records session history for `explor_codex` so future work can resume w
 ### Notes for the next session
 - The next strongest continuation is public-facing event/calendar discovery so these richer spatial surfaces are reachable outside admin.
 - If we want to get even closer to the original experience, the next layer is richer calendar/event map interactions such as marker summaries, day-based filtering, and route/event combined browse modes.
+
+## 2026-04-07 (Routes And Segments Browser Foundations)
+
+### Investigated
+- Reviewed the original `explor_alpha` routes page to recover the key interaction model:
+  left-side browsing controls plus a synchronized map on the right.
+- Checked the rebuilt app for the current public design language, available route and segment data, and existing relationships to groups, segments, and events.
+- Confirmed the rebuilt backend already had enough route and segment fields to support a real first-pass browse surface without introducing new persistence work.
+
+### Changed
+- Added public browse pages for:
+  - `/routes`
+  - `/segments`
+- Added a shared public browser template at [templates/public/entity_browser.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/public/entity_browser.html).
+- Added client-side browse interactions in [static/js/collection_browser.js](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/js/collection_browser.js):
+  - search
+  - grid/list toggle
+  - favorites-first ordering
+  - sort by closest, length, elevation, or duration
+  - live map-area filtering
+  - map recentering and reset/search-area controls
+- Added route-side page data helpers in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) to prepare:
+  - route browser cards
+  - segment browser cards
+  - event counts for routes
+  - summary stats
+  - map-ready bounds and focus data
+- Updated [templates/base.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/base.html) navigation to surface the new routes and segments entry points.
+- Extended [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css) with the new public browser layout and map styling.
+- Added public page coverage in [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py).
+
+### Decisions
+- Start with a map-synchronized browser foundation before rebuilding true tile-map behavior or server-backed viewport queries.
+- Keep the first pass dependency-light by rendering a stylized coordinate map with Alpine-driven filtering rather than pulling in a heavy remote map stack immediately.
+- Treat favorite ordering as tag-driven for now using tags such as `favorite`, `featured`, `saved`, `starred`, and `classic`.
+- Fall back from “closest to me” to the current map focus when a signed-in user does not have a stored home point.
+
+### Why
+- These pages are the most important navigation surface in the product, so it was more valuable to re-establish the browsing rhythm and interaction contract than to wait for a perfect final map implementation.
+- The shared browser template creates one reusable pattern for routes and segments while keeping room for richer filtering and real map providers later.
+- The current implementation gives us a meaningful product-facing foundation now and a clean place to evolve map-backed search behavior next.
+
+### Verification
+- `uv run pytest`
+- `uv run ruff check .`
+- `uv run ruff format --check app tests`
+- `uv run mypy app tests`
+
+### Notes for the next session
+- The new pages are interaction-rich and fully tested, but the map is still a stylized rebuilt browse canvas rather than a full geographic tile map.
+- A strong next step would be adding:
+  - real map tiles and geometry rendering
+  - server-backed viewport filtering
+  - richer filters for clubs, events, terrain, and saved/followed state
+
+## 2026-04-07 (Routes Browser Payload Cap)
+
+### Investigated
+- Reproduced a browser lockup on `/routes` after the first public browser pass landed.
+- Measured the response shape against the imported dataset and confirmed the page was trying to inline tens of thousands of route records and geometries at once.
+- Verified the rendered `/routes` payload had grown into the 95+ MB range, which was enough to make the browser fail to open the page.
+
+### Changed
+- Added a hard public browser request cap of `20` records per request in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py).
+- Switched the public route and segment pages to query only the capped slice instead of loading every record in the database into the page payload.
+- Updated [templates/public/entity_browser.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/public/entity_browser.html) to clearly show that the page is only rendering up to the capped number of records.
+- Added regression coverage in [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) proving the `/routes` page does not emit more than 20 records.
+
+### Why
+- The interactive browser can only be useful if it opens reliably; limiting the initial slice is more important than pretending to show the full catalog inside one HTML response.
+- This preserves the new browsing surface while we design a better long-term strategy for paginated or server-backed map exploration.
+
+### Verification
+- `uv run pytest tests/test_app.py -k 'public_routes_route or public_segments_route'`
+- `uv run ruff check app/routes.py tests/test_app.py`
+- `uv run mypy app tests`
+
+## 2026-04-07 (Leaflet Browse API And Rich Filters)
+
+### Investigated
+- Continued the public routes and segments browser work after the summary-polyline optimization.
+- Reviewed the existing detail-page Leaflet implementation so the public map could reuse the same tile-map direction instead of inventing a second mapping stack.
+- Confirmed the next bottleneck was architectural rather than payload-only: the page needed server-backed viewport queries and real map-driven loading rather than larger inline page state.
+
+### Changed
+- Added dedicated public browse APIs in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py):
+  - `GET /api/browser/routes`
+  - `GET /api/browser/segments`
+- Moved the public browser query logic into shared server-side bundle helpers that now support:
+  - map viewport bounding box filters
+  - closest/length/elevation/duration sort
+  - favorites-only filtering
+  - club filtering
+  - event-linked filtering
+  - terrain filtering
+- Switched the public `/routes` and `/segments` pages to pass API/bootstrap config instead of acting as the full data transport.
+- Upgraded [templates/public/entity_browser.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/public/entity_browser.html) to include:
+  - real Leaflet tile-map assets
+  - club filter control
+  - terrain filter control
+  - event-linked filter control
+- Replaced the old SVG map client in [static/js/collection_browser.js](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/js/collection_browser.js) with a Leaflet-backed browser that:
+  - renders raster tiles
+  - redraws lines and markers from API results
+  - refetches server-backed results on move/zoom and filter changes
+- Updated [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css) for the new Leaflet map surface and public browser filter layout.
+- Added API and page coverage in [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) for:
+  - route browse API filtering by viewport + club + events + terrain
+  - segment browse API filtering by viewport + club + events + terrain
+
+### Decisions
+- Keep the public browser limited to 20 loaded records at a time, but make that slice server-backed and spatially meaningful.
+- Reuse the same Carto raster tile direction already used in the detail-map work so the public and admin map language stay aligned.
+- Treat club and event filters as first-class server-side constraints instead of client-only post-processing.
+
+### Why
+- This gets the main navigation pages much closer to the original product behavior: the map is now real, and the list is driven by where the map is and what the rider is filtering for.
+- The browser API gives us a stable place to add future pagination, clustering, or recommendation logic without pushing huge serialized payloads back into the page HTML.
+
+### Verification
+- `uv run pytest`
+- `uv run ruff check .`
+- `uv run ruff format --check app tests`
+- `uv run mypy app tests`
+
+### Notes for the next session
+- The main remaining gap is deeper exploration beyond the first 20 records in the current server slice.
+- The next strongest continuation would be one of:
+  - incremental viewport pagination
+  - marker clustering
+  - richer event/club preview cards and popup summaries
+
+## 2026-04-07 (Browser Pagination And Map/List Sync Refinement)
+
+### Investigated
+- Continued polishing the new map-backed public browser after the Leaflet + browse API milestone.
+- Focused on two usability gaps that still made the experience feel early:
+  - limited exploration past the first 20 loaded records
+  - weak feedback between the list and the map
+
+### Changed
+- Added server-backed offset pagination to the public browser APIs in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py).
+- Extended route and segment browser payloads with lightweight related previews so the map can show more useful summaries without extra requests.
+- Updated [static/js/collection_browser.js](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/js/collection_browser.js) so the browser now supports:
+  - previous/next 20 paging
+  - selected-item state shared between map and list
+  - Leaflet marker popups with richer summaries
+  - fit-loaded-results map recentering
+  - pagination reset when filters or search terms change
+- Updated [templates/public/entity_browser.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/public/entity_browser.html) with:
+  - previous/next controls
+  - fit-results control
+  - selected-card styling hooks
+- Updated [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css) for:
+  - selected result styling
+  - popup card styling
+  - pagination row layout
+- Added regression coverage in [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) for route browser offset pagination.
+
+### Why
+- The server-backed browser became meaningfully more usable once people could continue exploring beyond the first slice without changing the whole mental model.
+- Stronger map/list sync and richer popups make the page feel less like raw filtering and more like a browse-first navigation product.
+
+### Verification
+- `uv run pytest`
+- `uv run ruff check .`
+- `uv run mypy app tests`
+
+### Notes for the next session
+- The next strongest enhancement is marker clustering so dense route areas stay readable at wider zoom levels.
+- Another strong follow-up is richer route/segment preview content in popups or side panels, especially event dates and club identity.
+
+### Notes for the next session
+- With the cap in place, the current `/routes` response dropped to roughly 160 KB in the imported dataset instead of tens of megabytes.
+- The next meaningful improvement is real paginated or viewport-backed loading so the page can explore beyond the first 20 records without reintroducing giant inline payloads.
+
+## 2026-04-07 (Public Browser Summary-Polyline Only)
+
+### Investigated
+- Followed up on continued slowness in `/routes` after the 20-record cap.
+- Confirmed the public browser helpers still had `summary_polyline or full_track` fallback logic, and the ORM query shape was still loading full `Route` and `Segment` rows.
+
+### Changed
+- Updated [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) so the public `/routes` and `/segments` browser queries now:
+  - use `load_only(...)` to fetch the narrow browser field set
+  - include `summary_polyline`
+  - exclude `full_track`
+- Removed the public browser fallback from `summary_polyline` to `full_track` for both route and segment map data and center calculations.
+
+### Why
+- Even with a record cap, the public browser should not pay the cost of loading heavyweight full-track geometry when the page only needs the lightweight summary line.
+
+### Verification
+- `uv run pytest tests/test_app.py -k 'public_routes_route or public_segments_route'`
+- `uv run ruff check app/routes.py tests/test_app.py`

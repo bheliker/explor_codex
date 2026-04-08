@@ -7,10 +7,13 @@ from typing import Any, Callable, Sequence, TypeVar, cast
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, logout_user  # type: ignore[import-untyped]
-from sqlalchemy import func, select
+from sqlalchemy import String, func, or_, select
+from sqlalchemy import cast as sql_cast
+from sqlalchemy.orm import load_only, selectinload
 
 from app.bootstrap import ensure_canonical_lookup_rows
 from app.extensions import db, login_manager
+from app.geometry import point_coordinates
 from app.models import (
     Activity,
     Calendar,
@@ -27,6 +30,8 @@ from app.models import (
     SearchDocument,
     Segment,
     User,
+    group_routes,
+    route_segments,
 )
 from app.services import (
     SEARCHABLE_ENTITY_TYPES,
@@ -102,6 +107,8 @@ NON_COLOR_TOKENS: tuple[tuple[str, str], ...] = (
     ("--radius-md", "18px"),
 )
 
+PUBLIC_BROWSER_LIMIT = 20
+
 
 class AdminFormError(ValueError):
     pass
@@ -173,6 +180,86 @@ def discover() -> str:
         selected_types=parsed_types,
         total_documents=_count_records(SearchDocument),
     )
+
+
+@bp.get("/routes")
+def public_routes_route() -> str:
+    bundle = _route_browser_bundle()
+    return render_template(
+        "public/entity_browser.html",
+        collection_key="routes",
+        collection_label="Routes",
+        collection_description=(
+            "Browse saved rides the way the product wants to be used: map-first, "
+            "distance-aware, and ready to sort by the effort that matters today."
+        ),
+        empty_copy="No routes are available yet.",
+        hero_eyebrow="Route Browser",
+        hero_title="Browse routes with the map and list moving together.",
+        hero_body=(
+            "This is the first rebuild pass on the most important navigation surface. "
+            "Search, sort, grid or list view, and map-area filtering now live on one page."
+        ),
+        page_data=_browser_page_payload(
+            collection_key="routes",
+            collection_label="Routes",
+            api_url=url_for("core.public_route_browser_api_route"),
+            bundle=bundle,
+            filter_options=_route_browser_filter_options(),
+        ),
+        server_items=cast(list[dict[str, object]], bundle["items"])[:18],
+        summary_stats=_browser_summary_stats(
+            cast(list[dict[str, object]], bundle["items"]),
+            secondary_label="clubs linked",
+        ),
+        total_available=_count_records(Route),
+        visible_limit=cast(int, bundle["limit"]),
+    )
+
+
+@bp.get("/segments")
+def public_segments_route() -> str:
+    bundle = _segment_browser_bundle()
+    return render_template(
+        "public/entity_browser.html",
+        collection_key="segments",
+        collection_label="Segments",
+        collection_description=(
+            "Scan the decisive climbs, connectors, and crux efforts that shape bigger "
+            "days out, then sort them by proximity, elevation, or duration."
+        ),
+        empty_copy="No segments are available yet.",
+        hero_eyebrow="Segment Browser",
+        hero_title="Browse segments like the defining efforts they are.",
+        hero_body=(
+            "The segment home page uses the same left-pane browse rhythm and synced map "
+            "view so short efforts stay discoverable inside the same system."
+        ),
+        page_data=_browser_page_payload(
+            collection_key="segments",
+            collection_label="Segments",
+            api_url=url_for("core.public_segment_browser_api_route"),
+            bundle=bundle,
+            filter_options=_segment_browser_filter_options(),
+        ),
+        server_items=cast(list[dict[str, object]], bundle["items"])[:18],
+        summary_stats=_browser_summary_stats(
+            cast(list[dict[str, object]], bundle["items"]),
+            secondary_label="routes linked",
+        ),
+        total_available=_count_records(Segment),
+        visible_limit=cast(int, bundle["limit"]),
+    )
+
+
+@bp.get("/api/browser/routes")
+def public_route_browser_api_route() -> tuple[dict[str, object], int]:
+    return _route_browser_bundle(), HTTPStatus.OK
+
+
+@bp.get("/api/browser/segments")
+def public_segment_browser_api_route() -> tuple[dict[str, object], int]:
+    return _segment_browser_bundle(), HTTPStatus.OK
 
 
 @bp.get("/palette")
@@ -3232,6 +3319,16 @@ def _count_records(model: type[ModelT]) -> int:
     return db.session.scalar(select(func.count()).select_from(model)) or 0
 
 
+def _public_browser_limit() -> int:
+    requested = request.args.get("limit", default=PUBLIC_BROWSER_LIMIT, type=int)
+    return min(max(requested, 1), PUBLIC_BROWSER_LIMIT)
+
+
+def _public_browser_offset() -> int:
+    requested = request.args.get("offset", default=0, type=int)
+    return max(requested, 0)
+
+
 def _recent_activity_links(
     *, exclude: tuple[str, int] | None = None, limit: int = 6
 ) -> list[dict[str, object]]:
@@ -3389,6 +3486,732 @@ def _current_unit_system() -> str:
     return "metric"
 
 
+def _browser_page_payload(
+    *,
+    collection_key: str,
+    collection_label: str,
+    api_url: str,
+    bundle: dict[str, object],
+    filter_options: dict[str, object],
+) -> dict[str, object]:
+    items = cast(list[dict[str, object]], bundle["items"])
+    focus = _browser_focus_point(items)
+    bounds = _browser_world_bounds(items, focus=focus)
+    return {
+        "apiUrl": api_url,
+        "collectionKey": collection_key,
+        "collectionLabel": collection_label,
+        "bounds": bounds,
+        "filterOptions": filter_options,
+        "focus": focus,
+        "items": items,
+        "limit": bundle["limit"],
+        "offset": bundle["offset"],
+        "totalMatching": bundle["total_matching"],
+    }
+
+
+def _browser_focus_point(items: Sequence[dict[str, object]]) -> dict[str, float] | None:
+    if current_user.is_authenticated:
+        coordinates = point_coordinates(getattr(current_user, "geoll", None))
+        if coordinates is not None:
+            longitude, latitude = coordinates
+            return {"lat": latitude, "lng": longitude}
+    return _browser_item_center(items[0]) if items else None
+
+
+def _browser_item_center(item: dict[str, object]) -> dict[str, float] | None:
+    center = cast(dict[str, float] | None, item.get("center"))
+    return center if center is not None else None
+
+
+def _browser_world_bounds(
+    items: Sequence[dict[str, object]],
+    *,
+    focus: dict[str, float] | None,
+) -> dict[str, float]:
+    latitudes: list[float] = []
+    longitudes: list[float] = []
+    for item in items:
+        center = _browser_item_center(item)
+        if center is None:
+            continue
+        latitudes.append(center["lat"])
+        longitudes.append(center["lng"])
+
+    if focus is not None:
+        latitudes.append(focus["lat"])
+        longitudes.append(focus["lng"])
+
+    if not latitudes or not longitudes:
+        return {"maxLat": 52.0, "maxLng": -66.0, "minLat": 20.0, "minLng": -128.0}
+
+    min_lat = min(latitudes)
+    max_lat = max(latitudes)
+    min_lng = min(longitudes)
+    max_lng = max(longitudes)
+    lat_pad = max((max_lat - min_lat) * 0.18, 0.35)
+    lng_pad = max((max_lng - min_lng) * 0.18, 0.35)
+    return {
+        "maxLat": max_lat + lat_pad,
+        "maxLng": max_lng + lng_pad,
+        "minLat": min_lat - lat_pad,
+        "minLng": min_lng - lng_pad,
+    }
+
+
+def _browser_query_text() -> str:
+    return request.args.get("q", default="", type=str).strip()
+
+
+def _browser_query_sort() -> str:
+    requested = request.args.get("sort", default="closest", type=str).strip().lower()
+    return requested if requested in {"closest", "duration", "elevation", "length"} else "closest"
+
+
+def _browser_query_bool(name: str) -> bool:
+    return request.args.get(name, default="", type=str).strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def _browser_query_bbox() -> dict[str, float] | None:
+    min_lat = request.args.get("min_lat", type=float)
+    max_lat = request.args.get("max_lat", type=float)
+    min_lng = request.args.get("min_lng", type=float)
+    max_lng = request.args.get("max_lng", type=float)
+    if None in {min_lat, max_lat, min_lng, max_lng}:
+        return None
+    return {
+        "min_lat": cast(float, min_lat),
+        "max_lat": cast(float, max_lat),
+        "min_lng": cast(float, min_lng),
+        "max_lng": cast(float, max_lng),
+    }
+
+
+def _browser_focus_query_point() -> dict[str, float] | None:
+    focus_lat = request.args.get("focus_lat", type=float)
+    focus_lng = request.args.get("focus_lng", type=float)
+    if focus_lat is None or focus_lng is None:
+        return None
+    return {"lat": focus_lat, "lng": focus_lng}
+
+
+def _browser_center_latitude(start_latitude: Any, end_latitude: Any) -> Any:
+    return func.coalesce((start_latitude + end_latitude) / 2, start_latitude, end_latitude)
+
+
+def _browser_center_longitude(start_longitude: Any, end_longitude: Any) -> Any:
+    return func.coalesce(
+        (start_longitude + end_longitude) / 2,
+        start_longitude,
+        end_longitude,
+    )
+
+
+def _browser_text_clause(columns: Sequence[Any], query: str) -> Any | None:
+    normalized = query.strip().lower()
+    if not normalized:
+        return None
+    pattern = f"%{normalized}%"
+    return or_(*[func.lower(func.coalesce(column, "")).like(pattern) for column in columns])
+
+
+def _browser_favorite_clause(column: Any) -> Any:
+    return or_(
+        func.lower(sql_cast(column, String)).like("%favorite%"),
+        func.lower(sql_cast(column, String)).like("%featured%"),
+        func.lower(sql_cast(column, String)).like("%saved%"),
+        func.lower(sql_cast(column, String)).like("%starred%"),
+        func.lower(sql_cast(column, String)).like("%classic%"),
+    )
+
+
+def _browser_sort_expressions(
+    *,
+    model_id: Any,
+    sort_key: str,
+    distance_expression: Any | None,
+    duration_column: Any,
+    elevation_column: Any,
+    length_column: Any,
+) -> list[Any]:
+    if sort_key == "closest" and distance_expression is not None:
+        return [distance_expression.is_(None), distance_expression.asc(), model_id.desc()]
+    if sort_key == "duration":
+        return [duration_column.is_(None), duration_column.asc(), model_id.desc()]
+    if sort_key == "elevation":
+        return [elevation_column.is_(None), elevation_column.asc(), model_id.desc()]
+    if sort_key == "length":
+        return [length_column.is_(None), length_column.asc(), model_id.desc()]
+    return [model_id.desc()]
+
+
+def _route_browser_bundle() -> dict[str, object]:
+    limit = _public_browser_limit()
+    offset = _public_browser_offset()
+    route_ids, total_matching = _route_browser_ids(limit=limit, offset=offset)
+    routes = _route_browser_records(route_ids)
+    event_counts = _route_event_count_map(route_ids)
+    items = [
+        _route_browser_item(route, event_count=event_counts.get(route.id, 0)) for route in routes
+    ]
+    return {
+        "items": items,
+        "limit": limit,
+        "offset": offset,
+        "total_matching": total_matching,
+    }
+
+
+def _segment_browser_bundle() -> dict[str, object]:
+    limit = _public_browser_limit()
+    offset = _public_browser_offset()
+    segment_ids, total_matching = _segment_browser_ids(limit=limit, offset=offset)
+    segments = _segment_browser_records(segment_ids)
+    items = [_segment_browser_item(segment) for segment in segments]
+    return {
+        "items": items,
+        "limit": limit,
+        "offset": offset,
+        "total_matching": total_matching,
+    }
+
+
+def _route_browser_ids(*, limit: int, offset: int) -> tuple[list[int], int]:
+    query = _browser_query_text()
+    sort_key = _browser_query_sort()
+    favorites_only = _browser_query_bool("favorites_only")
+    eventful_only = _browser_query_bool("eventful_only")
+    terrain = request.args.get("terrain", default="", type=str).strip()
+    club_id = request.args.get("club_id", type=int)
+    bbox = _browser_query_bbox()
+    focus = _browser_focus_query_point() or _browser_focus_point([])
+
+    center_latitude = _browser_center_latitude(Route.start_latitude, Route.end_latitude)
+    center_longitude = _browser_center_longitude(Route.start_longitude, Route.end_longitude)
+    statement = select(Route.id)
+
+    text_clause = _browser_text_clause(
+        [
+            Route.name,
+            Route.desc,
+            Route.type,
+            Route.subtype,
+            Route.city,
+            Route.state,
+            Route.country,
+            sql_cast(Route.tags, String),
+        ],
+        query,
+    )
+    if text_clause is not None:
+        statement = statement.where(text_clause)
+
+    if favorites_only:
+        statement = statement.where(_browser_favorite_clause(Route.tags))
+
+    if terrain:
+        terrain_clause = _browser_text_clause(
+            [Route.type, Route.subtype, sql_cast(Route.tags, String)],
+            terrain,
+        )
+        if terrain_clause is not None:
+            statement = statement.where(terrain_clause)
+
+    if club_id is not None:
+        statement = statement.join(group_routes, group_routes.c.route == Route.id).where(
+            group_routes.c.group == club_id
+        )
+
+    if eventful_only:
+        statement = statement.where(select(Event.id).where(Event.route_id == Route.id).exists())
+
+    if bbox is not None:
+        statement = statement.where(
+            center_latitude >= bbox["min_lat"],
+            center_latitude <= bbox["max_lat"],
+            center_longitude >= bbox["min_lng"],
+            center_longitude <= bbox["max_lng"],
+        )
+
+    total_matching = (
+        db.session.scalar(select(func.count()).select_from(statement.order_by(None).subquery()))
+        or 0
+    )
+
+    distance_expression = None
+    if focus is not None:
+        distance_expression = func.abs(center_latitude - focus["lat"]) + func.abs(
+            center_longitude - focus["lng"]
+        )
+
+    route_ids = list(
+        db.session.scalars(
+            statement.order_by(
+                *_browser_sort_expressions(
+                    model_id=Route.id,
+                    sort_key=sort_key,
+                    distance_expression=distance_expression,
+                    duration_column=Route.duration,
+                    elevation_column=Route.elevation_gain,
+                    length_column=Route.length,
+                )
+            )
+            .offset(offset)
+            .limit(limit)
+        )
+    )
+    return route_ids, total_matching
+
+
+def _segment_browser_ids(*, limit: int, offset: int) -> tuple[list[int], int]:
+    query = _browser_query_text()
+    sort_key = _browser_query_sort()
+    favorites_only = _browser_query_bool("favorites_only")
+    eventful_only = _browser_query_bool("eventful_only")
+    terrain = request.args.get("terrain", default="", type=str).strip()
+    club_id = request.args.get("club_id", type=int)
+    bbox = _browser_query_bbox()
+    focus = _browser_focus_query_point() or _browser_focus_point([])
+
+    center_latitude = _browser_center_latitude(Segment.start_latitude, Segment.end_latitude)
+    center_longitude = _browser_center_longitude(Segment.start_longitude, Segment.end_longitude)
+    statement = select(Segment.id)
+
+    text_clause = _browser_text_clause(
+        [
+            Segment.name,
+            Segment.desc,
+            Segment.type,
+            Segment.subtype,
+            sql_cast(Segment.tags, String),
+        ],
+        query,
+    )
+    if text_clause is not None:
+        statement = statement.where(text_clause)
+
+    if favorites_only:
+        statement = statement.where(_browser_favorite_clause(Segment.tags))
+
+    if terrain:
+        terrain_clause = _browser_text_clause(
+            [Segment.type, Segment.subtype, sql_cast(Segment.tags, String)],
+            terrain,
+        )
+        if terrain_clause is not None:
+            statement = statement.where(terrain_clause)
+
+    if club_id is not None:
+        statement = statement.where(
+            select(route_segments.c.segments)
+            .select_from(
+                route_segments.join(group_routes, route_segments.c.routes == group_routes.c.route)
+            )
+            .where(
+                route_segments.c.segments == Segment.id,
+                group_routes.c.group == club_id,
+            )
+            .exists()
+        )
+
+    if eventful_only:
+        statement = statement.where(
+            select(route_segments.c.segments)
+            .select_from(route_segments.join(Event, route_segments.c.routes == Event.route_id))
+            .where(route_segments.c.segments == Segment.id)
+            .exists()
+        )
+
+    if bbox is not None:
+        statement = statement.where(
+            center_latitude >= bbox["min_lat"],
+            center_latitude <= bbox["max_lat"],
+            center_longitude >= bbox["min_lng"],
+            center_longitude <= bbox["max_lng"],
+        )
+
+    total_matching = (
+        db.session.scalar(select(func.count()).select_from(statement.order_by(None).subquery()))
+        or 0
+    )
+
+    distance_expression = None
+    if focus is not None:
+        distance_expression = func.abs(center_latitude - focus["lat"]) + func.abs(
+            center_longitude - focus["lng"]
+        )
+
+    segment_ids = list(
+        db.session.scalars(
+            statement.order_by(
+                *_browser_sort_expressions(
+                    model_id=Segment.id,
+                    sort_key=sort_key,
+                    distance_expression=distance_expression,
+                    duration_column=Segment.duration,
+                    elevation_column=Segment.elevation_gain,
+                    length_column=Segment.length,
+                )
+            )
+            .offset(offset)
+            .limit(limit)
+        )
+    )
+    return segment_ids, total_matching
+
+
+def _route_browser_records(route_ids: Sequence[int]) -> list[Route]:
+    if not route_ids:
+        return []
+    statement = (
+        select(Route)
+        .options(
+            load_only(
+                Route.id,
+                Route.name,
+                Route.desc,
+                Route.duration,
+                Route.length,
+                Route.elevation_gain,
+                Route.tags,
+                Route.type,
+                Route.subtype,
+                Route.rating,
+                Route.grade,
+                Route.start_latitude,
+                Route.start_longitude,
+                Route.end_latitude,
+                Route.end_longitude,
+                Route._summary_polyline,
+                Route.city,
+                Route.state,
+                Route.country,
+            ),
+            selectinload(Route.groups).load_only(Group.id, Group.name),
+            selectinload(Route.segments).load_only(Segment.id),
+        )
+        .where(Route.id.in_(route_ids))
+    )
+    records = list(db.session.scalars(statement))
+    order = {route_id: index for index, route_id in enumerate(route_ids)}
+    return sorted(records, key=lambda route: order.get(route.id, len(route_ids)))
+
+
+def _segment_browser_records(segment_ids: Sequence[int]) -> list[Segment]:
+    if not segment_ids:
+        return []
+    statement = (
+        select(Segment)
+        .options(
+            load_only(
+                Segment.id,
+                Segment.name,
+                Segment.desc,
+                Segment.duration,
+                Segment.length,
+                Segment.elevation_gain,
+                Segment.rating,
+                Segment.grade,
+                Segment.tags,
+                Segment.type,
+                Segment.subtype,
+                Segment.start_latitude,
+                Segment.start_longitude,
+                Segment.end_latitude,
+                Segment.end_longitude,
+                Segment._summary_polyline,
+            ),
+            selectinload(Segment.routes).load_only(Route.id, Route.name),
+            selectinload(Segment.images).load_only(Image.id),
+        )
+        .where(Segment.id.in_(segment_ids))
+    )
+    records = list(db.session.scalars(statement))
+    order = {segment_id: index for index, segment_id in enumerate(segment_ids)}
+    return sorted(records, key=lambda segment: order.get(segment.id, len(segment_ids)))
+
+
+def _route_event_count_map(route_ids: Sequence[int]) -> dict[int, int]:
+    if not route_ids:
+        return {}
+    rows = db.session.execute(
+        select(Event.route_id, func.count(Event.id))
+        .where(Event.route_id.in_(route_ids))
+        .where(Event.route_id.is_not(None))
+        .group_by(Event.route_id)
+    )
+    return {
+        cast(int, route_id): cast(int, count) for route_id, count in rows if route_id is not None
+    }
+
+
+def _route_browser_filter_options() -> dict[str, object]:
+    return {
+        "clubs": _browser_club_filter_options(),
+        "terrains": _route_terrain_filter_options(),
+    }
+
+
+def _segment_browser_filter_options() -> dict[str, object]:
+    return {
+        "clubs": _browser_club_filter_options(),
+        "terrains": _segment_terrain_filter_options(),
+    }
+
+
+def _browser_club_filter_options(limit: int = 8) -> list[dict[str, object]]:
+    rows = db.session.execute(
+        select(Group.id, Group.name, func.count(group_routes.c.route))
+        .join(group_routes, group_routes.c.group == Group.id)
+        .group_by(Group.id, Group.name)
+        .order_by(func.count(group_routes.c.route).desc(), Group.name.asc())
+        .limit(limit)
+    )
+    return [
+        {"id": cast(int, group_id), "label": name or f"Group {group_id}", "count": cast(int, count)}
+        for group_id, name, count in rows
+    ]
+
+
+def _route_terrain_filter_options(limit: int = 8) -> list[dict[str, object]]:
+    terrain_label = func.coalesce(Route.subtype, Route.type).label("terrain")
+    rows = db.session.execute(
+        select(terrain_label, func.count(Route.id))
+        .where(terrain_label.is_not(None))
+        .group_by(terrain_label)
+        .order_by(func.count(Route.id).desc(), terrain_label.asc())
+        .limit(limit)
+    )
+    return [
+        {"label": cast(str, terrain), "value": cast(str, terrain), "count": cast(int, count)}
+        for terrain, count in rows
+        if terrain
+    ]
+
+
+def _segment_terrain_filter_options(limit: int = 8) -> list[dict[str, object]]:
+    terrain_label = func.coalesce(Segment.subtype, Segment.type).label("terrain")
+    rows = db.session.execute(
+        select(terrain_label, func.count(Segment.id))
+        .where(terrain_label.is_not(None))
+        .group_by(terrain_label)
+        .order_by(func.count(Segment.id).desc(), terrain_label.asc())
+        .limit(limit)
+    )
+    return [
+        {"label": cast(str, terrain), "value": cast(str, terrain), "count": cast(int, count)}
+        for terrain, count in rows
+        if terrain
+    ]
+
+
+def _route_browser_item(route: Route, *, event_count: int) -> dict[str, object]:
+    favorite = _is_favorite_record(route.tags)
+    center = _record_center(
+        route.start_latitude,
+        route.start_longitude,
+        route.end_latitude,
+        route.end_longitude,
+        geometry_text=route.summary_polyline,
+    )
+    subtitle = _join_location(route.subtype or route.type, route.city, route.state)
+    description = route.desc or (
+        "Mapped route ready for browse-first discovery with live distance, elevation, and "
+        "location-aware sorting."
+    )
+    return {
+        "id": route.id,
+        "title": route.name or f"Route {route.id}",
+        "description": description,
+        "subtitle": subtitle,
+        "relatedPreview": {
+            "clubs": [group.name or f"Group {group.id}" for group in route.groups[:3]],
+            "segments": len(route.segments),
+        },
+        "location": _join_location(route.city, route.state, route.country),
+        "favorite": favorite,
+        "favoriteLabel": "Favorite" if favorite else None,
+        "detailUrl": _public_detail_url("route", route.id),
+        "metaLine": _format_route_meta(route),
+        "searchText": " ".join(
+            part
+            for part in [
+                route.name,
+                route.desc,
+                route.type,
+                route.subtype,
+                route.city,
+                route.state,
+                route.country,
+                _csv_value(route.tags),
+            ]
+            if part
+        ),
+        "sortValues": {
+            "closest": None,
+            "duration": route.duration,
+            "elevation": route.elevation_gain,
+            "length": route.length,
+        },
+        "stats": _route_stats_bar(route) or [],
+        "tags": route.tags or [],
+        "center": center,
+        "geometry": _browser_line_geometry(route.summary_polyline),
+        "counts": [
+            {
+                "label": "clubs",
+                "value": len(route.groups),
+            },
+            {
+                "label": "events",
+                "value": event_count,
+            },
+            {
+                "label": "segments",
+                "value": len(route.segments),
+            },
+        ],
+    }
+
+
+def _segment_browser_item(segment: Segment) -> dict[str, object]:
+    favorite = _is_favorite_record(segment.tags)
+    center = _record_center(
+        segment.start_latitude,
+        segment.start_longitude,
+        segment.end_latitude,
+        segment.end_longitude,
+        geometry_text=segment.summary_polyline,
+    )
+    description = segment.desc or (
+        "A defining effort ready to compare by grade, gain, duration, and where it sits in "
+        "the broader route network."
+    )
+    return {
+        "id": segment.id,
+        "title": segment.name or f"Segment {segment.id}",
+        "description": description,
+        "subtitle": segment.subtype or segment.type,
+        "relatedPreview": {
+            "routes": [route.name or f"Route {route.id}" for route in segment.routes[:3]],
+        },
+        "location": _coordinate_pair(segment.start_latitude, segment.start_longitude),
+        "favorite": favorite,
+        "favoriteLabel": "Favorite" if favorite else None,
+        "detailUrl": _public_detail_url("segment", segment.id),
+        "metaLine": _format_segment_meta(segment),
+        "searchText": " ".join(
+            part
+            for part in [
+                segment.name,
+                segment.desc,
+                segment.type,
+                segment.subtype,
+                _csv_value(segment.tags),
+            ]
+            if part
+        ),
+        "sortValues": {
+            "closest": None,
+            "duration": segment.duration,
+            "elevation": segment.elevation_gain,
+            "length": segment.length,
+        },
+        "stats": _segment_stats_bar(segment) or [],
+        "tags": segment.tags or [],
+        "center": center,
+        "geometry": _browser_line_geometry(segment.summary_polyline),
+        "counts": [
+            {
+                "label": "routes",
+                "value": len(segment.routes),
+            },
+            {
+                "label": "images",
+                "value": len(segment.images),
+            },
+        ],
+    }
+
+
+def _browser_line_geometry(geometry_text: str | None) -> dict[str, object] | None:
+    if not geometry_text:
+        return None
+    try:
+        geometry = json.loads(geometry_text)
+    except json.JSONDecodeError:
+        return None
+    if geometry.get("type") != "LineString":
+        return None
+    coordinates = geometry.get("coordinates")
+    if not isinstance(coordinates, list) or not coordinates:
+        return None
+    return cast(dict[str, object], geometry)
+
+
+def _record_center(
+    start_latitude: float | None,
+    start_longitude: float | None,
+    end_latitude: float | None,
+    end_longitude: float | None,
+    *,
+    geometry_text: str | None,
+) -> dict[str, float] | None:
+    if start_latitude is not None and start_longitude is not None:
+        if end_latitude is not None and end_longitude is not None:
+            return {
+                "lat": (start_latitude + end_latitude) / 2,
+                "lng": (start_longitude + end_longitude) / 2,
+            }
+        return {"lat": start_latitude, "lng": start_longitude}
+    geometry = _browser_line_geometry(geometry_text)
+    if geometry is None:
+        return None
+    coordinates = cast(list[list[float]], geometry["coordinates"])
+    mid_index = len(coordinates) // 2
+    midpoint = coordinates[mid_index]
+    return {"lat": midpoint[1], "lng": midpoint[0]}
+
+
+def _browser_summary_stats(
+    items: Sequence[dict[str, object]],
+    *,
+    secondary_label: str,
+) -> list[dict[str, object]]:
+    favorites = sum(1 for item in items if item.get("favorite"))
+    total_related = sum(
+        cast(int, count["value"])
+        for item in items
+        for count in cast(list[dict[str, object]], item.get("counts", []))
+        if count.get("label") == secondary_label.split()[0]
+    )
+    geocoded = sum(1 for item in items if item.get("center") is not None)
+    return [
+        {"label": "Saved favorites", "value": favorites},
+        {"label": secondary_label.title(), "value": total_related},
+        {"label": "Map-ready records", "value": geocoded},
+    ]
+
+
+def _public_detail_url(entity_type: str, entity_id: int) -> str | None:
+    if current_user.is_authenticated and getattr(current_user, "site_admin", False):
+        return _admin_detail_url(entity_type, entity_id)
+    return None
+
+
+def _is_favorite_record(tags: list[str] | None) -> bool:
+    if not tags:
+        return False
+    normalized = {tag.strip().lower() for tag in tags if tag.strip()}
+    return bool({"favorite", "featured", "saved", "starred", "classic"} & normalized)
+
+
 def _format_measurement_value(value: float) -> str:
     rounded = round(value, 1)
     if abs(rounded - round(rounded)) < 1e-9:
@@ -3524,7 +4347,9 @@ def _event_stats_bar(event: Event) -> list[dict[str, str]] | None:
                 _format_distance(
                     linked_route.length
                     if linked_route is not None
-                    else activity.length if activity is not None else None
+                    else activity.length
+                    if activity is not None
+                    else None
                 ),
             ),
             _stat_item(
@@ -3535,7 +4360,9 @@ def _event_stats_bar(event: Event) -> list[dict[str, str]] | None:
                     if event.duration is not None
                     else linked_route.duration
                     if linked_route is not None
-                    else activity.duration if activity is not None else None
+                    else activity.duration
+                    if activity is not None
+                    else None
                 ),
             ),
             _stat_item(
@@ -3546,7 +4373,9 @@ def _event_stats_bar(event: Event) -> list[dict[str, str]] | None:
                     if linked_route is not None
                     else activity.total_elevation_gain
                     if activity is not None and activity.total_elevation_gain is not None
-                    else activity.elevation_gain if activity is not None else None
+                    else activity.elevation_gain
+                    if activity is not None
+                    else None
                 ),
             ),
             _stat_item(
@@ -3739,17 +4568,12 @@ def _sample_points(
         indices = list(range(len(svg_points)))
     else:
         indices = sorted(
-            {
-                round(index * (len(svg_points) - 1) / (max_points - 1))
-                for index in range(max_points)
-            }
+            {round(index * (len(svg_points) - 1) / (max_points - 1)) for index in range(max_points)}
         )
     samples: list[dict[str, str]] = []
     for index in indices:
         label = (
-            labels[index]
-            if labels is not None and index < len(labels)
-            else f"Point {index + 1}"
+            labels[index] if labels is not None and index < len(labels) else f"Point {index + 1}"
         )
         samples.append(
             {

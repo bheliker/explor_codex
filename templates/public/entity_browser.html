@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}{{ collection_label }} | explor_codex{% endblock %}
+
+{% block extra_head %}
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  >
+{% endblock %}
+
+{% block body %}
+  <section class="hero browser-hero">
+    <div class="hero-grid browser-hero-grid">
+      <div>
+        <p class="eyebrow">{{ hero_eyebrow }}</p>
+        <h1>{{ hero_title }}</h1>
+        <p class="voice-line">{{ collection_description }}</p>
+        <p>{{ hero_body }}</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#{{ collection_key }}-browse">Browse {{ collection_label|lower }}</a>
+          <a class="nav-link" href="{{ url_for('core.discover') }}">Cross-domain discover</a>
+        </div>
+      </div>
+      <div class="browser-summary-grid">
+        {% for stat in summary_stats %}
+          <article class="hero-card browser-summary-card">
+            <p class="hero-card-label">{{ stat.label }}</p>
+            <p class="hero-card-value">{{ stat.value }}</p>
+            <p class="hero-card-note">
+              {% if loop.index == 1 %}
+                Favorites float to the top before other sorting rules apply.
+              {% elif loop.index == 2 %}
+                Linked records help this page act like a navigation layer, not a dead end.
+              {% else %}
+                Records with location data can participate in live map filtering.
+              {% endif %}
+            </p>
+          </article>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section
+    id="{{ collection_key }}-browse"
+    class="browser-shell"
+    x-data="collectionBrowser(window.__collectionBrowserData['{{ collection_key }}'])"
+    x-init="init()"
+  >
+    <div class="browser-panel browser-controls">
+      <div class="browser-controls-head">
+        <div>
+          <p class="landing-eyebrow">Browse {{ collection_label }}</p>
+          <h2>Map-first discovery</h2>
+        </div>
+        <div class="browser-view-toggle">
+          <button
+            class="browser-toggle"
+            type="button"
+            :class="{ 'is-active': view === 'grid' }"
+            @click="view = 'grid'"
+          >
+            Grid
+          </button>
+          <button
+            class="browser-toggle"
+            type="button"
+            :class="{ 'is-active': view === 'list' }"
+            @click="view = 'list'"
+          >
+            List
+          </button>
+        </div>
+      </div>
+
+      <div class="browser-form-grid">
+        <label class="field-label">
+          Search
+          <input
+            type="search"
+            x-model.trim="query"
+            @input="scheduleFetch()"
+            placeholder="Search {{ collection_label|lower }}, places, tags, or terrain"
+          >
+        </label>
+        <label class="field-label">
+          Sort
+          <select x-model="sortKey" @change="offset = 0; fetchItems()">
+            <option value="closest">Closest to me</option>
+            <option value="length">Length</option>
+            <option value="elevation">Elevation gain</option>
+            <option value="duration">Duration</option>
+          </select>
+        </label>
+        <label class="field-label">
+          Club
+          <select x-model="clubId" @change="offset = 0; fetchItems()">
+            <option value="">All clubs</option>
+            <template x-for="club in filterOptions.clubs || []" :key="`club-${club.id}`">
+              <option :value="String(club.id)" x-text="`${club.label} (${club.count})`"></option>
+            </template>
+          </select>
+        </label>
+      </div>
+
+      <div class="browser-form-grid browser-form-grid-secondary">
+        <label class="field-label">
+          Terrain
+          <select x-model="terrain" @change="offset = 0; fetchItems()">
+            <option value="">All terrain</option>
+            <template x-for="terrainOption in filterOptions.terrains || []" :key="`terrain-${terrainOption.value}`">
+              <option :value="terrainOption.value" x-text="`${terrainOption.label} (${terrainOption.count})`"></option>
+            </template>
+          </select>
+        </label>
+        <label class="field-label">
+          Event linkage
+          <select x-model="eventfulOnly" @change="offset = 0; fetchItems()">
+            <option value="false">All {{ collection_label|lower }}</option>
+            <option value="true">With events</option>
+          </select>
+        </label>
+        <label class="field-label">
+          Map loading
+          <div class="browser-inline-status">
+            <span class="pill" x-show="loading">Refreshing map results</span>
+            <span class="pill" x-show="!loading">Tile map + server query active</span>
+          </div>
+        </label>
+      </div>
+
+      <div class="browser-chip-row">
+        <button class="choice-chip browser-chip-button" type="button" @click="favoritesOnly = !favoritesOnly; offset = 0; fetchItems()" :class="{ 'is-active': favoritesOnly }">
+          Favorites first
+        </button>
+        <button class="choice-chip browser-chip-button" type="button" @click="mapOnly = !mapOnly; offset = 0; fetchItems()" :class="{ 'is-active': mapOnly }">
+          Map area only
+        </button>
+        <button class="choice-chip browser-chip-button" type="button" @click="offset = 0; fetchItems()">
+          Search map area
+        </button>
+        <button class="choice-chip browser-chip-button" type="button" @click="resetViewport()">
+          Reset map
+        </button>
+      </div>
+
+      <div class="browser-results-bar">
+        <span class="pill" x-text="resultsLabel()"></span>
+        <span class="pill" x-text="focusLabel()"></span>
+        <span class="pill" x-text="totalLabel()">Showing up to {{ visible_limit }} of {{ total_available }} total {{ collection_label|lower }}</span>
+      </div>
+
+      <div class="browser-pagination-row">
+        <button class="nav-link" type="button" @click="previousPage()" :disabled="!canPageBack()">
+          Previous 20
+        </button>
+        <button class="nav-link" type="button" @click="fitLoadedResults()">
+          Fit loaded results
+        </button>
+        <button class="button button-primary" type="button" @click="nextPage()" :disabled="!canPageForward()">
+          Next 20
+        </button>
+      </div>
+
+      <div class="browser-results" :class="view">
+        <div class="browser-fallback-grid" x-show="!ready">
+          {% for item in server_items %}
+            <article class="browser-card{% if loop.first %} is-selected{% endif %}">
+              <div class="browser-card-head">
+                <div>
+                  <p class="landing-eyebrow">{{ collection_label[:-1] if collection_label.endswith('s') else collection_label }}</p>
+                  <h3>{{ item.title }}</h3>
+                </div>
+                {% if item.favorite %}
+                  <span class="tag">Favorite</span>
+                {% endif %}
+              </div>
+              {% if item.metaLine %}
+                <p class="browser-card-meta">{{ item.metaLine }}</p>
+              {% endif %}
+              <p class="browser-card-copy">{{ item.description }}</p>
+            </article>
+          {% endfor %}
+        </div>
+
+        <template x-if="ready && visibleItems().length === 0">
+          <div class="empty">{{ empty_copy }}</div>
+        </template>
+
+        <div class="browser-grid" x-show="ready && view === 'grid'" x-cloak>
+          <template x-for="item in visibleItems()" :key="item.id">
+            <article class="browser-card" :class="{ 'is-selected': selectedItemId === item.id }">
+              <div class="browser-card-head">
+                <div>
+                  <p class="landing-eyebrow" x-text="collectionSingular()"></p>
+                  <h3 x-text="item.title"></h3>
+                </div>
+                <span class="tag" x-show="item.favoriteLabel" x-text="item.favoriteLabel"></span>
+              </div>
+              <p class="browser-card-meta" x-show="item.metaLine" x-text="item.metaLine"></p>
+              <p class="browser-card-copy" x-text="item.description"></p>
+              <div class="browser-count-row">
+                <template x-for="count in item.counts" :key="`${item.id}-${count.label}`">
+                  <span class="pill"><span x-text="count.value"></span> <span x-text="count.label"></span></span>
+                </template>
+              </div>
+              <div class="browser-stats-mini">
+                <template x-for="stat in item.stats" :key="`${item.id}-${stat.label}`">
+                  <div class="browser-stat-pill">
+                    <span x-text="stat.label"></span>
+                    <strong x-text="stat.value"></strong>
+                  </div>
+                </template>
+              </div>
+              <div class="hero-actions">
+                <button class="nav-link" type="button" @click="panToItem(item)">Focus on map</button>
+                <a class="nav-link" x-show="item.detailUrl" :href="item.detailUrl">Open record</a>
+              </div>
+            </article>
+          </template>
+        </div>
+
+        <div class="browser-list" x-show="ready && view === 'list'" x-cloak>
+          <template x-for="item in visibleItems()" :key="`list-${item.id}`">
+            <article class="browser-list-row" :class="{ 'is-selected': selectedItemId === item.id }">
+              <div class="browser-list-copy">
+                <div class="browser-card-head">
+                  <div>
+                    <p class="landing-eyebrow" x-text="collectionSingular()"></p>
+                    <h3 x-text="item.title"></h3>
+                  </div>
+                  <span class="tag" x-show="item.favoriteLabel" x-text="item.favoriteLabel"></span>
+                </div>
+                <p class="browser-card-meta" x-show="item.metaLine" x-text="item.metaLine"></p>
+                <p class="browser-card-copy" x-text="item.description"></p>
+              </div>
+              <div class="browser-list-aside">
+                <div class="browser-stats-mini">
+                  <template x-for="stat in item.stats.slice(0, 3)" :key="`${item.id}-aside-${stat.label}`">
+                    <div class="browser-stat-pill">
+                      <span x-text="stat.label"></span>
+                      <strong x-text="stat.value"></strong>
+                    </div>
+                  </template>
+                </div>
+                <button class="button button-primary" type="button" @click="panToItem(item)">Show on map</button>
+              </div>
+            </article>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <aside class="browser-panel browser-map-panel">
+      <div class="browser-map-head">
+        <div>
+          <p class="landing-eyebrow">Live map</p>
+          <h2>Pan to refine results</h2>
+        </div>
+        <p class="browser-map-note">Leaflet tiles are live now, and the results list refetches from the server as the map moves.</p>
+      </div>
+
+      <div class="browser-map">
+        <div class="browser-map-overlay">
+          <span class="pill" x-text="viewportLabel()"></span>
+          <span class="pill" x-show="hasFocusPoint()">Closest sort anchored to saved home point or current map focus.</span>
+          <span class="pill" x-show="loading">Loading server-filtered records</span>
+        </div>
+        <div class="browser-leaflet-map" x-ref="map"></div>
+      </div>
+    </aside>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script>
+    window.__collectionBrowserData = window.__collectionBrowserData || {};
+    window.__collectionBrowserData['{{ collection_key }}'] = {{ page_data|tojson }};
+  </script>
+  <script src="{{ url_for('static', filename='js/collection_browser.js') }}"></script>
+{% endblock %}
