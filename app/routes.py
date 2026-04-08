@@ -226,6 +226,50 @@ def public_routes_route() -> str:
     )
 
 
+@bp.get("/routes/<int:route_id>")
+def public_route_detail_route(route_id: int) -> str:
+    route = _get_or_404(Route, route_id)
+    return render_template(
+        "public/detail.html",
+        back_url=url_for("core.public_routes_route"),
+        back_label="Back to routes",
+        browse_url=url_for("core.public_routes_route"),
+        browse_label="Browse more routes",
+        detail_rows=_detail_rows(
+            [
+                ("Length", route.length),
+                ("Duration", route.duration),
+                ("Elevation gain", route.elevation_gain),
+                ("Grade", route.grade),
+                ("Rating", route.rating),
+                ("Type", route.type),
+                ("Subtype", route.subtype),
+                ("Address", route.address),
+                (
+                    "Start coordinates",
+                    _coordinate_pair(route.start_latitude, route.start_longitude),
+                ),
+                ("End coordinates", _coordinate_pair(route.end_latitude, route.end_longitude)),
+                ("Place", _join_location(route.city, route.state, route.country)),
+                ("Linked clubs", len(route.groups)),
+                ("Linked segments", len(route.segments)),
+                ("External links", len(route.links)),
+            ]
+        ),
+        entity_id=route.id,
+        entity_type_label="Route",
+        location=_join_location(route.city, route.state, route.country),
+        media_previews=_route_media_previews(route),
+        page_title=route.name or "Route",
+        related_sections=_public_route_related_sections(route),
+        story_sections=_route_story_sections(route),
+        subtitle=route.subtype or route.type,
+        tags=route.tags,
+        stats_bar=_route_stats_bar(route),
+        visual_sections=_route_visual_sections(route),
+    )
+
+
 @bp.get("/segments")
 def public_segments_route() -> str:
     bundle = _segment_browser_bundle()
@@ -258,6 +302,50 @@ def public_segments_route() -> str:
         ),
         total_available=_count_records(Segment),
         visible_limit=cast(int, bundle["limit"]),
+    )
+
+
+@bp.get("/segments/<int:segment_id>")
+def public_segment_detail_route(segment_id: int) -> str:
+    segment = _get_or_404(Segment, segment_id)
+    return render_template(
+        "public/detail.html",
+        back_url=url_for("core.public_segments_route"),
+        back_label="Back to segments",
+        browse_url=url_for("core.public_segments_route"),
+        browse_label="Browse more segments",
+        detail_rows=_detail_rows(
+            [
+                ("Length", segment.length),
+                ("Duration", segment.duration),
+                ("Elevation gain", segment.elevation_gain),
+                ("Elevation loss", segment.elevation_loss),
+                ("Grade", segment.grade),
+                ("Rating", segment.rating),
+                ("Type", segment.type),
+                ("Subtype", segment.subtype),
+                (
+                    "Start coordinates",
+                    _coordinate_pair(segment.start_latitude, segment.start_longitude),
+                ),
+                ("End coordinates", _coordinate_pair(segment.end_latitude, segment.end_longitude)),
+                ("High point", segment.elev_high),
+                ("Low point", segment.elev_low),
+                ("Linked routes", len(segment.routes)),
+                ("Linked images", len(segment.images)),
+            ]
+        ),
+        entity_id=segment.id,
+        entity_type_label="Segment",
+        location=None,
+        media_previews=_segment_media_previews(segment),
+        page_title=segment.name or "Segment",
+        related_sections=_public_segment_related_sections(segment),
+        story_sections=_segment_story_sections(segment),
+        subtitle=segment.subtype or segment.type,
+        tags=segment.tags,
+        stats_bar=_segment_stats_bar(segment),
+        visual_sections=_segment_visual_sections(segment),
     )
 
 
@@ -3208,13 +3296,9 @@ def _admin_search_result_item(document: SearchDocument) -> dict[str, object]:
 
 
 def _public_search_result_item(document: SearchDocument) -> dict[str, object]:
-    detail_url = None
-    if current_user.is_authenticated and getattr(current_user, "site_admin", False):
-        detail_url = _admin_detail_url(document.entity_type, document.entity_id)
-
     return {
         **_search_document_payload(document),
-        "detail_url": detail_url,
+        "detail_url": _public_detail_url(document.entity_type, document.entity_id),
     }
 
 
@@ -3943,6 +4027,16 @@ def _route_browser_records(route_ids: Sequence[int]) -> list[Route]:
             ),
             selectinload(Route.groups).load_only(Group.id, Group.name),
             selectinload(Route.segments).load_only(Segment.id),
+            selectinload(Route.segments)
+            .selectinload(Segment.images)
+            .load_only(
+                Image.id,
+                Image.img_large,
+                Image.img_medium,
+                Image.img_small,
+                Image.img_thumb,
+                Image.url,
+            ),
         )
         .where(Route.id.in_(route_ids))
     )
@@ -3976,7 +4070,14 @@ def _segment_browser_records(segment_ids: Sequence[int]) -> list[Segment]:
                 Segment._summary_polyline,
             ),
             selectinload(Segment.routes).load_only(Route.id, Route.name),
-            selectinload(Segment.images).load_only(Image.id),
+            selectinload(Segment.images).load_only(
+                Image.id,
+                Image.img_large,
+                Image.img_medium,
+                Image.img_small,
+                Image.img_thumb,
+                Image.url,
+            ),
         )
         .where(Segment.id.in_(segment_ids))
     )
@@ -4127,9 +4228,12 @@ def _route_browser_item(route: Route, *, event_count: int) -> dict[str, object]:
         geometry_text=route.summary_polyline,
     )
     subtitle = _join_location(route.subtype or route.type, route.city, route.state)
-    description = route.desc or (
+    description = _browser_description_preview(
+        route.desc
+        or (
         "Mapped route ready for browse-first discovery with live distance, elevation, and "
         "location-aware sorting."
+        )
     )
     return {
         "id": route.id,
@@ -4144,6 +4248,7 @@ def _route_browser_item(route: Route, *, event_count: int) -> dict[str, object]:
         "favorite": favorite,
         "favoriteLabel": "Favorite" if favorite else None,
         "detailUrl": _public_detail_url("route", route.id),
+        "imageUrl": _route_browser_image_url(route),
         "metaLine": _format_route_meta(route),
         "searchText": " ".join(
             part
@@ -4190,9 +4295,12 @@ def _segment_browser_item(segment: Segment) -> dict[str, object]:
         segment.end_longitude,
         geometry_text=segment.summary_polyline,
     )
-    description = segment.desc or (
+    description = _browser_description_preview(
+        segment.desc
+        or (
         "A defining effort ready to compare by grade, gain, duration, and where it sits in "
         "the broader route network."
+        )
     )
     return {
         "id": segment.id,
@@ -4206,6 +4314,7 @@ def _segment_browser_item(segment: Segment) -> dict[str, object]:
         "favorite": favorite,
         "favoriteLabel": "Favorite" if favorite else None,
         "detailUrl": _public_detail_url("segment", segment.id),
+        "imageUrl": _segment_browser_image_url(segment),
         "metaLine": _format_segment_meta(segment),
         "searchText": " ".join(
             part
@@ -4308,7 +4417,44 @@ def _browser_summary_stats(
 
 def _public_detail_url(entity_type: str, entity_id: int) -> str | None:
     if current_user.is_authenticated and getattr(current_user, "site_admin", False):
-        return _admin_detail_url(entity_type, entity_id)
+        admin_url = _admin_detail_url(entity_type, entity_id)
+        if admin_url is not None:
+            return admin_url
+    if entity_type == "route":
+        return url_for("core.public_route_detail_route", route_id=entity_id)
+    if entity_type == "segment":
+        return url_for("core.public_segment_detail_route", segment_id=entity_id)
+    return None
+
+
+def _browser_description_preview(description: str, limit: int = 200) -> str:
+    normalized = " ".join(description.split())
+    if len(normalized) <= limit:
+        return normalized
+    if limit <= 3:
+        return normalized[:limit]
+    shortened = normalized[: limit - 3].rstrip()
+    if " " in shortened:
+        shortened = shortened.rsplit(" ", 1)[0]
+    return f"{shortened}..."
+
+
+def _route_browser_image_url(route: Route) -> str | None:
+    if route.map_thumbnail and route.map_thumbnail.strip():
+        return route.map_thumbnail
+    for segment in route.segments:
+        for image in segment.images[:1]:
+            image_url = _image_preview_url(image)
+            if image_url:
+                return image_url
+    return None
+
+
+def _segment_browser_image_url(segment: Segment) -> str | None:
+    for image in segment.images[:1]:
+        image_url = _image_preview_url(image)
+        if image_url:
+            return image_url
     return None
 
 
@@ -5123,6 +5269,61 @@ def _route_related_sections(route: Route) -> list[dict[str, object]] | None:
     return [section for section in sections if section is not None] or None
 
 
+def _public_route_related_sections(route: Route) -> list[dict[str, object]] | None:
+    sections = [
+        _related_section(
+            "Linked clubs",
+            eyebrow="Where this route lives",
+            empty_copy="This route is not linked to any clubs yet.",
+            items=[
+                {
+                    "eyebrow": "Club",
+                    "external": False,
+                    "href": None,
+                    "meta": _join_location(
+                        group.about_blurb,
+                        _join_location(group.home_town, group.home_state, group.home_country),
+                    ),
+                    "title": group.name or f"Group {group.id}",
+                }
+                for group in route.groups
+            ],
+        ),
+        _related_section(
+            "Linked segments",
+            eyebrow="Building blocks",
+            empty_copy="This route is not linked to any segments yet.",
+            items=[
+                {
+                    "eyebrow": "Segment",
+                    "external": False,
+                    "href": _public_detail_url("segment", segment.id),
+                    "meta": _format_segment_meta(segment),
+                    "title": segment.name or f"Segment {segment.id}",
+                }
+                for segment in route.segments
+            ],
+        ),
+        _related_section(
+            "External links",
+            eyebrow="Source material",
+            empty_copy="This route does not have external links yet.",
+            items=[
+                {
+                    "eyebrow": link.type or "Link",
+                    "external": True,
+                    "href": link.url,
+                    "meta": _join_location(link.subtype, link.description),
+                    "title": link.name or link.url or f"Link {link.id}",
+                }
+                for link in route.links
+                if link.url
+            ],
+        ),
+    ]
+    return [section for section in sections if section is not None] or None
+
+
 def _segment_related_sections(segment: Segment) -> list[dict[str, object]] | None:
     sections = [
         _related_section(
@@ -5134,6 +5335,43 @@ def _segment_related_sections(segment: Segment) -> list[dict[str, object]] | Non
                     "eyebrow": "Route",
                     "external": False,
                     "href": url_for("core.admin_route_detail_route", route_id=route.id),
+                    "meta": _format_route_meta(route),
+                    "title": route.name or f"Route {route.id}",
+                }
+                for route in segment.routes
+            ],
+        ),
+        _related_section(
+            "Image set",
+            eyebrow="Visual context",
+            empty_copy="This segment does not have images yet.",
+            items=[
+                {
+                    "eyebrow": "Image",
+                    "external": True,
+                    "href": _image_preview_url(image),
+                    "meta": _join_location(image.caption, image.alt_txt),
+                    "title": image.title or f"Image {image.id}",
+                }
+                for image in segment.images
+                if _image_preview_url(image)
+            ],
+        ),
+    ]
+    return [section for section in sections if section is not None] or None
+
+
+def _public_segment_related_sections(segment: Segment) -> list[dict[str, object]] | None:
+    sections = [
+        _related_section(
+            "Linked routes",
+            eyebrow="Appears in",
+            empty_copy="This segment is not linked to any routes yet.",
+            items=[
+                {
+                    "eyebrow": "Route",
+                    "external": False,
+                    "href": _public_detail_url("route", route.id),
                     "meta": _format_route_meta(route),
                     "title": route.name or f"Route {route.id}",
                 }

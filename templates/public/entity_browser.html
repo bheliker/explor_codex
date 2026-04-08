@@ -130,7 +130,6 @@
       <div class="browser-results-bar browser-results-bar-compact">
         <span class="pill" x-text="modeLabel()"></span>
         <span class="pill" x-text="totalLabel()">Showing up to {{ visible_limit }} of {{ total_available }} total {{ collection_label|lower }}</span>
-        <span class="pill" x-show="mapOnly" x-text="viewportLabel()"></span>
       </div>
       <!-- Compact status row ends. -->
 
@@ -233,11 +232,17 @@
       <div class="browser-results" :class="view">
         <div class="browser-fallback-grid" x-show="!ready">
           {% for item in server_items %}
-            <article class="browser-card{% if loop.first %} is-selected{% endif %}">
+            <article class="browser-card{% if loop.first %} is-selected{% endif %}{% if item.imageUrl %} has-image{% endif %}"{% if item.imageUrl %} style="background-image: url('{{ item.imageUrl }}');"{% endif %}>
               <div class="browser-card-head">
                 <div>
                   <p class="landing-eyebrow">{{ collection_label[:-1] if collection_label.endswith('s') else collection_label }}</p>
-                  <h3>{{ item.title }}</h3>
+                  <h3>
+                    {% if item.detailUrl %}
+                      <a class="browser-card-title-link" href="{{ item.detailUrl }}">{{ item.title }}</a>
+                    {% else %}
+                      {{ item.title }}
+                    {% endif %}
+                  </h3>
                 </div>
                 {% if item.favorite %}
                   <span class="tag">Favorite</span>
@@ -257,11 +262,18 @@
 
         <div class="browser-grid" x-show="ready && view === 'grid'" x-cloak>
           <template x-for="item in visibleItems()" :key="item.id">
-            <article class="browser-card" :class="{ 'is-selected': selectedItemId === item.id }">
+            <article class="browser-card" :class="{ 'is-selected': selectedItemId === item.id, 'has-image': !!item.imageUrl }" :style="cardBackgroundStyle(item)">
               <div class="browser-card-head">
                 <div>
                   <p class="landing-eyebrow" x-text="collectionSingular()"></p>
-                  <h3 x-text="item.title"></h3>
+                  <h3>
+                    <template x-if="item.detailUrl">
+                      <a class="browser-card-title-link" :href="item.detailUrl" x-text="item.title"></a>
+                    </template>
+                    <template x-if="!item.detailUrl">
+                      <span x-text="item.title"></span>
+                    </template>
+                  </h3>
                 </div>
                 <span class="tag" x-show="item.favoriteLabel" x-text="item.favoriteLabel"></span>
               </div>
@@ -295,7 +307,14 @@
                 <div class="browser-card-head">
                   <div>
                     <p class="landing-eyebrow" x-text="collectionSingular()"></p>
-                    <h3 x-text="item.title"></h3>
+                    <h3>
+                      <template x-if="item.detailUrl">
+                        <a class="browser-card-title-link" :href="item.detailUrl" x-text="item.title"></a>
+                      </template>
+                      <template x-if="!item.detailUrl">
+                        <span x-text="item.title"></span>
+                      </template>
+                    </h3>
                   </div>
                   <span class="tag" x-show="item.favoriteLabel" x-text="item.favoriteLabel"></span>
                 </div>
@@ -332,9 +351,8 @@
         <p class="browser-map-note">Leaflet tiles are live now, and the results list refetches from the server as the map moves.</p>
       </div>
 
-      <div class="browser-map">
-        <div class="browser-map-overlay">
-          <span class="pill" x-text="viewportLabel()"></span>
+        <div class="browser-map">
+          <div class="browser-map-overlay">
           <span class="pill" x-show="hasFocusPoint()">Closest sort anchored to saved home point or current map focus.</span>
           <span class="pill" x-show="loading">Loading server-filtered records</span>
         </div>

@@ -35,9 +35,9 @@
         <a class="nav-link" href="{{ url_for('core.discover') }}">Discover</a>
         <a class="nav-link" href="{{ url_for('core.public_routes_route') }}">Routes</a>
         <a class="nav-link" href="{{ url_for('core.public_segments_route') }}">Segments</a>
-        <a class="nav-link" href="{{ url_for('core.palette') }}">Palette</a>
         <a class="nav-link" href="{{ url_for('core.landing') }}">About</a>
         {% if current_user.is_authenticated and current_user.site_admin %}
+          <a class="nav-link" href="{{ url_for('core.palette') }}">Palette</a>
           <a class="nav-link" href="{{ url_for('core.admin_dashboard_route') }}">Dashboard</a>
           <a class="nav-link" href="{{ url_for('core.admin_search_route') }}">Search</a>
           <a class="nav-link" href="{{ url_for('core.admin_user_list_route') }}">Users</a>

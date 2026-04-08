@@ -174,16 +174,6 @@ function collectionBrowser(config) {
       return Boolean(this.focus || this.map);
     },
 
-    viewportLabel() {
-      if (!this.map) {
-        return "Map loading";
-      }
-      const bounds = this.map.getBounds();
-      const latSpan = (bounds.getNorth() - bounds.getSouth()).toFixed(2);
-      const lngSpan = (bounds.getEast() - bounds.getWest()).toFixed(2);
-      return `Viewport ${latSpan}° x ${lngSpan}°`;
-    },
-
     resetViewport() {
       if (!this.map) {
         return;
@@ -482,6 +472,14 @@ function collectionBrowser(config) {
           ${openLink}
         </div>
       `;
+    },
+
+    cardBackgroundStyle(item) {
+      if (!item?.imageUrl) {
+        return "";
+      }
+      const url = String(item.imageUrl).replaceAll('"', "%22");
+      return `background-image: url("${url}")`;
     },
 
     escapeHtml(value) {

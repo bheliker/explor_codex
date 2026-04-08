@@ -132,7 +132,29 @@ def test_public_discover_route_renders_results(
     assert "Browse the rebuilt domain like a product, not a database." in html
     assert "North Bay Climbers" in html
     assert "Bolinas Ridge Loop" in html
+    assert 'href="/routes/' in html
     assert "Log in to inspect" in html
+
+
+def test_public_discover_hides_login_prompts_for_authenticated_user(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    user_id = _create_test_user(
+        app,
+        username="discover-user",
+        email="discover@example.com",
+        site_admin=False,
+    )
+    with client.session_transaction() as session:
+        session["_user_id"] = str(user_id)
+        session["_fresh"] = True
+
+    response = client.get("/discover?q=marin")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Log in for deeper access" not in html
+    assert "Log in to inspect" not in html
 
 
 def test_public_routes_route_renders_browser_page(
@@ -174,6 +196,7 @@ def test_public_routes_route_renders_browser_page(
     assert "More filters" in html
     assert "/segments" in html
     assert "Showing up to 30 of" in html
+    assert "Viewport " not in html
 
 
 def test_public_segments_route_renders_browser_page(
@@ -208,6 +231,146 @@ def test_public_segments_route_renders_browser_page(
     assert "West Ridge Kick" in html
     assert "Map-first discovery" in html
     assert "Routes" in html
+    assert "Viewport " not in html
+
+
+def test_public_route_browser_shows_linked_title_and_card_image_for_admin(
+    app: Flask, admin_client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        route = Route(
+            name="Marsh Loop",
+            map_thumbnail="https://images.example.com/marsh-loop.jpg",
+            start_latitude=37.7,
+            start_longitude=-122.4,
+            end_latitude=37.8,
+            end_longitude=-122.3,
+        )
+        db.session.add(route)
+        db.session.commit()
+        route_id = route.id
+
+    response = admin_client.get("/routes")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert f'href="/admin/routes/{route_id}"' in html
+    assert "marsh-loop.jpg" in html
+
+
+def test_public_route_browser_links_titles_for_signed_out_users(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        route = Route(
+            name="Public Route",
+            start_latitude=37.7,
+            start_longitude=-122.4,
+            end_latitude=37.8,
+            end_longitude=-122.3,
+        )
+        db.session.add(route)
+        db.session.commit()
+        route_id = route.id
+
+    response = client.get("/routes")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert f'href="/routes/{route_id}"' in html
+
+
+def test_public_route_detail_route_renders(app: Flask, client: FlaskClient, database: None) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        route = Route(
+            name="Tam Detail Loop",
+            desc="A real public detail page for browse traffic.",
+            type="ride",
+            subtype="mixed terrain",
+            city="Mill Valley",
+            state="CA",
+            start_latitude=37.7,
+            start_longitude=-122.4,
+            end_latitude=37.8,
+            end_longitude=-122.3,
+        )
+        db.session.add(route)
+        db.session.commit()
+        route_id = route.id
+
+    response = client.get(f"/routes/{route_id}")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Tam Detail Loop" in html
+    assert "Browse more routes" in html
+
+
+def test_public_segment_detail_route_renders(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        segment = Segment(
+            name="Public Segment Detail",
+            desc="A public landing page for a defining effort.",
+            type="climb",
+            subtype="ridge",
+            start_latitude=37.4,
+            start_longitude=-122.2,
+            end_latitude=37.41,
+            end_longitude=-122.18,
+        )
+        db.session.add(segment)
+        db.session.commit()
+        segment_id = segment.id
+
+    response = client.get(f"/segments/{segment_id}")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Public Segment Detail" in html
+    assert "Browse more segments" in html
+
+
+def test_public_route_browser_truncates_long_description(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        route = Route(
+            name="Long Story Loop",
+            desc=(
+                "This route starts gently through the flats before turning into a long, "
+                "winding climb above the reservoir with several overlooks, a rougher ridge "
+                "section, and a fast return that keeps unfolding well past a short teaser."
+            ),
+            start_latitude=37.7,
+            start_longitude=-122.4,
+            end_latitude=37.8,
+            end_longitude=-122.3,
+        )
+        db.session.add(route)
+        db.session.commit()
+
+    response = client.get("/api/browser/routes?limit=30")
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload is not None
+    item = next(entry for entry in payload["items"] if entry["title"] == "Long Story Loop")
+    assert len(item["description"]) <= 200
+    assert item["description"].endswith("...")
+
+
+def test_palette_link_hidden_for_non_admin(app: Flask, database: None) -> None:
+    anon_response = app.test_client().get("/routes")
+
+    assert anon_response.status_code == 200
+    assert 'href="/palette"' not in anon_response.get_data(as_text=True)
 
 
 def test_public_routes_route_caps_payload_to_thirty_records(

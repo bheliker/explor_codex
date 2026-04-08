@@ -1528,6 +1528,68 @@ This file records session history for `explor_codex` so future work can resume w
 ### Verification
 - `uv run pytest tests/test_app.py -k 'public_routes_route or public_segments_route'`
 - `uv run ruff check app/routes.py tests/test_app.py`
+
+## 2026-04-08 (Browse Card And Discover CTA Polish)
+
+### Investigated
+- Followed up on public browse-page polish after the route and segment browser merge.
+- Confirmed the remaining gaps were mostly presentation and access cues:
+  - card titles did not surface the existing detail destination clearly
+  - image-backed cards were not using available route or segment imagery
+  - viewport copy added noise without helping navigation
+  - non-admin users could still see the palette entry point
+  - long route and segment descriptions needed a tighter preview limit
+  - logged-in users were still being prompted to log in again from discover surfaces
+
+### Changed
+- Updated [templates/public/entity_browser.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/public/entity_browser.html) so browser card titles link to the existing detail URL when present and grid cards can render a background image.
+- Added browser image helpers and description-preview truncation in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py), including a hard cap that keeps route and segment previews at roughly 200 characters.
+- Updated [static/js/collection_browser.js](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/js/collection_browser.js) and [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css) for image-backed browser cards and cleaner map/list presentation.
+- Removed the viewport-size readout from the public route and segment browser.
+- Hid the `Palette` navigation link from non-admin users in [templates/base.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/base.html).
+- Updated [templates/public/discover.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/public/discover.html) so authenticated users no longer see `Log in for deeper access` or `Log in to inspect`.
+- Added regression coverage in [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) for admin card linking/image rendering, authenticated discover behavior, palette visibility, and description truncation.
+
+### Why
+- These changes make the main browse surfaces feel more product-like and less noisy while avoiding contradictory prompts for users who are already signed in.
+- Tight preview limits and visual cards make scanning faster without losing the path into deeper record detail.
+
+### Verification
+- `uv run pytest tests/test_app.py -k 'public_discover_route or public_routes_route or public_segments_route or public_route_browser_shows_linked_title_and_card_image_for_admin or public_route_browser_truncates_long_description or palette_link_hidden_for_non_admin'`
+- `uv run ruff check app/routes.py tests/test_app.py`
+- `uv run mypy app tests`
+
+## 2026-04-08 (Public Route And Segment Detail Links)
+
+### Investigated
+- Rechecked why route and segment browse card titles still were not clickable for regular users.
+- Confirmed the template wiring was fine, but the public browser payload only emitted `detailUrl` for admins because no public route or segment detail page existed yet.
+- Reviewed the original `explor_alpha` route browser template to borrow more of the image-first card feel from the earlier grid/list view.
+
+### Changed
+- Added public detail pages at [templates/public/detail.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/public/detail.html) backed by:
+  - [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) `GET /routes/<id>`
+  - [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) `GET /segments/<id>`
+- Updated public detail URL generation in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) so:
+  - public users get route and segment detail links
+  - admins still keep admin detail destinations where available
+- Added public related-section helpers in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py) so connected routes and segments can cross-link on the new public detail pages.
+- Updated [templates/public/entity_browser.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/public/entity_browser.html) so title links are consistent in both grid and list views.
+- Adjusted [static/js/collection_browser.js](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/js/collection_browser.js) and [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css) so image-backed cards use a stronger CSS gradient overlay rather than a weak inline fade, closer to the original browse treatment.
+- Extended [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) for:
+  - anonymous route title links
+  - public route detail rendering
+  - public segment detail rendering
+  - discover results linking into public route detail pages
+
+### Why
+- The route and segment browser is one of the primary navigation surfaces, so cards need a real next click for public users instead of visual affordances that only work for admins.
+- The stronger image fade keeps card text legible while recovering more of the original browse-page mood.
+
+### Verification
+- `uv run pytest tests/test_app.py -k 'public_discover_route or public_routes_route or public_segments_route or public_route_browser_shows_linked_title_and_card_image_for_admin or public_route_browser_links_titles_for_signed_out_users or public_route_detail_route_renders or public_segment_detail_route_renders or public_route_browser_truncates_long_description or palette_link_hidden_for_non_admin'`
+- `uv run ruff check app/routes.py tests/test_app.py`
+- `uv run mypy app tests`
 - `uv run mypy app tests`
 
 ## 2026-04-07 (Leaflet Browse API And Rich Filters)
