@@ -219,6 +219,38 @@ This file records session history for `explor_codex` so future work can resume w
 
 ### Decisions
 
+## 2026-04-07 (Route And Segment Browser Refinements)
+
+### Investigated
+- Reviewed the first public route and segment browser pass against real browser behavior and payload size.
+- Confirmed the browse surfaces needed tighter result caps, lighter map payloads, and more predictable Leaflet lifecycle handling before moving into broader polish.
+- Followed the next round of UX requests around paging, full-height mapping, area jumping, and full-database text search.
+
+### Changed
+- Reduced the public route and segment browse payload shape to summary geometry only and kept the browser limit capped server-side.
+- Added real Leaflet map rendering with server-backed viewport querying, richer club/event/terrain filters, and offset pagination for `/routes` and `/segments`.
+- Hardened the map client in [static/js/collection_browser.js](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/js/collection_browser.js) to avoid duplicate Leaflet initialization and suppress fetch loops from internal map moves.
+- Increased the public browser cap from 20 to 30 records per request in [app/routes.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/app/routes.py).
+- Added `/api/browser/areas` plus area-search UI so users can jump the map to another city or state from [templates/public/entity_browser.html](/Users/bheliker/Documents/_Projects/explor/explor_codex/templates/public/entity_browser.html).
+- Updated the main browse search so typed queries automatically run against the full dataset while map-area browsing remains available as an explicit mode.
+- Made the map panel fill the viewport more completely in [static/css/admin.css](/Users/bheliker/Documents/_Projects/explor/explor_codex/static/css/admin.css).
+- Hid zero-value club and event count pills and stopped rendering blank rating/grade stats.
+- Extended regression coverage in [tests/test_app.py](/Users/bheliker/Documents/_Projects/explor/explor_codex/tests/test_app.py) for the 30-result cap, area search, zero-count hiding, and browser API pagination/filtering.
+
+### Decisions
+- Keep public browser responses intentionally small and paged, even when the map surface becomes richer.
+- Treat free-text query as a full-database search affordance and keep map-area filtering as a separate, reversible mode.
+- Skip empty or zero-value secondary UI badges rather than rendering placeholders that make sparse records feel broken.
+
+### Why
+- The public browse pages are the main navigation layer for the site, so responsiveness and clarity matter more than loading every possible record at once.
+- Area jumping and full-database text search make it much faster to reorient the browse experience without forcing the user to pan manually across the map.
+- Removing empty stats and zero badges keeps cards focused on signal instead of visual noise.
+
+### Notes for the next session
+- The next likely browse refinements are marker clustering, deeper side-panel previews, and map-driven highlighting for hovered list items.
+- If full-database search needs to go beyond field matching, the existing `search_document` index is a strong candidate for powering the browse text query.
+
 ## 2026-04-02 (Event Maps, Stats Bar, And Units Migration Repair)
 
 ### Investigated

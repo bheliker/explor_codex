@@ -170,8 +170,10 @@ def test_public_routes_route_renders_browser_page(
     assert "Browse routes with the map and list moving together." in html
     assert "Mt. Tam North Loop" in html
     assert "Search map area" in html
+    assert "Search full database" in html
+    assert "Area Search" in html
     assert "/segments" in html
-    assert "Showing up to 20 of" in html
+    assert "Showing up to 30 of" in html
 
 
 def test_public_segments_route_renders_browser_page(
@@ -208,12 +210,12 @@ def test_public_segments_route_renders_browser_page(
     assert "Routes" in html
 
 
-def test_public_routes_route_caps_payload_to_twenty_records(
+def test_public_routes_route_caps_payload_to_thirty_records(
     app: Flask, client: FlaskClient, database: None
 ) -> None:
     with app.app_context():
         db = app.extensions["sqlalchemy"]
-        for index in range(25):
+        for index in range(35):
             db.session.add(
                 Route(
                     name=f"Route {index}",
@@ -227,8 +229,8 @@ def test_public_routes_route_caps_payload_to_twenty_records(
 
     assert response.status_code == 200
     html = response.get_data(as_text=True)
-    assert "Showing up to 20 of 25 total routes" in html
-    assert "Route 24" in html
+    assert "Showing up to 30 of 35 total routes" in html
+    assert "Route 34" in html
     assert "Route 5" in html
     assert "Route 4" not in html
     assert "Route 0" not in html
@@ -362,6 +364,67 @@ def test_public_route_browser_api_supports_offset_pagination(
     assert payload["limit"] == 2
     assert payload["offset"] == 2
     assert len(payload["items"]) == 2
+
+
+def test_public_browser_area_search_returns_matching_locations(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        db.session.add(
+            Route(
+                name="Capital Loop",
+                city="Sacramento",
+                state="CA",
+                country="USA",
+                start_latitude=38.57,
+                start_longitude=-121.49,
+                end_latitude=38.59,
+                end_longitude=-121.45,
+            )
+        )
+        db.session.add(
+            Event(
+                name="Cap City Ride",
+                town="Sacramento",
+                state="CA",
+                country="USA",
+                lat=38.58,
+                lon=-121.48,
+            )
+        )
+        db.session.commit()
+
+    response = client.get("/api/browser/areas?q=sacra")
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["items"]
+    assert payload["items"][0]["label"] == "Sacramento, CA, USA"
+
+
+def test_public_routes_route_hides_zero_club_and_event_counts(
+    app: Flask, client: FlaskClient, database: None
+) -> None:
+    with app.app_context():
+        db = app.extensions["sqlalchemy"]
+        db.session.add(
+            Route(
+                name="Solo Route",
+                start_latitude=37.8,
+                start_longitude=-122.4,
+                end_latitude=37.81,
+                end_longitude=-122.39,
+            )
+        )
+        db.session.commit()
+
+    response = client.get("/routes")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "0 clubs" not in html
+    assert "0 events" not in html
 
 
 def test_palette_route_renders_token_table(client: FlaskClient, database: None) -> None:
@@ -3115,7 +3178,7 @@ def test_admin_segment_detail_page_renders_full_record(
     assert "Canopy switchback" in html
 
 
-def test_admin_route_detail_page_keeps_stats_slots_when_values_are_missing(
+def test_admin_route_detail_page_skips_blank_stats_when_values_are_missing(
     app: Flask, admin_client: FlaskClient, database: None
 ) -> None:
     with app.app_context():
@@ -3137,9 +3200,11 @@ def test_admin_route_detail_page_keeps_stats_slots_when_values_are_missing(
     assert response.status_code == 200
     html = response.get_data(as_text=True)
 
-    assert "Rating" in html
-    assert "Grade" in html
-    assert html.count("--") >= 2
+    assert "Rating" not in html
+    assert "Grade" not in html
+    assert "Distance" in html
+    assert "Duration" in html
+    assert "Elevation" in html
 
 
 def test_admin_event_detail_page_renders_full_record(

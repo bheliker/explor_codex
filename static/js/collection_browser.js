@@ -4,7 +4,10 @@ const EXPLOR_BROWSER_TILE_SUBDOMAINS = "abcd";
 
 function collectionBrowser(config) {
   return {
+    areaQuery: "",
+    areaResults: [],
     abortController: null,
+    areaAbortController: null,
     clubId: "",
     collectionLabel: config.collectionLabel,
     eventfulOnly: "false",
@@ -12,7 +15,7 @@ function collectionBrowser(config) {
     filterOptions: config.filterOptions || {},
     focus: config.focus,
     items: [...(config.items || [])],
-    limit: config.limit || 20,
+    limit: config.limit || 30,
     loading: false,
     map: null,
     mapOnly: true,
@@ -102,7 +105,7 @@ function collectionBrowser(config) {
     focusLabel() {
       return this.mapOnly
         ? "Map area is backed by a server query."
-        : "Showing the best 20 matches across the full dataset.";
+        : `Showing the best ${this.limit} matches across the full dataset.`;
     },
 
     totalLabel() {
@@ -165,6 +168,18 @@ function collectionBrowser(config) {
       this.fetchItems();
     },
 
+    searchFullDatabase() {
+      this.mapOnly = false;
+      this.offset = 0;
+      this.fetchItems();
+    },
+
+    searchMapArea() {
+      this.mapOnly = true;
+      this.offset = 0;
+      this.fetchItems();
+    },
+
     panToItem(item) {
       if (!this.map || !item.center) {
         return;
@@ -198,9 +213,68 @@ function collectionBrowser(config) {
     scheduleFetch() {
       window.clearTimeout(this.fetchTimer);
       this.fetchTimer = window.setTimeout(() => {
+        if (this.query.trim()) {
+          this.mapOnly = false;
+        }
         this.offset = 0;
         this.fetchItems();
       }, 180);
+    },
+
+    scheduleAreaSearch() {
+      window.clearTimeout(this.areaTimer);
+      this.areaTimer = window.setTimeout(() => this.searchAreas(), 180);
+    },
+
+    async searchAreas() {
+      const query = this.areaQuery.trim();
+      if (query.length < 2) {
+        this.areaResults = [];
+        return;
+      }
+
+      if (this.areaAbortController) {
+        this.areaAbortController.abort();
+      }
+
+      this.areaAbortController = new AbortController();
+
+      try {
+        const response = await fetch(
+          `/api/browser/areas?q=${encodeURIComponent(query)}`,
+          {
+            headers: { Accept: "application/json" },
+            signal: this.areaAbortController.signal,
+          },
+        );
+        if (!response.ok) {
+          throw new Error(`Area search failed with ${response.status}`);
+        }
+        const payload = await response.json();
+        this.areaResults = Array.isArray(payload.items) ? payload.items : [];
+      } catch (error) {
+        if (error.name !== "AbortError") {
+          console.error("area search failed", error);
+        }
+        this.areaResults = [];
+      }
+    },
+
+    jumpToFirstAreaResult() {
+      if (this.areaResults.length) {
+        this.jumpToArea(this.areaResults[0]);
+      }
+    },
+
+    jumpToArea(area) {
+      if (!this.map) {
+        return;
+      }
+      this.mapOnly = true;
+      this.offset = 0;
+      this.suppressMapMoveFetch = true;
+      this.map.setView([area.lat, area.lng], 9);
+      this.fetchItems();
     },
 
     async fetchItems() {

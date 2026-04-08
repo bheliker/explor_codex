@@ -107,7 +107,7 @@ NON_COLOR_TOKENS: tuple[tuple[str, str], ...] = (
     ("--radius-md", "18px"),
 )
 
-PUBLIC_BROWSER_LIMIT = 20
+PUBLIC_BROWSER_LIMIT = 30
 
 
 class AdminFormError(ValueError):
@@ -260,6 +260,12 @@ def public_route_browser_api_route() -> tuple[dict[str, object], int]:
 @bp.get("/api/browser/segments")
 def public_segment_browser_api_route() -> tuple[dict[str, object], int]:
     return _segment_browser_bundle(), HTTPStatus.OK
+
+
+@bp.get("/api/browser/areas")
+def public_browser_area_search_route() -> tuple[dict[str, object], int]:
+    query = request.args.get("q", default="", type=str).strip()
+    return {"items": _browser_area_search_results(query)}, HTTPStatus.OK
 
 
 @bp.get("/palette")
@@ -3631,6 +3637,19 @@ def _browser_favorite_clause(column: Any) -> Any:
     )
 
 
+def _browser_count_item(
+    label: str,
+    value: int | None,
+    *,
+    hide_zero: bool = False,
+) -> dict[str, object] | None:
+    if value is None:
+        return None
+    if hide_zero and value == 0:
+        return None
+    return {"label": label, "value": value}
+
+
 def _browser_sort_expressions(
     *,
     model_id: Any,
@@ -4011,6 +4030,64 @@ def _segment_terrain_filter_options(limit: int = 8) -> list[dict[str, object]]:
     ]
 
 
+def _browser_area_search_results(query: str, limit: int = 8) -> list[dict[str, object]]:
+    normalized = query.strip().lower()
+    if len(normalized) < 2:
+        return []
+
+    route_center_latitude = _browser_center_latitude(Route.start_latitude, Route.end_latitude)
+    route_center_longitude = _browser_center_longitude(Route.start_longitude, Route.end_longitude)
+    route_label = func.concat_ws(", ", Route.city, Route.state, Route.country).label("label")
+    route_rows = db.session.execute(
+        select(
+            route_label,
+            func.count(Route.id),
+            func.avg(route_center_latitude),
+            func.avg(route_center_longitude),
+        )
+        .where(route_label != "")
+        .where(func.lower(route_label).like(f"%{normalized}%"))
+        .group_by(route_label)
+        .order_by(func.count(Route.id).desc(), route_label.asc())
+        .limit(limit)
+    )
+
+    event_label = func.concat_ws(", ", Event.town, Event.state, Event.country).label("label")
+    event_rows = db.session.execute(
+        select(
+            event_label,
+            func.count(Event.id),
+            func.avg(Event.lat),
+            func.avg(Event.lon),
+        )
+        .where(event_label != "")
+        .where(func.lower(event_label).like(f"%{normalized}%"))
+        .group_by(event_label)
+        .order_by(func.count(Event.id).desc(), event_label.asc())
+        .limit(limit)
+    )
+
+    merged: dict[str, dict[str, object]] = {}
+    for label, count, latitude, longitude in list(route_rows) + list(event_rows):
+        if not label or latitude is None or longitude is None:
+            continue
+        existing = merged.get(cast(str, label))
+        if existing is None:
+            merged[cast(str, label)] = {
+                "count": cast(int, count),
+                "label": cast(str, label),
+                "lat": float(latitude),
+                "lng": float(longitude),
+            }
+            continue
+        existing["count"] = cast(int, existing["count"]) + cast(int, count)
+
+    return sorted(
+        merged.values(),
+        key=lambda item: (-cast(int, item["count"]), cast(str, item["label"])),
+    )[:limit]
+
+
 def _route_browser_item(route: Route, *, event_count: int) -> dict[str, object]:
     favorite = _is_favorite_record(route.tags)
     center = _record_center(
@@ -4064,18 +4141,13 @@ def _route_browser_item(route: Route, *, event_count: int) -> dict[str, object]:
         "center": center,
         "geometry": _browser_line_geometry(route.summary_polyline),
         "counts": [
-            {
-                "label": "clubs",
-                "value": len(route.groups),
-            },
-            {
-                "label": "events",
-                "value": event_count,
-            },
-            {
-                "label": "segments",
-                "value": len(route.segments),
-            },
+            count
+            for count in [
+                _browser_count_item("clubs", len(route.groups), hide_zero=True),
+                _browser_count_item("events", event_count, hide_zero=True),
+                _browser_count_item("segments", len(route.segments)),
+            ]
+            if count is not None
         ],
     }
 
@@ -4128,14 +4200,12 @@ def _segment_browser_item(segment: Segment) -> dict[str, object]:
         "center": center,
         "geometry": _browser_line_geometry(segment.summary_polyline),
         "counts": [
-            {
-                "label": "routes",
-                "value": len(segment.routes),
-            },
-            {
-                "label": "images",
-                "value": len(segment.images),
-            },
+            count
+            for count in [
+                _browser_count_item("routes", len(segment.routes)),
+                _browser_count_item("images", len(segment.images)),
+            ]
+            if count is not None
         ],
     }
 
@@ -4295,11 +4365,11 @@ def _stats_bar(items: list[dict[str, str] | None]) -> list[dict[str, str]] | Non
 def _route_stats_bar(route: Route) -> list[dict[str, str]] | None:
     return _stats_bar(
         [
-            _stat_item("Rating", "star", _format_rating(route.rating), placeholder="--"),
+            _stat_item("Rating", "star", _format_rating(route.rating)),
             _stat_item("Distance", "distance", _format_distance(route.length)),
             _stat_item("Duration", "clock", _format_duration(route.duration)),
             _stat_item("Elevation", "mountain", _format_elevation(route.elevation_gain)),
-            _stat_item("Grade", "chartup", _format_grade(route.grade), placeholder="--"),
+            _stat_item("Grade", "chartup", _format_grade(route.grade)),
         ]
     )
 
@@ -4307,11 +4377,11 @@ def _route_stats_bar(route: Route) -> list[dict[str, str]] | None:
 def _segment_stats_bar(segment: Segment) -> list[dict[str, str]] | None:
     return _stats_bar(
         [
-            _stat_item("Rating", "star", _format_rating(segment.rating), placeholder="--"),
+            _stat_item("Rating", "star", _format_rating(segment.rating)),
             _stat_item("Distance", "distance", _format_distance(segment.length)),
             _stat_item("Duration", "clock", _format_duration(segment.duration)),
             _stat_item("Elevation", "mountain", _format_elevation(segment.elevation_gain)),
-            _stat_item("Grade", "chartup", _format_grade(segment.grade), placeholder="--"),
+            _stat_item("Grade", "chartup", _format_grade(segment.grade)),
         ]
     )
 

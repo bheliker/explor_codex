@@ -83,6 +83,7 @@
             type="search"
             x-model.trim="query"
             @input="scheduleFetch()"
+            @keydown.enter.prevent="searchFullDatabase()"
             placeholder="Search {{ collection_label|lower }}, places, tags, or terrain"
           >
         </label>
@@ -127,7 +128,8 @@
           Map loading
           <div class="browser-inline-status">
             <span class="pill" x-show="loading">Refreshing map results</span>
-            <span class="pill" x-show="!loading">Tile map + server query active</span>
+            <span class="pill" x-show="!loading && !query">Tile map + server query active</span>
+            <span class="pill" x-show="!loading && query">Text search is querying the full database</span>
           </div>
         </label>
       </div>
@@ -139,12 +141,46 @@
         <button class="choice-chip browser-chip-button" type="button" @click="mapOnly = !mapOnly; offset = 0; fetchItems()" :class="{ 'is-active': mapOnly }">
           Map area only
         </button>
-        <button class="choice-chip browser-chip-button" type="button" @click="offset = 0; fetchItems()">
+        <button class="choice-chip browser-chip-button" type="button" @click="searchFullDatabase()">
+          Search full database
+        </button>
+        <button class="choice-chip browser-chip-button" type="button" @click="searchMapArea()">
           Search map area
         </button>
         <button class="choice-chip browser-chip-button" type="button" @click="resetViewport()">
           Reset map
         </button>
+      </div>
+
+      <div class="browser-form-grid browser-form-grid-secondary">
+        <label class="field-label">
+          Area Search
+          <input
+            type="search"
+            x-model.trim="areaQuery"
+            @input="scheduleAreaSearch()"
+            @keydown.enter.prevent="jumpToFirstAreaResult()"
+            placeholder="Move to another city or state"
+          >
+        </label>
+        <div class="field-label browser-area-actions">
+          <span>Area actions</span>
+          <div class="browser-inline-status">
+            <button class="nav-link" type="button" @click="jumpToFirstAreaResult()" :disabled="!(areaResults.length)">
+              Jump to first match
+            </button>
+          </div>
+        </div>
+        <div class="field-label browser-area-results">
+          <span>Matches</span>
+          <div class="browser-area-chip-row">
+            <template x-for="area in areaResults" :key="area.label">
+              <button class="choice-chip browser-chip-button browser-area-chip" type="button" @click="jumpToArea(area)">
+                <span x-text="`${area.label} (${area.count})`"></span>
+              </button>
+            </template>
+          </div>
+        </div>
       </div>
 
       <div class="browser-results-bar">
@@ -155,13 +191,13 @@
 
       <div class="browser-pagination-row">
         <button class="nav-link" type="button" @click="previousPage()" :disabled="!canPageBack()">
-          Previous 20
+          <span x-text="`Previous ${limit}`"></span>
         </button>
         <button class="nav-link" type="button" @click="fitLoadedResults()">
           Fit loaded results
         </button>
         <button class="button button-primary" type="button" @click="nextPage()" :disabled="!canPageForward()">
-          Next 20
+          <span x-text="`Next ${limit}`"></span>
         </button>
       </div>
 
